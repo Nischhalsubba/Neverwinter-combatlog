@@ -1,0 +1,167 @@
+# Agent Memory
+
+## 2026-04-14
+
+### Files changed
+- `AGENT_MEMORY.md`
+- `DESIGN.md`
+- `start-dev.cmd`
+- `build-all.cmd`
+- `scripts/start-dev.ps1`
+- `scripts/build-all.ps1`
+- `.gitignore`
+- `README.md`
+- `package.json`
+- `pnpm-workspace.yaml`
+- `pnpm-lock.yaml`
+- `docs/source-of-truth/README.md`
+- `apps/desktop/package.json`
+- `apps/desktop/index.html`
+- `apps/desktop/tsconfig.json`
+- `apps/desktop/vite.config.ts`
+- `apps/desktop/src/main.tsx`
+- `apps/desktop/src/material.ts`
+- `apps/desktop/src/types/material-web.d.ts`
+- `apps/desktop/src/app/routes/routes.tsx`
+- `apps/desktop/src/app/layout/AppLayout.tsx`
+- `apps/desktop/src/app/state/appStore.ts`
+- `apps/desktop/src/ipc/api.ts`
+- `apps/desktop/src/lib/damageRows.ts`
+- `apps/desktop/src/components/MetricCard.tsx`
+- `apps/desktop/src/components/StatusBadge.tsx`
+- `apps/desktop/src/components/BreakdownBars.tsx`
+- `apps/desktop/src/components/DamageDetailPanel.tsx`
+- `apps/desktop/src/components/InfoGrid.tsx`
+- `apps/desktop/src/features/live/LiveScreen.tsx`
+- `apps/desktop/src/features/replay/ReplayScreen.tsx`
+- `apps/desktop/src/features/encounters/EncountersScreen.tsx`
+- `apps/desktop/src/features/encounters/EncounterDetailScreen.tsx`
+- `apps/desktop/src/features/widget/WidgetBuilderScreen.tsx`
+- `apps/desktop/src/features/settings/SettingsScreen.tsx`
+- `apps/desktop/src/features/parser-debug/ParserDebugPanel.tsx`
+- `apps/desktop/src/theme/global.css`
+- `apps/desktop/src-tauri/Cargo.toml`
+- `apps/desktop/src-tauri/Cargo.lock`
+- `apps/desktop/src-tauri/.cargo/config.toml`
+- `apps/desktop/src-tauri/build.rs`
+- `apps/desktop/src-tauri/tauri.conf.json`
+- `apps/desktop/src-tauri/icons/icon.ico`
+- `apps/desktop/src-tauri/src/main.rs`
+- `apps/desktop/src-tauri/src/lib.rs`
+- `apps/desktop/src-tauri/src/classification/mod.rs`
+- `apps/desktop/src-tauri/src/parser/mod.rs`
+- `apps/desktop/src-tauri/src/parser/tests.rs`
+- `apps/desktop/src-tauri/src/runtime_state.rs`
+- `apps/desktop/src-tauri/src/source/mod.rs`
+- `apps/desktop/src-tauri/src/encounter/mod.rs`
+- `apps/desktop/src-tauri/src/encounter/tests.rs`
+- `apps/desktop/src-tauri/src/entities/mod.rs`
+- `apps/desktop/src-tauri/src/metrics/mod.rs`
+- `apps/desktop/src-tauri/src/storage/mod.rs`
+- `apps/desktop/src-tauri/src/commands/mod.rs`
+- `apps/desktop/src-tauri/src/widget/mod.rs`
+- `apps/desktop/src-tauri/migrations/0001_initial_schema.sql`
+
+### Decisions made
+- Treat the finalized PRD, UI/UX spec, technical spec, and delivery backlog from `C:\Users\acer\Downloads\Compressed\Neverwinter-Combat-Analyzer-Finalized-Docs\` as source of truth.
+- Use Tauri 2 + Rust + React/TypeScript + SQLite for the Windows desktop MVP.
+- Preserve raw combat log lines and normalized parser output from the first scaffold.
+- Use pnpm workspace with `apps/desktop` as the initial app package.
+- Build the first UI shell around the required top-level destinations: Live, Replay, Encounters, Widget, Settings.
+- Implement Material 3 principles initially as tokenized CSS with dark desktop density defaults.
+- Use Rust modules for classification, parser, source/tailing state, encounter rules, entity identity, metrics, storage, commands, and widget control.
+- Store raw and parsed combat data in SQLite tables from the first migration, including parse failures and widget presets.
+- Parser scaffold preserves malformed lines as explicit failures and uses quote-aware tokenization instead of naive comma splitting.
+- Use hash routing in the Tauri webview so direct widget windows can load `/#/widget` reliably from packaged assets.
+- Move Cargo build output to `C:\Users\acer\AppData\Local\NeverwinterCombatAnalyzer\cargo-target` outside the OneDrive-backed project folder to reduce Windows Application Control blocking generated build scripts.
+- Provide Windows one-command wrappers: `.\start-dev.cmd` installs dependencies and starts Tauri dev; `.\build-all.cmd` installs dependencies, runs TypeScript check, Rust formatting/tests, and builds the desktop app.
+- Root package scripts now mirror the wrappers with `corepack pnpm start` and `corepack pnpm build:all`.
+- Tauri Windows builds require `icons/icon.ico`; added a minimal placeholder app icon and configured `bundle.icon`.
+- Added an empty Cargo `[package.metadata]` table to avoid Tauri build-script metadata lookup noise.
+- Added in-memory runtime state for current live source, imported logs, and widget open state.
+- Live source selection now uses native folder/file dialogs. Folder selection detects latest `Combat*.log`.
+- Replay import now uses native multi-file dialog and shows imported log name, size, and line count.
+- Widget control now supports open, close, and toggle instead of open-only.
+- UI styling moved closer to Material 3 guidance from `https://m3.material.io/`: role-based dark color tokens, navigation rail active container, top app bar surface, filled/tonal buttons, cards, list items, and rounded state layers.
+- Superseded hand-rolled Material-like controls with Google Material Web (`@material/web`) imports following the official quick-start/theming docs supplied by the user.
+- Live linked combat logs now return a source preview by reading the selected log, parsing every line through the parser scaffold, counting parsed/failed rows, counting classifications, and returning recent events.
+- Added visual breakdown components for bar-chart style summaries and info cards so pages are easier to understand than raw number tables.
+- Expanded sidebar destinations with detail content: Live source health/classification, Replay import size breakdown, Encounters workflow, Encounter Detail analysis placeholders, Widget behavior/appearance/modes, and comprehensive Settings categories.
+
+### Mistakes or failed approaches
+- `rg --files` failed earlier with `Access is denied`; use PowerShell-native file listing/search unless fixed.
+- First combined scaffold patch failed because the command was too large for Windows; split patches into smaller groups.
+- `cargo` is not installed or not on PATH in this environment, so Rust formatting/tests could not be run.
+- `pnpm` is not on PATH directly, but `corepack pnpm` works and was used for dependency install and TypeScript checks.
+- User hit Windows Application Control error 4551 while running `tauri dev`; build-script executable under `apps/desktop/src-tauri/target` was blocked.
+- First PowerShell syntax probe had nested-shell quoting noise but did not indicate script syntax problems; reran with PowerShell parser successfully.
+- User hit Tauri build error because `apps/desktop/src-tauri/icons/icon.ico` was missing.
+- User reported app was not functional: widget could not be disabled, live log could not be linked, replay import had no visible dialog/result, and design did not follow Material 3 closely enough.
+- User requested official Google Material Web docs be followed and asked for more visual breakdowns plus comprehensive detail pages for all sidebar destinations.
+- User made Live Combat and Replay Recorded Logs the top priority over other app areas. Visual-first damage understanding is now the primary product direction.
+- Party Ranking must be backed by parsed combat log data, not placeholder rows.
+- Live and Replay screens should answer where all party member damage is shown without requiring the user to search elsewhere.
+- User requested the UI ignore the earlier markdown combat-log design direction for colors/typography/theming and follow Google Material Web/Material Design theming instead.
+- Add per-member damage detail and companion damage controls as top-priority Live/Replay behavior.
+- User requested `DESIGN.md` be used for UI work. It defines an Apple-inspired system: black/light gray section rhythm, Apple Blue actions, glass navigation, SF Pro-style typography, rare shadows, and minimal borders.
+- Developer UI rules still override conflicting details from `DESIGN.md`; for example letter spacing remains `0` instead of negative tracking.
+- Parser Health should be compact; dashboard space should prioritize damage understanding and visual summaries.
+- Companion toggle must change merged player totals: companion damage should be included with inferred owners when enabled and removed from owner totals when disabled.
+- User superseded prior color direction with custom dark palette: gunmetal `#464545`, graphite `#2f2f2f`, carbon black `#1b1b1b`, molten orange `#f54703`, pumpkin spice `#ff7518`.
+- Party Ranking Details must be responsive and not overflow the app frame.
+- User requested a full layout redesign, a Live Combat refresh button that resets counters to zero, prior counter records saved in a Party Damage history tab, and no static/placeholder information.
+
+### Current status
+- Repository was empty except `.git`.
+- Persistent memory file has been created.
+- Root metadata scaffold added: `.gitignore`, `README.md`, `package.json`, `pnpm-workspace.yaml`, and `docs/source-of-truth/README.md`.
+- React/Vite desktop shell added with routes, layout, reusable metric/status components, IPC client stubs, and screen placeholders.
+- Tauri/Rust scaffold added with parser, source, encounter, entity, metrics, storage, command, widget modules, initial migration, and unit tests.
+- Dependencies installed with `corepack pnpm install`; `pnpm-lock.yaml` generated.
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification blocked: `cargo fmt -- --check` and `cargo test` because `cargo` is unavailable.
+- Added Cargo target relocation config and README troubleshooting for Windows Application Control. Superseded earlier relative `.cargo-target/desktop` idea because repo root is also under OneDrive.
+- Added one-command Windows start/build wrappers and documented them in README.
+- Verification passed: PowerShell parser syntax check for `scripts/start-dev.ps1` and `scripts/build-all.ps1`.
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop test`.
+- Fixed missing Tauri Windows icon by adding `apps/desktop/src-tauri/icons/icon.ico` and referencing it from `tauri.conf.json`.
+- Verification passed after icon fix: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification blocked locally: `cargo` is still unavailable in this assistant environment, so Tauri/Rust build could not be rerun here.
+- Implemented functional native dialogs for live log folder/file selection and replay log import, functional widget toggle, and a stronger Material 3-style visual foundation.
+- Verification passed after functional UI changes: `corepack pnpm --filter @nevercombat/desktop test`.
+- Installed `@material/web` and imported Material Web button/chip/divider/list/progress/switch/tabs/textfield primitives.
+- Fixed TypeScript issue where Material Web typescale stylesheet can be undefined before pushing to `document.adoptedStyleSheets`.
+- Verification passed after Material Web and visual breakdown changes: `corepack pnpm --filter @nevercombat/desktop test`.
+- Added party damage aggregation to live source preview and imported log summaries. Damage rows include rank, name, total damage, hit count, crit count/rate, and top power.
+- Changed navigation labels and structure to emphasize `Live Combat` and `Replay Logs` first, with `Analysis`, `Widget`, and `Settings` secondary.
+- Live screen now shows visual `Party Damage` first, then detailed ranking table using parsed damage rows.
+- Replay screen now shows imported log parser stats and top imported log damage breakdown.
+- Verification passed after visual-first Live/Replay restructuring: `corepack pnpm --filter @nevercombat/desktop test`.
+- Added `DamageDetailPanel` shared by Live and Replay. Clicking a combatant shows damage, share, hits, crit rate, top power, and power-by-power breakdown.
+- Added companion/entity damage separation using current parser/source heuristics. Live and Replay now include a companion toggle and a separate companion damage leaderboard.
+- Redesigned Live and Replay into visual-first dashboard layouts with summary metrics, action controls, large breakdown charts, sticky detail panel, and table drilldown.
+- Verification passed after detail/companion/dashboard changes: `corepack pnpm --filter @nevercombat/desktop test`.
+- Added inferred `ownerName` on companion damage rows using common name patterns (`Owner's X`, `Owner - Companion`, `Companion (Owner)`).
+- Added frontend damage row merging so companion damage is added to an inferred owner when the companion toggle is on and removed when off. Unknown-owner companions remain separate while visible.
+- Replaced oversized Parser Health panel with compact health card, recent-event list, and damage-mix donut.
+- Updated visual styling to follow `DESIGN.md`: fixed translucent glass sidebar, black top bar, light gray app canvas, white product-like panels, Apple Blue as the only accent, minimal borders, and softer section rhythm.
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed: `cargo fmt -- --check`.
+- Verification passed: `cargo test` (8 tests). Current Rust warnings are expected from scaffold modules not yet wired into runtime.
+- Reworked global palette to the user's gunmetal/graphite/carbon-black/orange palette and mapped Material Web variables to it.
+- Fixed app-wide contrast by moving panels, cards, text, bars, switch/button tokens, top bar, and sidebar to the dark palette.
+- Wrapped Live and Replay ranking tables in responsive horizontal-scroll containers and constrained long text with ellipsis.
+- Verification passed after palette/responsive changes: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, `cargo test`.
+- Added Live Combat `Refresh Counter` action. It saves the current counted segment into in-memory live history, sets the baseline to the current end of the file, and the current dashboard restarts at zero for subsequent log lines.
+- Added `history` records to live preview DTO and runtime state. Party Damage now has Current/History tabs.
+- App shell top status is now dynamic from source/live preview queries; removed static Search/Export top actions.
+- Verification passed after refresh/history/layout changes: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, `cargo test`.
+- Added Tauri dialog plugin and frontend-driven file/folder dialogs so Live source selection and Replay import are not blocked by the separate widget window.
+- Added path-based Rust commands: `set_live_log_folder`, `set_live_log_file`, and `import_log_file_paths`; kept earlier Rust-native dialog commands as fallback.
+- Replaced single widget toggle in Live Combat with explicit `Open Widget` and `Close Widget` actions.
+- Refresh Counter now writes the returned zeroed preview into React Query cache immediately before refetching, so counters should reset visually without waiting.
+- Verification passed after dialog/widget/cache changes: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, `cargo test`.
+
+### Next exact step
+- Run `.\start-dev.cmd` from the repo root. Validate Refresh Counter resets current counts, Party Damage History receives the prior segment, Open Widget and Close Widget work separately, and Live/Replay file dialogs still open while the widget is open.
+- Release build check `corepack pnpm --filter @nevercombat/desktop build` is still blocked by Windows Application Control policy on generated `wry` release build scripts under `C:\Users\acer\AppData\Local\NeverwinterCombatAnalyzer\cargo-target\release\build\...`; this is an OS policy/environment blocker, not a TypeScript/Rust compile error.

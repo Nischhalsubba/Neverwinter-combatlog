@@ -1,0 +1,13 @@
+node_modules/
+dist/
+target/
+.cargo-target/
+.vite/
+.turbo/
+.DS_Store
+*.log
+*.db
+*.sqlite
+*.sqlite3
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/target/

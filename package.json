@@ -1,0 +1,16 @@
+{
+  "name": "neverwinter-combat-analyzer",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "start": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-dev.ps1",
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-dev.ps1",
+    "build": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-all.ps1",
+    "build:all": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-all.ps1",
+    "test": "pnpm --filter @nevercombat/desktop test"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

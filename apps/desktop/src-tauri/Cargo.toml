@@ -1,0 +1,26 @@
+[package]
+name = "neverwinter-combat-analyzer"
+version = "0.1.0"
+description = "Neverwinter Combat Analyzer desktop runtime"
+authors = ["Nischhal"]
+edition = "2021"
+
+[package.metadata]
+
+[lib]
+name = "neverwinter_combat_analyzer_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0.4", features = [] }
+
+[dependencies]
+chrono = { version = "0.4.39", features = ["serde"] }
+rusqlite = { version = "0.32.1", features = ["bundled"] }
+rfd = "0.15.2"
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.135"
+tauri = { version = "2.2.4", features = [] }
+tauri-plugin-dialog = "2"
+thiserror = "2.0.11"
+uuid = { version = "1.12.0", features = ["v4", "serde"] }

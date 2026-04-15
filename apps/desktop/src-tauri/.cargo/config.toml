@@ -1,0 +1,5 @@
+[build]
+# Keep generated Rust build scripts and binaries out of the OneDrive-backed
+# repository path. Some Windows Application Control policies block execution
+# from synced Documents/OneDrive folders during `tauri dev`.
+target-dir = "C:/Users/acer/AppData/Local/NeverwinterCombatAnalyzer/cargo-target"

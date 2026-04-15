@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Neverwinter Combat Analyzer",
+  "version": "0.1.0",
+  "identifier": "com.neverwinter.combat-analyzer",
+  "build": {
+    "beforeDevCommand": "pnpm web:dev",
+    "beforeBuildCommand": "pnpm web:build",
+    "devUrl": "http://127.0.0.1:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Neverwinter Combat Analyzer",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.ico"]
+  }
+}
