@@ -83,10 +83,10 @@ export function LiveScreen() {
           <md-filled-tonal-button onClick={() => chooseFile.mutate()}>
             Choose Log File
           </md-filled-tonal-button>
-          <md-filled-tonal-button disabled={widget.data?.isOpen} onClick={() => openWidget.mutate()}>
+          <md-filled-tonal-button onClick={() => openWidget.mutate()}>
             Open Widget
           </md-filled-tonal-button>
-          <md-filled-tonal-button disabled={!widget.data?.isOpen} onClick={() => closeWidget.mutate()}>
+          <md-filled-tonal-button onClick={() => closeWidget.mutate()}>
             Close Widget
           </md-filled-tonal-button>
           <md-filled-button onClick={() => resetCounter.mutate()}>

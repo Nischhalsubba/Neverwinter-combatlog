@@ -161,7 +161,16 @@
 - Replaced single widget toggle in Live Combat with explicit `Open Widget` and `Close Widget` actions.
 - Refresh Counter now writes the returned zeroed preview into React Query cache immediately before refetching, so counters should reset visually without waiting.
 - Verification passed after dialog/widget/cache changes: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, `cargo test`.
+- Read legacy references from `C:\Users\acer\Downloads\Neverwinter_6-11-2020.cs` and `C:\Users\acer\Downloads\Compressed\ACTv3.zip`; the `.cs` parser is the useful engine parity source, while `ACTv3.zip` currently exposes packaged ACT binaries/configs.
+- Fixed widget close by force-destroying the `live-widget` Tauri window and leaving Open/Close actions always clickable to avoid stale disabled state.
+- Ported the core Neverwinter parser field mapping from legacy ACT: owner fields are payload indices 0/1, source 2/3, target 4/5, power 6/7, type 8, flags 9, magnitude 10, base magnitude 11.
+- Added parser owner fields, exact 12-field Neverwinter payload validation, legacy comma-space name recovery, flag splitting by `|`, and tests for exact field count plus comma recovery.
+- Tightened companion/entity detection so generic `C[...]` creatures are not treated as companions; pet/entity ownership now prefers the log owner fields before name heuristics.
+- Superseded the orange/gunmetal visual direction with `DESIGN.md` for this UI pass: top glass navigation, light neutral content canvas, white cards, rare soft shadows, and Apple Blue for primary actions.
+- Made Widget Builder preview dynamic from live parser data instead of static placeholder metrics.
+- Added a descriptive HTML meta description for the Tauri/Vite shell.
+- Verification passed after legacy parser/widget/design changes: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, `cargo test`.
 
 ### Next exact step
-- Run `.\start-dev.cmd` from the repo root. Validate Refresh Counter resets current counts, Party Damage History receives the prior segment, Open Widget and Close Widget work separately, and Live/Replay file dialogs still open while the widget is open.
+- Run `.\start-dev.cmd` from the repo root. Validate Close Widget destroys the widget window, live/replay rankings now use legacy Neverwinter source/target/power/magnitude mapping, companion rows no longer include ordinary `C[...]` creatures, and the redesigned top-glass layout is readable.
 - Release build check `corepack pnpm --filter @nevercombat/desktop build` is still blocked by Windows Application Control policy on generated `wry` release build scripts under `C:\Users\acer\AppData\Local\NeverwinterCombatAnalyzer\cargo-target\release\build\...`; this is an OS policy/environment blocker, not a TypeScript/Rust compile error.

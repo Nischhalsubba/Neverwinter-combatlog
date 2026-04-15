@@ -525,7 +525,11 @@ fn summarize_combat_log(path: &Path, skip_lines: u64) -> Result<LiveSourcePrevie
                             let is_companion =
                                 is_companion_source(&name, event.source_primary_ref.as_deref());
                             let entry = if is_companion {
-                                let owner_name = infer_companion_owner_name(&name);
+                                let owner_name = event
+                                    .owner_name
+                                    .clone()
+                                    .filter(|owner| owner != "*" && owner != &name)
+                                    .or_else(|| infer_companion_owner_name(&name));
                                 let entry = damage_by_companion.entry(name).or_default();
                                 if entry.owner_name.is_none() {
                                     entry.owner_name = owner_name;
@@ -711,10 +715,11 @@ fn is_companion_source(name: &str, source_ref: Option<&str>) -> bool {
     source_ref
         .map(|reference| {
             let normalized_ref = reference.to_ascii_lowercase();
-            normalized_ref.starts_with("c[")
+            normalized_ref.contains("pet_")
                 || normalized_ref.contains("companion")
                 || normalized_ref.contains("pet")
                 || normalized_ref.contains("summon")
+                || normalized_ref.contains("artifact")
         })
         .unwrap_or(false)
 }

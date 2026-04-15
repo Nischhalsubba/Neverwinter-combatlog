@@ -1,16 +1,22 @@
 import { MetricCard } from "../../components/MetricCard";
 import { InfoGrid } from "../../components/InfoGrid";
+import { useQuery } from "@tanstack/react-query";
+import { getLiveSourcePreview, getWidgetStatus } from "../../ipc/api";
 
 const presets = ["Minimal", "Personal", "Party", "Raid Lead", "Support"];
 
 export function WidgetBuilderScreen() {
+  const preview = useQuery({ queryKey: ["live-source-preview"], queryFn: getLiveSourcePreview, refetchInterval: 2500 });
+  const widget = useQuery({ queryKey: ["widget-status"], queryFn: getWidgetStatus });
+  const topDamage = preview.data?.partyDamage[0];
+
   return (
     <section className="screen-grid">
       <div className="screen-heading">
         <div>
           <p className="eyebrow">Live Widget</p>
           <h1>Widget Builder</h1>
-          <p>Customize content, layout, appearance, behavior, and presets for active gameplay.</p>
+          <p>{widget.data?.isOpen ? "The live widget window is open." : "Open the live widget from Live Combat to mirror these metrics during combat."}</p>
         </div>
       </div>
       <div className="content-grid">
@@ -22,14 +28,18 @@ export function WidgetBuilderScreen() {
             ))}
           </div>
           <h3>Content</h3>
-          <p>Encounter name, timer, ENC DPS, total damage, boss damage, active DPS, crit %, pet damage, healing, deaths, damage taken, top power, and player name.</p>
+          <p>
+            Current live source has {(preview.data?.lineCount ?? 0).toLocaleString()} counted lines,
+            {(preview.data?.parsedCount ?? 0).toLocaleString()} parsed events, and
+            {(preview.data?.failedCount ?? 0).toLocaleString()} rows needing review.
+          </p>
         </article>
         <article className="panel panel-large">
-          <h2>Preview</h2>
+          <h2>Live Preview</h2>
           <div className="widget-preview">
-            <MetricCard label="Encounter" value="Waiting" />
-            <MetricCard label="ENC DPS" value="0" />
-            <MetricCard label="Top Power" value="-" />
+            <MetricCard label="Visible Damage" value={Math.round((preview.data?.partyDamage ?? []).reduce((sum, row) => sum + row.totalDamage, 0)).toLocaleString()} />
+            <MetricCard label="Leader" value={topDamage?.name ?? "No combatant"} />
+            <MetricCard label="Top Power" value={topDamage?.topPower ?? "No power yet"} />
           </div>
         </article>
       </div>
@@ -37,15 +47,15 @@ export function WidgetBuilderScreen() {
         items={[
           {
             title: "Behavior",
-            body: "Always on top, lock position, click-through, auto-hide, show only during combat, hotkey toggle, and self pin are planned as persistent controls.",
+            body: widget.data?.isOpen ? "Always-on-top widget window is currently active." : "Widget window is currently closed.",
           },
           {
             title: "Appearance",
-            body: "Opacity, dark/light mode, accent color, row height, font scale, corners, and border settings will save into presets.",
+            body: "Apple-style neutral surfaces and blue interactive controls follow DESIGN.md.",
           },
           {
             title: "Modes",
-            body: "Minimal, Personal, Party, Raid Lead, and Support presets keep the widget understandable during active gameplay.",
+            body: `${presets.length} presets are available for live combat review.`,
           },
         ]}
       />

@@ -21,6 +21,8 @@ pub struct ParsedEvent {
     pub timestamp_raw: String,
     pub timestamp_ms: Option<i64>,
     pub tokens: Vec<String>,
+    pub owner_name: Option<String>,
+    pub owner_ref: Option<String>,
     pub source_primary_name: Option<String>,
     pub source_primary_ref: Option<String>,
     pub target_primary_name: Option<String>,
@@ -50,6 +52,7 @@ pub enum ParseErrorCode {
     MissingTimestampSeparator,
     EmptyPayload,
     UnterminatedQuote,
+    InvalidFieldCount,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -80,7 +83,7 @@ pub fn parse_line(raw: RawLogLine) -> ParseOutcome {
         });
     }
 
-    let tokens = match tokenize_payload(payload) {
+    let tokens = match tokenize_neverwinter_payload(payload) {
         Ok(tokens) => tokens,
         Err(error_code) => {
             return ParseOutcome::Failed(ParseFailure {
@@ -93,12 +96,8 @@ pub fn parse_line(raw: RawLogLine) -> ParseOutcome {
         }
     };
 
-    let numeric_values: Vec<f64> = tokens
-        .iter()
-        .filter_map(|token| parse_amount(token))
-        .collect();
-    let amount1 = numeric_values.last().copied();
-    let amount2 = numeric_values.iter().rev().nth(1).copied();
+    let amount1 = tokens.get(10).and_then(|token| parse_amount(token));
+    let amount2 = tokens.get(11).and_then(|token| parse_amount(token));
     let flags = extract_flags(&tokens);
     let classification = classify_tokens(&tokens, amount1);
 
@@ -107,13 +106,15 @@ pub fn parse_line(raw: RawLogLine) -> ParseOutcome {
         raw_line_id: raw.id,
         timestamp_raw: timestamp_raw.trim().to_string(),
         timestamp_ms: None,
-        source_primary_name: tokens.get(0).cloned().filter(|value| !value.is_empty()),
-        source_primary_ref: tokens.get(1).cloned().filter(|value| !value.is_empty()),
-        target_primary_name: tokens.get(2).cloned().filter(|value| !value.is_empty()),
-        target_primary_ref: tokens.get(3).cloned().filter(|value| !value.is_empty()),
-        power_name: tokens.get(4).cloned().filter(|value| !value.is_empty()),
-        power_ref: tokens.get(5).cloned().filter(|value| !value.is_empty()),
-        event_type: tokens.get(6).cloned().filter(|value| !value.is_empty()),
+        owner_name: tokens.get(0).cloned().filter(|value| !value.is_empty()),
+        owner_ref: tokens.get(1).cloned().filter(|value| !value.is_empty()),
+        source_primary_name: tokens.get(2).cloned().filter(|value| !value.is_empty()),
+        source_primary_ref: tokens.get(3).cloned().filter(|value| !value.is_empty()),
+        target_primary_name: tokens.get(4).cloned().filter(|value| !value.is_empty()),
+        target_primary_ref: tokens.get(5).cloned().filter(|value| !value.is_empty()),
+        power_name: tokens.get(6).cloned().filter(|value| !value.is_empty()),
+        power_ref: tokens.get(7).cloned().filter(|value| !value.is_empty()),
+        event_type: tokens.get(8).cloned().filter(|value| !value.is_empty()),
         tokens,
         flags,
         amount1,
@@ -125,6 +126,25 @@ pub fn parse_line(raw: RawLogLine) -> ParseOutcome {
             0.75
         },
     })
+}
+
+pub fn tokenize_neverwinter_payload(payload: &str) -> Result<Vec<String>, ParseErrorCode> {
+    const FIELD_COUNT: usize = 12;
+
+    let tokens = tokenize_payload(payload)?;
+    if tokens.len() == FIELD_COUNT {
+        return Ok(tokens);
+    }
+
+    if tokens.len() > FIELD_COUNT {
+        let legacy_comma_fix = payload.replace(", ", " ");
+        let fixed_tokens = tokenize_payload(&legacy_comma_fix)?;
+        if fixed_tokens.len() == FIELD_COUNT {
+            return Ok(fixed_tokens);
+        }
+    }
+
+    Err(ParseErrorCode::InvalidFieldCount)
 }
 
 pub fn tokenize_payload(payload: &str) -> Result<Vec<String>, ParseErrorCode> {
@@ -173,23 +193,37 @@ fn normalize_token(token: &str) -> String {
 }
 
 fn extract_flags(tokens: &[String]) -> Vec<String> {
-    const KNOWN_FLAGS: &[&str] = &[
-        "Critical", "Flank", "Deflect", "Dodge", "Immune", "Miss", "Shield", "Cleanse",
-    ];
-
     tokens
-        .iter()
-        .filter(|token| {
-            KNOWN_FLAGS
-                .iter()
-                .any(|flag| token.eq_ignore_ascii_case(flag))
+        .get(9)
+        .map(|flags| {
+            flags
+                .split('|')
+                .map(str::trim)
+                .filter(|flag| !flag.is_empty())
+                .map(ToString::to_string)
+                .collect()
         })
-        .cloned()
-        .collect()
+        .unwrap_or_default()
 }
 
 fn classify_tokens(tokens: &[String], amount: Option<f64>) -> EventClassification {
-    let joined = tokens.join(" ").to_ascii_lowercase();
+    let event_name = tokens
+        .get(6)
+        .map(|value| value.as_str())
+        .unwrap_or_default();
+    let event_ref = tokens
+        .get(7)
+        .map(|value| value.as_str())
+        .unwrap_or_default();
+    let damage_type = tokens
+        .get(8)
+        .map(|value| value.as_str())
+        .unwrap_or_default();
+    let flags = tokens
+        .get(9)
+        .map(|value| value.as_str())
+        .unwrap_or_default();
+    let joined = format!("{event_name} {event_ref} {damage_type} {flags}").to_ascii_lowercase();
 
     if joined.contains("fall") || joined.contains("injury") {
         return EventClassification::InjuryNoise;
@@ -197,7 +231,7 @@ fn classify_tokens(tokens: &[String], amount: Option<f64>) -> EventClassificatio
     if joined.contains("shield break") || joined.contains("shieldbreak") {
         return EventClassification::ShieldBreak;
     }
-    if joined.contains("shield") && amount.unwrap_or_default() > 0.0 {
+    if damage_type.eq_ignore_ascii_case("shield") {
         return EventClassification::ShieldDamage;
     }
     if joined.contains("cleanse") {
@@ -209,10 +243,10 @@ fn classify_tokens(tokens: &[String], amount: Option<f64>) -> EventClassificatio
     if joined.contains("hold") || joined.contains("root") || joined.contains("control") {
         return EventClassification::ControlResult;
     }
-    if joined.contains("heal") {
+    if damage_type.eq_ignore_ascii_case("hitpoints") && amount.unwrap_or_default() < 0.0 {
         return EventClassification::HealOut;
     }
-    if joined.contains("power") || joined.contains("resource") {
+    if damage_type.eq_ignore_ascii_case("power") || joined.contains("resource") {
         return EventClassification::PowerResource;
     }
     if amount.unwrap_or_default() > 0.0 {

@@ -20,7 +20,7 @@ pub fn open_widget_window(app: &AppHandle) -> tauri::Result<()> {
 
 pub fn close_widget_window(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("live-widget") {
-        window.close()?;
+        window.destroy()?;
     }
 
     Ok(())
