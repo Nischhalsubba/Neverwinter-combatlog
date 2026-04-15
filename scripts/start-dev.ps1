@@ -35,6 +35,5 @@ if (Test-Path $oldTarget) {
     Remove-Item -Recurse -Force $oldTarget -ErrorAction SilentlyContinue
 }
 
-Write-Host "Starting Neverwinter Combat Analyzer..." -ForegroundColor Cyan
+Write-Host "Starting Nexus Combat Analyzer..." -ForegroundColor Cyan
 corepack pnpm --filter @nevercombat/desktop dev
-

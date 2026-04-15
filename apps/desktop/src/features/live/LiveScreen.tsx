@@ -1,13 +1,16 @@
 import { useMemo, useState } from "react";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
+import LinearProgress from "@mui/material/LinearProgress";
 import Switch from "@mui/material/Switch";
+import Typography from "@mui/material/Typography";
 import { PieChart } from "@mui/x-charts/PieChart";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BreakdownBars } from "../../components/BreakdownBars";
 import { DamageDetailPanel } from "../../components/DamageDetailPanel";
 import { MetricCard } from "../../components/MetricCard";
 import { StatusBadge } from "../../components/StatusBadge";
+import logoUrl from "../../assets/nexus-logo.png";
 import { buildDamageRows } from "../../lib/damageRows";
 import {
   chooseLiveLogFile,
@@ -286,6 +289,16 @@ export function LiveScreen() {
           tone: index % 3 === 0 ? "primary" : index % 3 === 1 ? "secondary" : "tertiary",
         }))}
       />
+
+      {widget.data?.isOpen ? (
+        <FloatingLiveWidget
+          failedCount={preview.data?.failedCount ?? 0}
+          leader={visibleDamageRows[0] ?? null}
+          lineCount={preview.data?.lineCount ?? 0}
+          onClose={() => closeWidget.mutate()}
+          totalDamage={totalVisibleDamage}
+        />
+      ) : null}
     </section>
   );
 }
@@ -296,4 +309,68 @@ function companionShare(companions: Array<{ totalDamage: number }>, totalDamage:
   }
 
   return companions.reduce((sum, row) => sum + row.totalDamage, 0) / totalDamage;
+}
+
+function FloatingLiveWidget({
+  failedCount,
+  leader,
+  lineCount,
+  onClose,
+  totalDamage,
+}: {
+  failedCount: number;
+  leader: ReturnType<typeof buildDamageRows>[number] | null;
+  lineCount: number;
+  onClose: () => void;
+  totalDamage: number;
+}) {
+  return (
+    <Card className="floating-live-widget" elevation={6}>
+      <div className="floating-live-widget-header">
+        <img alt="Nexus Combat Analyzer" src={logoUrl} />
+        <div>
+          <Typography component="strong" variant="subtitle2">
+            Nexus Widget
+          </Typography>
+          <Typography color="text.secondary" variant="caption">
+            Live combat
+          </Typography>
+        </div>
+        <Button onClick={onClose} size="small" variant="text">
+          Close
+        </Button>
+      </div>
+      <div className="floating-live-widget-stat">
+        <Typography color="text.secondary" variant="caption">
+          Visible damage
+        </Typography>
+        <Typography variant="h5">{Math.round(totalDamage).toLocaleString()}</Typography>
+      </div>
+      <div className="floating-live-widget-stat">
+        <Typography color="text.secondary" variant="caption">
+          Leader
+        </Typography>
+        <Typography>{leader?.name ?? "No combatant"}</Typography>
+        <LinearProgress
+          aria-label="leader damage"
+          value={leader ? 100 : 0}
+          variant="determinate"
+        />
+      </div>
+      <div className="floating-live-widget-grid">
+        <div>
+          <Typography color="text.secondary" variant="caption">
+            Lines
+          </Typography>
+          <Typography>{lineCount.toLocaleString()}</Typography>
+        </div>
+        <div>
+          <Typography color="text.secondary" variant="caption">
+            Review
+          </Typography>
+          <Typography>{failedCount.toLocaleString()}</Typography>
+        </div>
+      </div>
+    </Card>
+  );
 }

@@ -297,17 +297,17 @@ pub fn get_widget_status(
     app: tauri::AppHandle,
     state: State<'_, AppRuntimeState>,
 ) -> WidgetStatusDto {
-    let is_open = widget::is_widget_window_open(&app);
-    state.set_widget_open(is_open);
-    WidgetStatusDto { is_open }
+    let _ = widget::close_widget_window(&app);
+    WidgetStatusDto {
+        is_open: state.widget_open(),
+    }
 }
 
 #[tauri::command]
 pub fn open_widget_window(
-    app: tauri::AppHandle,
+    _app: tauri::AppHandle,
     state: State<'_, AppRuntimeState>,
 ) -> Result<WidgetStatusDto, String> {
-    widget::open_widget_window(&app).map_err(|error| error.to_string())?;
     state.set_widget_open(true);
     Ok(WidgetStatusDto { is_open: true })
 }
@@ -327,7 +327,7 @@ pub fn toggle_widget_window(
     app: tauri::AppHandle,
     state: State<'_, AppRuntimeState>,
 ) -> Result<WidgetStatusDto, String> {
-    if widget::is_widget_window_open(&app) || state.widget_open() {
+    if state.widget_open() {
         close_widget_window(app, state)
     } else {
         open_widget_window(app, state)

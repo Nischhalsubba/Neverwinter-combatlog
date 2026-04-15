@@ -31,5 +31,5 @@ pub fn run() {
             commands::toggle_widget_window
         ])
         .run(tauri::generate_context!())
-        .expect("failed to run Neverwinter Combat Analyzer");
+        .expect("failed to run Nexus Combat Analyzer");
 }

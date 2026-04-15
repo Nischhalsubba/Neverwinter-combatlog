@@ -63,6 +63,12 @@ body {
   background: var(--apple-gray);
 }
 
+body.widget-window-body {
+  min-width: 0;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.88);
+}
+
 button {
   font: inherit;
   letter-spacing: 0;
@@ -87,8 +93,9 @@ button {
 }
 
 .brand-mark {
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   height: 48px;
   margin-right: 28px;
   margin-bottom: 0;
@@ -96,6 +103,12 @@ button {
   background: transparent;
   color: #ffffff;
   font-weight: 600;
+}
+
+.brand-mark img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .nav-caption {
@@ -428,6 +441,90 @@ md-assist-chip {
   border: 0;
   border-radius: var(--md-sys-shape-medium);
   background: var(--apple-gray);
+}
+
+.widget-runtime {
+  display: grid;
+  min-height: 100vh;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.88);
+  color: #ffffff;
+}
+
+.widget-runtime-header {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  cursor: move;
+  user-select: none;
+}
+
+.widget-runtime-header img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.widget-runtime-header strong,
+.widget-runtime-header p,
+.widget-runtime-header span {
+  color: #ffffff;
+}
+
+.widget-runtime-card {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.widget-runtime-stat {
+  display: grid;
+  gap: 2px;
+}
+
+.widget-runtime-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.floating-live-widget {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  display: grid;
+  width: min(340px, calc(100vw - 36px));
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.floating-live-widget-header {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.floating-live-widget-header img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.floating-live-widget-stat {
+  display: grid;
+  gap: 3px;
+}
+
+.floating-live-widget-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .list-stack {

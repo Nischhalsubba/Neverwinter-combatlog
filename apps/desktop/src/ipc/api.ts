@@ -97,7 +97,7 @@ export function chooseLiveLogFile() {
 }
 
 export async function chooseLiveLogFolderWithDialog() {
-  const selected = await openDialog({
+  const selected = await openDialogWithWidgetHidden({
     directory: true,
     multiple: false,
     title: "Choose Neverwinter log folder",
@@ -111,7 +111,7 @@ export async function chooseLiveLogFolderWithDialog() {
 }
 
 export async function chooseLiveLogFileWithDialog() {
-  const selected = await openDialog({
+  const selected = await openDialogWithWidgetHidden({
     directory: false,
     multiple: false,
     title: "Choose Neverwinter combat log",
@@ -142,7 +142,7 @@ export function importLogFiles() {
 }
 
 export async function importLogFilesWithDialog() {
-  const selected = await openDialog({
+  const selected = await openDialogWithWidgetHidden({
     directory: false,
     multiple: true,
     title: "Import recorded combat logs",
@@ -175,4 +175,27 @@ export function closeWidgetWindow() {
 
 export function toggleWidgetWindow() {
   return invoke<WidgetStatusDto>("toggle_widget_window");
+}
+
+type OpenDialogOptions = Parameters<typeof openDialog>[0];
+
+async function openDialogWithWidgetHidden(options: OpenDialogOptions) {
+  const widget = await getWidgetStatus();
+
+  if (widget.isOpen) {
+    await closeWidgetWindow();
+    await delay(120);
+  }
+
+  try {
+    return await openDialog(options);
+  } finally {
+    if (widget.isOpen) {
+      await openWidgetWindow();
+    }
+  }
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }

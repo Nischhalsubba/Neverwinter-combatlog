@@ -6,12 +6,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createHashRouter, RouterProvider } from "react-router-dom";
 import { AppLayout } from "./app/layout/AppLayout";
 import { routes } from "./app/routes/routes";
+import { WidgetRuntimeScreen } from "./features/widget/WidgetRuntimeScreen";
 import { muiTheme } from "./theme/muiTheme";
 import "./theme/global.css";
 
 const queryClient = new QueryClient();
 
 const router = createHashRouter([
+  { path: "/widget-runtime", element: <WidgetRuntimeScreen /> },
   {
     path: "/",
     element: <AppLayout />,

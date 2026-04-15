@@ -177,8 +177,24 @@
 - Migrated shared UI primitives to MUI: metric cards, status badges, info cards, visual breakdown progress bars, navigation app bar/buttons, Live/Replay/Settings buttons and switches, Widget chips, and Live damage mix chart via MUI X PieChart.
 - Verification passed after MUI migration pass: `corepack pnpm --filter @nevercombat/desktop test` and `corepack pnpm --filter @nevercombat/desktop web:build`.
 - Build warning: Vite reports the main JS chunk is over 500 KB after adding MUI X Charts; later optimization should code-split chart-heavy routes or configure manual chunks.
+- Rebranded the app to `Nexus Combat Analyzer` while keeping Neverwinter/ACT parser keywords in SEO metadata and product descriptions.
+- Added the supplied `256x256.png` as `apps/desktop/src/assets/nexus-logo.png`, copied it to Tauri icons as `icon.png`, and regenerated `icon.ico` as a PNG-backed Windows icon.
+- Added a dedicated `/widget-runtime` route outside `AppLayout` for the frameless live widget. Supersedes opening the full Widget Builder inside the widget window.
+- Widget runtime now shows dynamic live damage, leader, line count, review count, logo, drag region, and an in-widget Close button.
+- Changed Tauri widget URL to `/#/widget-runtime` and product/widget titles to Nexus branding.
+- File/folder/import dialogs now temporarily close an open widget, show the dialog, then reopen the widget, preventing the always-on-top widget from blocking dialogs.
+- Added `vite-env.d.ts` so TypeScript can import PNG assets.
+- Dev startup smoke check launched the Tauri app successfully; the process was stopped afterward so no background app remained.
+- Verification passed after widget/rebrand changes: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, and `corepack pnpm --filter @nevercombat/desktop web:build`.
+- `cargo test` compiled after the Rust package rename to `nexus-combat-analyzer`, but Windows Application Control blocked the newly generated debug test executable with os error 4551. Previous Rust tests passed before the rename; current blocker is OS policy execution, not a compile failure.
+- Full Tauri package build still runs the web build successfully but is blocked by Windows Application Control on generated release build scripts, most recently `libsqlite3-sys`.
+- Superseded the separate Tauri widget-window approach for current priority work. It rendered as a white box and blocked log file/folder dialogs on the user's machine.
+- Open Widget now uses the existing widget runtime state to show an in-app floating Live Combat widget. Close Widget and the widget's own Close button clear that state.
+- Widget status no longer depends on detecting a `live-widget` OS window. `get_widget_status` also destroys any stale legacy widget window if one exists.
+- The floating widget shows dynamic Nexus logo, visible damage, leader, line count, and review count without creating a second OS window, so Choose Log Folder/File and Replay Import remain usable.
+- Verification passed after replacing the broken widget window with the in-app widget: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, and `corepack pnpm --filter @nevercombat/desktop web:build`.
 
 ### Next exact step
-- Run `.\start-dev.cmd` from the repo root. Validate Close Widget destroys the widget window, live/replay rankings now use legacy Neverwinter source/target/power/magnitude mapping, companion rows no longer include ordinary `C[...]` creatures, and the redesigned top-glass layout is readable.
-- Validate the MUI pass visually in dev: AppBar navigation, MUI buttons/switches/cards/chips, and Live damage mix chart should render correctly. Continue replacing remaining custom tables/layout panels with MUI Table/Grid/Stack in the next UI pass.
+- Run `.\start-dev.cmd` from the repo root. Validate Open Widget shows the in-app Nexus floating widget, Close Widget works from both the Live screen and the widget itself, and Choose Log Folder/File plus Replay Import work while the widget is open.
+- Continue replacing remaining custom tables/layout panels with MUI Table/Grid/Stack in the next UI pass.
 - Release build check `corepack pnpm --filter @nevercombat/desktop build` is still blocked by Windows Application Control policy on generated `wry` release build scripts under `C:\Users\acer\AppData\Local\NeverwinterCombatAnalyzer\cargo-target\release\build\...`; this is an OS policy/environment blocker, not a TypeScript/Rust compile error.

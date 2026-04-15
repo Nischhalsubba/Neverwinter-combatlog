@@ -6,14 +6,18 @@ pub fn open_widget_window(app: &AppHandle) -> tauri::Result<()> {
         return Ok(());
     }
 
-    WebviewWindowBuilder::new(app, "live-widget", WebviewUrl::App("/#/widget".into()))
-        .title("Neverwinter Combat Widget")
-        .decorations(false)
-        .always_on_top(true)
-        .resizable(true)
-        .inner_size(360.0, 240.0)
-        .min_inner_size(260.0, 120.0)
-        .build()?;
+    WebviewWindowBuilder::new(
+        app,
+        "live-widget",
+        WebviewUrl::App("/#/widget-runtime".into()),
+    )
+    .title("Nexus Combat Widget")
+    .decorations(false)
+    .always_on_top(true)
+    .resizable(true)
+    .inner_size(360.0, 240.0)
+    .min_inner_size(260.0, 120.0)
+    .build()?;
 
     Ok(())
 }

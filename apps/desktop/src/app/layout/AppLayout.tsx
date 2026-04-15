@@ -5,6 +5,7 @@ import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import { NavLink, Outlet } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import logoUrl from "../../assets/nexus-logo.png";
 import { getLiveSourcePreview, getSourceStatus } from "../../ipc/api";
 
 const navItems = [
@@ -22,7 +23,10 @@ export function AppLayout() {
   return (
     <div className="app-shell">
       <aside className="nav-rail" aria-label="Primary navigation">
-        <Box className="brand-mark">NCA</Box>
+        <Box className="brand-mark">
+          <img alt="Nexus Combat Analyzer" src={logoUrl} />
+          <span>Nexus</span>
+        </Box>
         <Typography className="nav-caption" component="p" variant="caption">
           Visual combat review
         </Typography>

@@ -1,6 +1,6 @@
-# Neverwinter Combat Analyzer
+# Nexus Combat Analyzer
 
-Windows-first desktop combat log analyzer for Neverwinter.
+Windows-first desktop combat log analyzer for Neverwinter, with ACT-style parser parity, live tracking, replay review, companion attribution, and a lightweight widget.
 
 The finalized PRD, UI/UX specification, technical specification, and delivery backlog are the source of truth for this repository.
 
