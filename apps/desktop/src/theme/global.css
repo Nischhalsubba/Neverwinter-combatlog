@@ -484,6 +484,32 @@ md-assist-chip {
   background: var(--md-sys-color-surface-container-highest);
 }
 
+.bar-progress {
+  height: 12px;
+  border-radius: 999px;
+  background-color: var(--md-sys-color-surface-container-highest);
+}
+
+.bar-progress .MuiLinearProgress-bar {
+  border-radius: inherit;
+}
+
+.bar-progress-primary .MuiLinearProgress-bar {
+  background-color: var(--apple-blue);
+}
+
+.bar-progress-secondary .MuiLinearProgress-bar {
+  background-color: #5856d6;
+}
+
+.bar-progress-tertiary .MuiLinearProgress-bar {
+  background-color: #34c759;
+}
+
+.bar-progress-error .MuiLinearProgress-bar {
+  background-color: var(--md-sys-color-error);
+}
+
 .bar-fill {
   height: 100%;
   border-radius: inherit;

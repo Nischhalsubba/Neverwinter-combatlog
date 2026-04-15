@@ -170,7 +170,15 @@
 - Made Widget Builder preview dynamic from live parser data instead of static placeholder metrics.
 - Added a descriptive HTML meta description for the Tauri/Vite shell.
 - Verification passed after legacy parser/widget/design changes: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, `cargo test`.
+- User selected MUI Material UI components as the design foundation from `https://mui.com/material-ui/all-components/`.
+- Installed MUI stack: `@mui/material`, `@emotion/react`, `@emotion/styled`, `@mui/icons-material`, and `@mui/x-charts`.
+- Removed `@material/web` and deleted the old Material Web bootstrap/type files because the React UI no longer uses `<md-*>` custom elements.
+- Added MUI `ThemeProvider`, `CssBaseline`, and `muiTheme` with neutral surfaces, Apple Blue primary actions, 8px radius, and restrained shadows.
+- Migrated shared UI primitives to MUI: metric cards, status badges, info cards, visual breakdown progress bars, navigation app bar/buttons, Live/Replay/Settings buttons and switches, Widget chips, and Live damage mix chart via MUI X PieChart.
+- Verification passed after MUI migration pass: `corepack pnpm --filter @nevercombat/desktop test` and `corepack pnpm --filter @nevercombat/desktop web:build`.
+- Build warning: Vite reports the main JS chunk is over 500 KB after adding MUI X Charts; later optimization should code-split chart-heavy routes or configure manual chunks.
 
 ### Next exact step
 - Run `.\start-dev.cmd` from the repo root. Validate Close Widget destroys the widget window, live/replay rankings now use legacy Neverwinter source/target/power/magnitude mapping, companion rows no longer include ordinary `C[...]` creatures, and the redesigned top-glass layout is readable.
+- Validate the MUI pass visually in dev: AppBar navigation, MUI buttons/switches/cards/chips, and Live damage mix chart should render correctly. Continue replacing remaining custom tables/layout panels with MUI Table/Grid/Stack in the next UI pass.
 - Release build check `corepack pnpm --filter @nevercombat/desktop build` is still blocked by Windows Application Control policy on generated `wry` release build scripts under `C:\Users\acer\AppData\Local\NeverwinterCombatAnalyzer\cargo-target\release\build\...`; this is an OS policy/environment blocker, not a TypeScript/Rust compile error.

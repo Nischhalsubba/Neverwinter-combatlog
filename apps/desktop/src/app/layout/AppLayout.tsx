@@ -1,3 +1,8 @@
+import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Toolbar from "@mui/material/Toolbar";
+import Typography from "@mui/material/Typography";
 import { NavLink, Outlet } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getLiveSourcePreview, getSourceStatus } from "../../ipc/api";
@@ -17,18 +22,21 @@ export function AppLayout() {
   return (
     <div className="app-shell">
       <aside className="nav-rail" aria-label="Primary navigation">
-        <div className="brand-mark">NCA</div>
-        <p className="nav-caption">Visual combat review</p>
+        <Box className="brand-mark">NCA</Box>
+        <Typography className="nav-caption" component="p" variant="caption">
+          Visual combat review
+        </Typography>
         <nav>
           {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className="nav-link">
+            <Button className="nav-link" component={NavLink} key={item.to} to={item.to}>
               {item.label}
-            </NavLink>
+            </Button>
           ))}
         </nav>
       </aside>
       <div className="app-main">
-        <header className="top-app-bar">
+        <AppBar className="top-app-bar" color="inherit" component="header" elevation={0} position="sticky">
+          <Toolbar disableGutters sx={{ gap: 4, minHeight: "64px", px: 3 }}>
           <div>
             <p className="label">Source</p>
             <strong>{source.data?.message ?? "No source selected"}</strong>
@@ -37,7 +45,8 @@ export function AppLayout() {
             <p className="label">Live Lines</p>
             <strong>{(preview.data?.lineCount ?? 0).toLocaleString()}</strong>
           </div>
-        </header>
+          </Toolbar>
+        </AppBar>
         <main className="screen-frame">
           <Outlet />
         </main>

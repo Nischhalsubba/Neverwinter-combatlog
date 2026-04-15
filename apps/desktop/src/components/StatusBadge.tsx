@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Chip from "@mui/material/Chip";
 
 type StatusBadgeProps = {
   tone?: "neutral" | "good" | "warning" | "danger";
@@ -6,6 +7,7 @@ type StatusBadgeProps = {
 };
 
 export function StatusBadge({ tone = "neutral", children }: StatusBadgeProps) {
-  return <span className={`status-badge status-badge-${tone}`}>{children}</span>;
-}
+  const color = tone === "good" ? "success" : tone === "warning" ? "warning" : tone === "danger" ? "error" : "default";
 
+  return <Chip className={`status-badge status-badge-${tone}`} color={color} label={children} size="small" variant="outlined" />;
+}

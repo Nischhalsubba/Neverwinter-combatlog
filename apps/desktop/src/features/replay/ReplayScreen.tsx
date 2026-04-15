@@ -1,4 +1,7 @@
 import { useMemo, useState } from "react";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import Switch from "@mui/material/Switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BreakdownBars } from "../../components/BreakdownBars";
 import { DamageDetailPanel } from "../../components/DamageDetailPanel";
@@ -39,9 +42,9 @@ export function ReplayScreen() {
           <h1>Replay Recorded Logs</h1>
           <p>Import old combat logs and immediately see visual party damage, parser health, and log size before deeper encounter analysis.</p>
         </div>
-        <md-filled-button onClick={() => importLogs.mutate()}>
+        <Button onClick={() => importLogs.mutate()} variant="contained">
           Import Logs
-        </md-filled-button>
+        </Button>
       </div>
       <div className="summary-strip">
         <MetricSummary label="Imported Logs" value={(importedLogs.data?.length ?? 0).toLocaleString()} />
@@ -66,16 +69,16 @@ export function ReplayScreen() {
       </div>
       <div className="dashboard-main">
         <section className="dashboard-column">
-          <article className="panel control-panel">
+          <Card className="panel control-panel" component="article">
             <div>
               <h2>Replay Dashboard</h2>
               <p>Review imported logs visually first, then click any combatant for a power-by-power breakdown.</p>
             </div>
             <label className="switch-row">
               <span>Show companions in replay damage</span>
-              <md-switch selected={showCompanions} onClick={() => setShowCompanions((value) => !value)} />
+              <Switch checked={showCompanions} onChange={(_, checked) => setShowCompanions(checked)} />
             </label>
-          </article>
+          </Card>
           <BreakdownBars
             title="Top Replay Damage"
             description="Total damage across imported logs. Click the detail list below to inspect one combatant."
@@ -102,7 +105,7 @@ export function ReplayScreen() {
         <DamageDetailPanel member={selectedMember} totalDamage={visibleTotalDamage} />
       </div>
       <div className="content-grid">
-        <article className="panel">
+        <Card className="panel" component="article">
           <h2>Imported Logs</h2>
           {!importedLogs.data?.length ? <p>No recorded logs imported yet.</p> : null}
           <div className="list-stack">
@@ -115,8 +118,8 @@ export function ReplayScreen() {
               </div>
             ))}
           </div>
-        </article>
-        <article className="panel panel-large">
+        </Card>
+        <Card className="panel panel-large" component="article">
           <h2>Replay Ranking Details</h2>
           <div className="responsive-table-wrap">
             <table className="data-table">
@@ -155,7 +158,7 @@ export function ReplayScreen() {
               </tbody>
             </table>
           </div>
-        </article>
+        </Card>
       </div>
     </section>
   );

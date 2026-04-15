@@ -1,3 +1,7 @@
+import Card from "@mui/material/Card";
+import Divider from "@mui/material/Divider";
+import Switch from "@mui/material/Switch";
+
 const sections = [
   {
     title: "Sources",
@@ -45,15 +49,15 @@ export function SettingsScreen() {
       </div>
       <div className="settings-grid">
         {sections.map((section) => (
-          <article key={section.title} className="panel">
+          <Card key={section.title} className="panel" component="article">
             <h2>{section.title}</h2>
             <p>{section.body}</p>
-            <md-divider />
+            <Divider />
             <div className="setting-row">
               <span>Ready for persistent controls</span>
-              <md-switch />
+              <Switch />
             </div>
-          </article>
+          </Card>
         ))}
       </div>
     </section>

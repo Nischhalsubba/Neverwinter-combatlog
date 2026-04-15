@@ -1,4 +1,8 @@
-import { type CSSProperties, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import Switch from "@mui/material/Switch";
+import { PieChart } from "@mui/x-charts/PieChart";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BreakdownBars } from "../../components/BreakdownBars";
 import { DamageDetailPanel } from "../../components/DamageDetailPanel";
@@ -67,6 +71,8 @@ export function LiveScreen() {
   const selectedMember =
     visibleDamageRows.find((row) => row.name === selectedName) ?? visibleDamageRows[0] ?? null;
   const totalVisibleDamage = visibleDamageRows.reduce((sum, row) => sum + row.totalDamage, 0);
+  const companionDamage = (preview.data?.companionDamage ?? []).reduce((sum, row) => sum + row.totalDamage, 0);
+  const playerDamage = Math.max(totalVisibleDamage - companionDamage, 0);
 
   return (
     <section className="dashboard-page">
@@ -77,21 +83,21 @@ export function LiveScreen() {
           <p>Pick a combat log, then read the fight from left to right: total damage, member breakdown, companion contribution, and parser health.</p>
         </div>
         <div className="button-row">
-          <md-filled-tonal-button onClick={() => chooseFolder.mutate()}>
+          <Button onClick={() => chooseFolder.mutate()} variant="outlined">
             Choose Log Folder
-          </md-filled-tonal-button>
-          <md-filled-tonal-button onClick={() => chooseFile.mutate()}>
+          </Button>
+          <Button onClick={() => chooseFile.mutate()} variant="outlined">
             Choose Log File
-          </md-filled-tonal-button>
-          <md-filled-tonal-button onClick={() => openWidget.mutate()}>
+          </Button>
+          <Button onClick={() => openWidget.mutate()} variant="outlined">
             Open Widget
-          </md-filled-tonal-button>
-          <md-filled-tonal-button onClick={() => closeWidget.mutate()}>
+          </Button>
+          <Button onClick={() => closeWidget.mutate()} variant="outlined">
             Close Widget
-          </md-filled-tonal-button>
-          <md-filled-button onClick={() => resetCounter.mutate()}>
+          </Button>
+          <Button onClick={() => resetCounter.mutate()} variant="contained">
             Refresh Counter
-          </md-filled-button>
+          </Button>
         </div>
       </div>
 
@@ -105,7 +111,7 @@ export function LiveScreen() {
 
       <div className="dashboard-main">
         <section className="dashboard-column">
-          <article className="panel control-panel">
+          <Card className="panel control-panel" component="article">
             <div>
               <h2>Damage Dashboard</h2>
               <p>
@@ -116,11 +122,11 @@ export function LiveScreen() {
             </div>
             <label className="switch-row">
               <span>Show companions in main damage</span>
-              <md-switch selected={showCompanions} onClick={() => setShowCompanions((value) => !value)} />
+              <Switch checked={showCompanions} onChange={(_, checked) => setShowCompanions(checked)} />
             </label>
-          </article>
+          </Card>
 
-          <article className="panel visual-panel">
+          <Card className="panel visual-panel" component="article">
             <div className="panel-header">
               <div>
                 <h2>Party Damage</h2>
@@ -159,7 +165,7 @@ export function LiveScreen() {
                 {!preview.data?.history.length ? <p>No previous counters yet. Press Refresh Counter after damage is shown to save one.</p> : null}
               </div>
             )}
-          </article>
+          </Card>
 
           <BreakdownBars
             title="Companion Damage Leaderboard"
@@ -176,7 +182,7 @@ export function LiveScreen() {
       </div>
 
       <div className="content-grid">
-        <article className="panel panel-large">
+        <Card className="panel panel-large" component="article">
           <div className="panel-header">
             <h2>Party Ranking Details</h2>
             <StatusBadge tone={source.data?.state === "watching" ? "good" : "warning"}>
@@ -218,10 +224,10 @@ export function LiveScreen() {
               </tbody>
             </table>
           </div>
-        </article>
+        </Card>
 
         <aside className="insight-stack">
-          <article className="panel parser-health-compact">
+          <Card className="panel parser-health-compact" component="article">
             <div>
               <p className="eyebrow">Parser Health</p>
               <h2>{source.data?.state === "watching" ? "Watching" : "Waiting"}</h2>
@@ -230,8 +236,8 @@ export function LiveScreen() {
             <div className="health-meter">
               {preview.data?.lineCount ? Math.round(((preview.data.parsedCount ?? 0) / preview.data.lineCount) * 100) : 0}%
             </div>
-          </article>
-          <article className="panel">
+          </Card>
+          <Card className="panel" component="article">
             <h2>Recent Events</h2>
             {!preview.data?.recentEvents.length ? <p>No events received yet.</p> : null}
             <div className="compact-event-list">
@@ -242,22 +248,32 @@ export function LiveScreen() {
                 </div>
               ))}
             </div>
-          </article>
-          <article className="panel">
+          </Card>
+          <Card className="panel" component="article">
             <h2>Damage Mix</h2>
             <div className="donut-row">
-              <div
-                className="damage-donut"
-                style={{
-                  "--donut-value": `${companionShare(preview.data?.companionDamage ?? [], totalVisibleDamage) * 100}%`,
-                } as CSSProperties}
+              <PieChart
+                height={120}
+                hideLegend
+                margin={{ bottom: 0, left: 0, right: 0, top: 0 }}
+                series={[
+                  {
+                    data: [
+                      { id: "players", label: "Players", value: playerDamage },
+                      { id: "companions", label: "Companions", value: companionDamage },
+                    ],
+                    innerRadius: 34,
+                    outerRadius: 55,
+                  },
+                ]}
+                width={120}
               />
               <div>
                 <strong>{(companionShare(preview.data?.companionDamage ?? [], totalVisibleDamage) * 100).toFixed(1)}%</strong>
                 <p>Companion share while visible.</p>
               </div>
             </div>
-          </article>
+          </Card>
         </aside>
       </div>
 

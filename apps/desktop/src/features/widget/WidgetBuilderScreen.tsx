@@ -1,5 +1,6 @@
 import { MetricCard } from "../../components/MetricCard";
 import { InfoGrid } from "../../components/InfoGrid";
+import Chip from "@mui/material/Chip";
 import { useQuery } from "@tanstack/react-query";
 import { getLiveSourcePreview, getWidgetStatus } from "../../ipc/api";
 
@@ -24,7 +25,7 @@ export function WidgetBuilderScreen() {
           <h2>Presets</h2>
           <div className="chip-row">
             {presets.map((preset) => (
-              <button key={preset} className="assist-chip" type="button">{preset}</button>
+              <Chip key={preset} label={preset} variant="outlined" />
             ))}
           </div>
           <h3>Content</h3>

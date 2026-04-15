@@ -1,3 +1,9 @@
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import LinearProgress from "@mui/material/LinearProgress";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+
 export type BreakdownDatum = {
   label: string;
   value: number;
@@ -14,30 +20,40 @@ export function BreakdownBars({ title, description, data }: BreakdownBarsProps) 
   const max = Math.max(...data.map((item) => item.value), 1);
 
   return (
-    <article className="panel visual-panel">
-      <div className="panel-header">
-        <div>
-          <h2>{title}</h2>
-          <p>{description}</p>
-        </div>
-      </div>
-      <div className="bar-stack">
-        {data.map((item) => (
-          <div className="bar-row" key={item.label}>
-            <div className="bar-label">
-              <span>{item.label}</span>
-              <strong>{item.value.toLocaleString()}</strong>
-            </div>
-            <div className="bar-track">
-              <div
-                className={`bar-fill bar-fill-${item.tone ?? "primary"}`}
-                style={{ width: `${Math.max((item.value / max) * 100, item.value > 0 ? 4 : 0)}%` }}
-              />
-            </div>
+    <Card className="panel visual-panel" component="article">
+      <CardContent sx={{ p: 0, "&:last-child": { pb: 0 } }}>
+        <div className="panel-header">
+          <div>
+            <Typography component="h2" variant="h6">
+              {title}
+            </Typography>
+            <Typography color="text.secondary">{description}</Typography>
           </div>
-        ))}
-      </div>
-    </article>
+        </div>
+        <Stack className="bar-stack" spacing={1.5}>
+          {data.map((item) => {
+            const value = Math.max((item.value / max) * 100, item.value > 0 ? 4 : 0);
+            return (
+              <div className="bar-row" key={item.label}>
+                <div className="bar-label">
+                  <Typography component="span" variant="body2">
+                    {item.label}
+                  </Typography>
+                  <Typography component="strong" variant="body2">
+                    {item.value.toLocaleString()}
+                  </Typography>
+                </div>
+                <LinearProgress
+                  className={`bar-progress bar-progress-${item.tone ?? "primary"}`}
+                  aria-label={`${item.label}: ${item.value.toLocaleString()}`}
+                  value={value}
+                  variant="determinate"
+                />
+              </div>
+            );
+          })}
+        </Stack>
+      </CardContent>
+    </Card>
   );
 }
-
