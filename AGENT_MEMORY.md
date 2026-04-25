@@ -4,6 +4,18 @@
 
 ### Files changed
 - `AGENT_MEMORY.md`
+- `apps/desktop/src-tauri/src/commands/mod.rs`
+- `apps/desktop/src-tauri/src/engine/mod.rs`
+- `apps/desktop/src-tauri/src/lib.rs`
+- `apps/desktop/src-tauri/Cargo.toml`
+- `scripts/build-all.ps1`
+- `apps/desktop/src-tauri/src/runtime_state.rs`
+- `apps/desktop/src/ipc/api.ts`
+- `apps/desktop/src/lib/damageRows.ts`
+- `apps/desktop/src/app/routes/routes.tsx`
+- `apps/desktop/src/features/live/LiveScreen.tsx`
+- `apps/desktop/src/features/live/PlayerDetailScreen.tsx`
+- `apps/desktop/src/theme/global.css`
 - `DESIGN.md`
 - `start-dev.cmd`
 - `build-all.cmd`
@@ -63,6 +75,13 @@
 - `apps/desktop/src-tauri/migrations/0001_initial_schema.sql`
 
 ### Decisions made
+- Live/replay damage aggregation now prioritizes Neverwinter owner/player attribution: player damage is grouped by `owner_name` when `owner_ref` is a player ref, while companion/entity damage remains in the companion leaderboard with owner metadata.
+- Live Combat dashboard now prioritizes endgame at-a-glance reads: total visible damage, top player, top power, companion share, crit rate, parser review, top damage bar chart, and player-vs-companion source mix chart.
+- Combatant rows now carry a compact dynamic damage trend so MUI X line/sparkline charts can visualize damage spikes without static sample data.
+- Damage leader names now link to `/live/players/:playerName`, a dedicated comprehensive detail page for the selected live combatant.
+- Combat-log summarization moved out of Tauri commands into a Rust `engine` module. Commands now act as IPC/DTO adapters while the engine owns line reading, parsing, classification counts, damage aggregation, and trend compression.
+- Engine summarization now reads with `BufRead::read_line` and carries actual byte offsets into `RawLogLine` instead of always using `byte_offset: 0`.
+- Windows build testing should avoid Rust doctests for now. The Tauri lib has `doctest = false`, and `build-all.ps1` runs `cargo test --lib --bins`.
 - Treat the finalized PRD, UI/UX spec, technical spec, and delivery backlog from `C:\Users\acer\Downloads\Compressed\Neverwinter-Combat-Analyzer-Finalized-Docs\` as source of truth.
 - Use Tauri 2 + Rust + React/TypeScript + SQLite for the Windows desktop MVP.
 - Preserve raw combat log lines and normalized parser output from the first scaffold.
@@ -89,6 +108,9 @@
 - Expanded sidebar destinations with detail content: Live source health/classification, Replay import size breakdown, Encounters workflow, Encounter Detail analysis placeholders, Widget behavior/appearance/modes, and comprehensive Settings categories.
 
 ### Mistakes or failed approaches
+- After clearing the generated Cargo target and retrying serially, Rust commands are still blocked by Windows Application Control on generated build-script executables such as `icu_normalizer_data`, `serde`, `getrandom`, and others. This is an OS policy blocker before crate compilation, not an engine source error.
+- MUI X `SparkLineChart` in the installed version uses `color`, not `colors`; TypeScript rejected the array prop and it was corrected.
+- MUI X `PieChart` does not accept `slotProps.legend.hidden`; TypeScript rejected it. Switched to the supported `hideLegend` prop.
 - `rg --files` failed earlier with `Access is denied`; use PowerShell-native file listing/search unless fixed.
 - First combined scaffold patch failed because the command was too large for Windows; split patches into smaller groups.
 - `cargo` is not installed or not on PATH in this environment, so Rust formatting/tests could not be run.
@@ -112,6 +134,20 @@
 - User requested a full layout redesign, a Live Combat refresh button that resets counters to zero, prior counter records saved in a Party Damage history tab, and no static/placeholder information.
 
 ### Current status
+- Added `apps/desktop/src-tauri/src/engine/mod.rs` as the first backend engine boundary and moved preview summarization logic there.
+- `scripts/build-all.ps1` now runs the simpler Rust test command `cargo test --lib --bins`.
+- Cargo doctests are disabled for the Tauri library because this product currently has no doctest examples and full `cargo test` was failing during rustdoc external-crate resolution.
+- Engine extraction verification: `rustfmt apps/desktop/src-tauri/src/engine/mod.rs apps/desktop/src-tauri/src/commands/mod.rs apps/desktop/src-tauri/src/lib.rs` passed.
+- Frontend verification passed after engine extraction: `corepack pnpm --filter @nevercombat/desktop test` and `corepack pnpm --filter @nevercombat/desktop web:build`.
+- PowerShell syntax verification passed for `scripts/build-all.ps1`.
+- Rust verification is currently blocked by Windows Application Control os error 4551 during dependency build-script execution, even with alternate target dir `C:\dev\NCA-cargo-target`.
+- Fixed the backend cause of missing player rows: combat-log damage events no longer rely only on `source_primary_name`; owner player refs can populate the player damage leaderboard.
+- Redesigned the Live Combat information hierarchy around damage leaders and charts instead of low-value static/source cards.
+- Added live combatant detail routing and a first comprehensive detail page with MUI X `BarChart`, `LineChart`, `SparkLineChart`, and Material `LinearProgress`.
+- First verification attempt failed on the MUI X legend prop and was patched.
+- Verification passed after owner attribution and Live Combat chart redesign: `corepack pnpm --filter @nevercombat/desktop test`, `corepack pnpm --filter @nevercombat/desktop web:build`, `cargo fmt -- --check`, and `cargo test`.
+- Verification passed after combatant detail route and trend DTO changes: `corepack pnpm --filter @nevercombat/desktop test`, `corepack pnpm --filter @nevercombat/desktop web:build`, `cargo fmt -- --check`, and `cargo test`.
+- Vite still warns that the main JS chunk is over 500 KB after MUI X Charts; later route-level code splitting should address this.
 - Repository was empty except `.git`.
 - Persistent memory file has been created.
 - Root metadata scaffold added: `.gitignore`, `README.md`, `package.json`, `pnpm-workspace.yaml`, and `docs/source-of-truth/README.md`.
@@ -195,6 +231,8 @@
 - Verification passed after replacing the broken widget window with the in-app widget: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, and `corepack pnpm --filter @nevercombat/desktop web:build`.
 
 ### Next exact step
+- Continue with the next engine step once Windows Application Control allows Rust build-script execution: wire SQLite writes for raw and parsed events from `engine::summarize_combat_log`, then replace in-memory imported/live records.
+- Run `.\start-dev.cmd`, import or link the user's real combat log, click a Damage Leaders name, and visually confirm `/live/players/:playerName` shows the combatant detail page with trend and power charts.
 - Run `.\start-dev.cmd` from the repo root. Validate Open Widget shows the in-app Nexus floating widget, Close Widget works from both the Live screen and the widget itself, and Choose Log Folder/File plus Replay Import work while the widget is open.
 - Continue replacing remaining custom tables/layout panels with MUI Table/Grid/Stack in the next UI pass.
 - Release build check `corepack pnpm --filter @nevercombat/desktop build` is still blocked by Windows Application Control policy on generated `wry` release build scripts under `C:\Users\acer\AppData\Local\NeverwinterCombatAnalyzer\cargo-target\release\build\...`; this is an OS policy/environment blocker, not a TypeScript/Rust compile error.

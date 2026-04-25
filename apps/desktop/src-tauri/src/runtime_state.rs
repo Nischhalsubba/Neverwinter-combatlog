@@ -82,6 +82,7 @@ pub struct ImportedPartyDamage {
     pub source_kind: String,
     pub owner_name: Option<String>,
     pub power_breakdown: Vec<ImportedPowerBreakdown>,
+    pub damage_trend: Vec<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,6 +1,7 @@
 mod classification;
 mod commands;
 mod encounter;
+mod engine;
 mod entities;
 mod metrics;
 mod parser;

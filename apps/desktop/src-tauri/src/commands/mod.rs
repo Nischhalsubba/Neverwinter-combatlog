@@ -1,5 +1,7 @@
-use crate::classification::EventClassification;
-use crate::parser::{parse_line, ParseOutcome, RawLogLine};
+use crate::engine::{
+    count_log_lines, summarize_combat_log, ClassificationCount, CombatLogSummary, DamageRow,
+    PowerBreakdown, RecentEvent,
+};
 use crate::runtime_state::{
     AppRuntimeState, ImportedClassificationCount, ImportedLog, ImportedPartyDamage,
     ImportedPowerBreakdown, LiveHistoryRecord,
@@ -7,8 +9,6 @@ use crate::runtime_state::{
 use crate::source::{detect_latest_combat_log, SourceState, SourceStatus};
 use crate::widget;
 use serde::Serialize;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use tauri::State;
 
@@ -90,6 +90,7 @@ pub struct PartyDamageDto {
     pub source_kind: String,
     pub owner_name: Option<String>,
     pub power_breakdown: Vec<PowerBreakdownDto>,
+    pub damage_trend: Vec<f64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -180,7 +181,8 @@ pub fn get_live_source_preview(
     }
 
     let baseline = state.live_baseline_for(&path);
-    let mut preview = summarize_combat_log(&path, baseline)?;
+    let mut preview =
+        summary_to_preview(summarize_combat_log(&path, baseline)?, Some(path.clone()));
     preview.history = live_history_to_dto(state.live_history());
     Ok(preview)
 }
@@ -218,20 +220,20 @@ pub fn reset_live_counter(
             party_damage: summary
                 .party_damage
                 .into_iter()
-                .map(dto_to_imported_party_damage)
+                .map(engine_damage_to_imported)
                 .collect(),
             companion_damage: summary
                 .companion_damage
                 .into_iter()
-                .map(dto_to_imported_party_damage)
+                .map(engine_damage_to_imported)
                 .collect(),
         };
         state.push_live_history(record);
     }
 
-    let total_lines = count_lines(&path)?;
+    let total_lines = count_log_lines(&path)?;
     state.set_live_baseline(path.clone(), total_lines);
-    let mut preview = summarize_combat_log(&path, total_lines)?;
+    let mut preview = summary_to_preview(summarize_combat_log(&path, total_lines)?, Some(path));
     preview.history = live_history_to_dto(state.live_history());
     Ok(preview)
 }
@@ -435,164 +437,18 @@ fn read_imported_log(path: PathBuf) -> Result<ImportedLog, String> {
         classification_counts: summary
             .classification_counts
             .into_iter()
-            .map(|item| ImportedClassificationCount {
-                classification: item.classification,
-                count: item.count,
-            })
+            .map(engine_classification_to_imported)
             .collect(),
         party_damage: summary
             .party_damage
             .into_iter()
-            .map(|item| ImportedPartyDamage {
-                rank: item.rank,
-                name: item.name,
-                total_damage: item.total_damage,
-                hit_count: item.hit_count,
-                crit_count: item.crit_count,
-                top_power: item.top_power,
-                source_kind: item.source_kind,
-                owner_name: item.owner_name,
-                power_breakdown: item
-                    .power_breakdown
-                    .into_iter()
-                    .map(|power| ImportedPowerBreakdown {
-                        power_name: power.power_name,
-                        total_damage: power.total_damage,
-                        hit_count: power.hit_count,
-                    })
-                    .collect(),
-            })
+            .map(engine_damage_to_imported)
             .collect(),
         companion_damage: summary
             .companion_damage
             .into_iter()
-            .map(|item| ImportedPartyDamage {
-                rank: item.rank,
-                name: item.name,
-                total_damage: item.total_damage,
-                hit_count: item.hit_count,
-                crit_count: item.crit_count,
-                top_power: item.top_power,
-                source_kind: item.source_kind,
-                owner_name: item.owner_name,
-                power_breakdown: item
-                    .power_breakdown
-                    .into_iter()
-                    .map(|power| ImportedPowerBreakdown {
-                        power_name: power.power_name,
-                        total_damage: power.total_damage,
-                        hit_count: power.hit_count,
-                    })
-                    .collect(),
-            })
+            .map(engine_damage_to_imported)
             .collect(),
-    })
-}
-
-fn summarize_combat_log(path: &Path, skip_lines: u64) -> Result<LiveSourcePreviewDto, String> {
-    let file = File::open(path).map_err(|error| error.to_string())?;
-    let reader = BufReader::new(file);
-    let mut line_count = 0_u64;
-    let mut parsed_count = 0_u64;
-    let mut failed_count = 0_u64;
-    let mut recent_events = Vec::new();
-    let mut counts = std::collections::BTreeMap::<String, u64>::new();
-    let mut damage_by_member = std::collections::BTreeMap::<String, DamageAccumulator>::new();
-    let mut damage_by_companion = std::collections::BTreeMap::<String, DamageAccumulator>::new();
-
-    for (index, line_result) in reader.lines().enumerate().skip(skip_lines as usize) {
-        let raw_text = line_result.map_err(|error| error.to_string())?;
-        line_count += 1;
-
-        let outcome = parse_line(RawLogLine {
-            id: uuid::Uuid::new_v4(),
-            log_file_id: None,
-            line_index: index as i64,
-            byte_offset: 0,
-            raw_text: raw_text.clone(),
-        });
-
-        match outcome {
-            ParseOutcome::Parsed(event) => {
-                parsed_count += 1;
-                let classification = format!("{:?}", event.classification);
-                *counts.entry(classification.clone()).or_default() += 1;
-                if is_damage_classification(event.classification) {
-                    if let (Some(name), Some(amount)) =
-                        (event.source_primary_name.clone(), event.amount1)
-                    {
-                        if amount > 0.0 && name != "*" {
-                            let is_companion =
-                                is_companion_source(&name, event.source_primary_ref.as_deref());
-                            let entry = if is_companion {
-                                let owner_name = event
-                                    .owner_name
-                                    .clone()
-                                    .filter(|owner| owner != "*" && owner != &name)
-                                    .or_else(|| infer_companion_owner_name(&name));
-                                let entry = damage_by_companion.entry(name).or_default();
-                                if entry.owner_name.is_none() {
-                                    entry.owner_name = owner_name;
-                                }
-                                entry
-                            } else {
-                                damage_by_member.entry(name).or_default()
-                            };
-                            entry.total_damage += amount;
-                            entry.hit_count += 1;
-                            if event
-                                .flags
-                                .iter()
-                                .any(|flag| flag.eq_ignore_ascii_case("critical"))
-                            {
-                                entry.crit_count += 1;
-                            }
-                            if let Some(power_name) = event.power_name.clone() {
-                                *entry.power_damage.entry(power_name.clone()).or_default() +=
-                                    amount;
-                                *entry.power_hits.entry(power_name).or_default() += 1;
-                            }
-                        }
-                    }
-                }
-                recent_events.push(RecentEventDto {
-                    timestamp: Some(event.timestamp_raw),
-                    classification,
-                    summary: event.power_name.or(event.event_type).unwrap_or(raw_text),
-                });
-            }
-            ParseOutcome::Failed(error) => {
-                failed_count += 1;
-                *counts.entry("ParseFailure".to_string()).or_default() += 1;
-                recent_events.push(RecentEventDto {
-                    timestamp: error.timestamp_raw,
-                    classification: "ParseFailure".to_string(),
-                    summary: error.message,
-                });
-            }
-        }
-
-        if recent_events.len() > 8 {
-            recent_events.remove(0);
-        }
-    }
-
-    Ok(LiveSourcePreviewDto {
-        path: Some(path.display().to_string()),
-        line_count,
-        parsed_count,
-        failed_count,
-        classification_counts: counts
-            .into_iter()
-            .map(|(classification, count)| ClassificationCountDto {
-                classification,
-                count,
-            })
-            .collect(),
-        party_damage: ranked_party_damage(damage_by_member),
-        companion_damage: ranked_damage(damage_by_companion, "companion"),
-        history: Vec::new(),
-        recent_events,
     })
 }
 
@@ -610,157 +466,111 @@ fn empty_preview(path: Option<PathBuf>) -> LiveSourcePreviewDto {
     }
 }
 
-fn count_lines(path: &Path) -> Result<u64, String> {
-    let file = File::open(path).map_err(|error| error.to_string())?;
-    let reader = BufReader::new(file);
-    Ok(reader.lines().count() as u64)
-}
-
-#[derive(Debug, Default)]
-struct DamageAccumulator {
-    total_damage: f64,
-    hit_count: u64,
-    crit_count: u64,
-    power_damage: std::collections::BTreeMap<String, f64>,
-    power_hits: std::collections::BTreeMap<String, u64>,
-    owner_name: Option<String>,
-}
-
-fn is_damage_classification(classification: EventClassification) -> bool {
-    matches!(
-        classification,
-        EventClassification::DirectDamage
-            | EventClassification::DotDamage
-            | EventClassification::ShieldDamage
-    )
-}
-
-fn ranked_party_damage(
-    damage_by_member: std::collections::BTreeMap<String, DamageAccumulator>,
-) -> Vec<PartyDamageDto> {
-    ranked_damage(damage_by_member, "player")
-}
-
-fn ranked_damage(
-    damage_by_member: std::collections::BTreeMap<String, DamageAccumulator>,
-    source_kind: &str,
-) -> Vec<PartyDamageDto> {
-    let mut rows: Vec<_> = damage_by_member
-        .into_iter()
-        .map(|(name, damage)| {
-            let DamageAccumulator {
-                total_damage,
-                hit_count,
-                crit_count,
-                power_damage,
-                power_hits,
-                owner_name,
-            } = damage;
-            let top_power = power_damage
-                .iter()
-                .max_by(|(_, left), (_, right)| left.total_cmp(right))
-                .map(|(power, _)| power.clone());
-            let mut power_breakdown: Vec<_> = power_damage
-                .into_iter()
-                .map(|(power_name, total_damage)| PowerBreakdownDto {
-                    hit_count: *power_hits.get(&power_name).unwrap_or(&0),
-                    power_name,
-                    total_damage,
-                })
-                .collect();
-            power_breakdown.sort_by(|left, right| right.total_damage.total_cmp(&left.total_damage));
-            PartyDamageDto {
-                rank: 0,
-                name,
-                total_damage,
-                hit_count,
-                crit_count,
-                crit_rate: if hit_count == 0 {
-                    0.0
-                } else {
-                    crit_count as f64 / hit_count as f64
-                },
-                top_power,
-                source_kind: source_kind.to_string(),
-                owner_name: if source_kind == "companion" {
-                    owner_name
-                } else {
-                    None
-                },
-                power_breakdown,
-            }
-        })
-        .collect();
-
-    rows.sort_by(|left, right| right.total_damage.total_cmp(&left.total_damage));
-
-    for (index, row) in rows.iter_mut().enumerate() {
-        row.rank = index as u32 + 1;
+fn summary_to_preview(summary: CombatLogSummary, path: Option<PathBuf>) -> LiveSourcePreviewDto {
+    LiveSourcePreviewDto {
+        path: path.map(|path| path.display().to_string()),
+        line_count: summary.line_count,
+        parsed_count: summary.parsed_count,
+        failed_count: summary.failed_count,
+        classification_counts: summary
+            .classification_counts
+            .into_iter()
+            .map(engine_classification_to_dto)
+            .collect(),
+        party_damage: summary
+            .party_damage
+            .into_iter()
+            .map(engine_damage_to_dto)
+            .collect(),
+        companion_damage: summary
+            .companion_damage
+            .into_iter()
+            .map(engine_damage_to_dto)
+            .collect(),
+        history: Vec::new(),
+        recent_events: summary
+            .recent_events
+            .into_iter()
+            .map(engine_recent_event_to_dto)
+            .collect(),
     }
-
-    rows
 }
 
-fn is_companion_source(name: &str, source_ref: Option<&str>) -> bool {
-    let normalized_name = name.to_ascii_lowercase();
-    if normalized_name.contains("companion")
-        || normalized_name.contains("summon")
-        || normalized_name.contains("pet")
-        || normalized_name.contains("artifact")
-        || normalized_name.contains("familiar")
-    {
-        return true;
+fn engine_classification_to_dto(item: ClassificationCount) -> ClassificationCountDto {
+    ClassificationCountDto {
+        classification: item.classification,
+        count: item.count,
     }
-
-    source_ref
-        .map(|reference| {
-            let normalized_ref = reference.to_ascii_lowercase();
-            normalized_ref.contains("pet_")
-                || normalized_ref.contains("companion")
-                || normalized_ref.contains("pet")
-                || normalized_ref.contains("summon")
-                || normalized_ref.contains("artifact")
-        })
-        .unwrap_or(false)
 }
 
-fn infer_companion_owner_name(name: &str) -> Option<String> {
-    let trimmed = name.trim();
-
-    for marker in ["'s "] {
-        if let Some((owner, _)) = trimmed.split_once(marker) {
-            let owner = owner.trim();
-            if !owner.is_empty() {
-                return Some(owner.to_string());
-            }
-        }
+fn engine_classification_to_imported(item: ClassificationCount) -> ImportedClassificationCount {
+    ImportedClassificationCount {
+        classification: item.classification,
+        count: item.count,
     }
+}
 
-    for marker in [" - "] {
-        if let Some((owner, companion)) = trimmed.split_once(marker) {
-            let companion = companion.to_ascii_lowercase();
-            if companion.contains("companion")
-                || companion.contains("summon")
-                || companion.contains("pet")
-            {
-                let owner = owner.trim();
-                if !owner.is_empty() {
-                    return Some(owner.to_string());
-                }
-            }
-        }
+fn engine_recent_event_to_dto(event: RecentEvent) -> RecentEventDto {
+    RecentEventDto {
+        timestamp: event.timestamp,
+        classification: event.classification,
+        summary: event.summary,
     }
+}
 
-    if let Some(start) = trimmed.rfind('(') {
-        if trimmed.ends_with(')') {
-            let owner = trimmed[start + 1..trimmed.len() - 1].trim();
-            if !owner.is_empty() {
-                return Some(owner.to_string());
-            }
-        }
+fn engine_damage_to_dto(row: DamageRow) -> PartyDamageDto {
+    PartyDamageDto {
+        rank: row.rank,
+        name: row.name,
+        total_damage: row.total_damage,
+        hit_count: row.hit_count,
+        crit_count: row.crit_count,
+        crit_rate: row.crit_rate,
+        top_power: row.top_power,
+        source_kind: row.source_kind,
+        owner_name: row.owner_name,
+        power_breakdown: row
+            .power_breakdown
+            .into_iter()
+            .map(engine_power_to_dto)
+            .collect(),
+        damage_trend: row.damage_trend,
     }
+}
 
-    None
+fn engine_damage_to_imported(row: DamageRow) -> ImportedPartyDamage {
+    ImportedPartyDamage {
+        rank: row.rank,
+        name: row.name,
+        total_damage: row.total_damage,
+        hit_count: row.hit_count,
+        crit_count: row.crit_count,
+        top_power: row.top_power,
+        source_kind: row.source_kind,
+        owner_name: row.owner_name,
+        power_breakdown: row
+            .power_breakdown
+            .into_iter()
+            .map(engine_power_to_imported)
+            .collect(),
+        damage_trend: row.damage_trend,
+    }
+}
+
+fn engine_power_to_dto(power: PowerBreakdown) -> PowerBreakdownDto {
+    PowerBreakdownDto {
+        power_name: power.power_name,
+        total_damage: power.total_damage,
+        hit_count: power.hit_count,
+    }
+}
+
+fn engine_power_to_imported(power: PowerBreakdown) -> ImportedPowerBreakdown {
+    ImportedPowerBreakdown {
+        power_name: power.power_name,
+        total_damage: power.total_damage,
+        hit_count: power.hit_count,
+    }
 }
 
 fn imported_party_damage_to_dto(row: ImportedPartyDamage) -> PartyDamageDto {
@@ -787,6 +597,7 @@ fn imported_party_damage_to_dto(row: ImportedPartyDamage) -> PartyDamageDto {
                 hit_count: power.hit_count,
             })
             .collect(),
+        damage_trend: row.damage_trend,
     }
 }
 
@@ -809,6 +620,7 @@ fn dto_to_imported_party_damage(row: PartyDamageDto) -> ImportedPartyDamage {
                 hit_count: power.hit_count,
             })
             .collect(),
+        damage_trend: row.damage_trend,
     }
 }
 

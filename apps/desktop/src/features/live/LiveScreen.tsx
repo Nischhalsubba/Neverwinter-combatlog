@@ -4,8 +4,11 @@ import Card from "@mui/material/Card";
 import LinearProgress from "@mui/material/LinearProgress";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
+import { BarChart } from "@mui/x-charts/BarChart";
 import { PieChart } from "@mui/x-charts/PieChart";
+import { SparkLineChart } from "@mui/x-charts/SparkLineChart";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { BreakdownBars } from "../../components/BreakdownBars";
 import { DamageDetailPanel } from "../../components/DamageDetailPanel";
 import { MetricCard } from "../../components/MetricCard";
@@ -74,16 +77,26 @@ export function LiveScreen() {
   const selectedMember =
     visibleDamageRows.find((row) => row.name === selectedName) ?? visibleDamageRows[0] ?? null;
   const totalVisibleDamage = visibleDamageRows.reduce((sum, row) => sum + row.totalDamage, 0);
-  const companionDamage = (preview.data?.companionDamage ?? []).reduce((sum, row) => sum + row.totalDamage, 0);
-  const playerDamage = Math.max(totalVisibleDamage - companionDamage, 0);
+  const rawPlayerDamage = (preview.data?.partyDamage ?? []).reduce((sum, row) => sum + row.totalDamage, 0);
+  const rawCompanionDamage = (preview.data?.companionDamage ?? []).reduce((sum, row) => sum + row.totalDamage, 0);
+  const allDamage = rawPlayerDamage + rawCompanionDamage;
+  const topPlayer = visibleDamageRows.find((row) => row.sourceKind !== "companion") ?? visibleDamageRows[0] ?? null;
+  const topPower = visibleDamageRows
+    .flatMap((row) => row.powerBreakdown.map((power) => ({ ...power, owner: row.name })))
+    .sort((left, right) => right.totalDamage - left.totalDamage)[0];
+  const visibleHits = visibleDamageRows.reduce((sum, row) => sum + row.hitCount, 0);
+  const visibleCrits = visibleDamageRows.reduce((sum, row) => sum + row.critCount, 0);
+  const visibleCritRate = visibleHits > 0 ? visibleCrits / visibleHits : 0;
+  const topDamageRows = visibleDamageRows.slice(0, 8);
+  const sourceMixTotal = Math.max(allDamage, 0);
 
   return (
     <section className="dashboard-page">
       <div className="screen-heading">
         <div>
-          <p className="eyebrow">Primary Workflow</p>
+          <p className="eyebrow">Endgame Combat Review</p>
           <h1>Live Combat</h1>
-          <p>Pick a combat log, then read the fight from left to right: total damage, member breakdown, companion contribution, and parser health.</p>
+          <p>Track the current fight with damage leaders, companion contribution, critical rate, top powers, and parser review in one glance.</p>
         </div>
         <div className="button-row">
           <Button onClick={() => chooseFolder.mutate()} variant="outlined">
@@ -105,11 +118,103 @@ export function LiveScreen() {
       </div>
 
       <div className="summary-strip">
-        <MetricCard label="Visible Combatants" value={visibleDamageRows.length.toLocaleString()} />
-        <MetricCard label="Visible Damage" value={Math.round(totalVisibleDamage).toLocaleString()} />
-        <MetricCard label="Lines Read" value={(preview.data?.lineCount ?? 0).toLocaleString()} helper="Live source" />
-        <MetricCard label="Parsed Lines" value={(preview.data?.parsedCount ?? 0).toLocaleString()} />
-        <MetricCard label="Needs Review" value={(preview.data?.failedCount ?? 0).toLocaleString()} />
+        <MetricCard label="Total Damage" value={Math.round(totalVisibleDamage).toLocaleString()} helper={showCompanions ? "Players + owned companions" : "Players only"} />
+        <MetricCard label="Top Player" value={topPlayer?.name ?? "No damage"} helper={topPlayer ? Math.round(topPlayer.totalDamage).toLocaleString() : "Waiting for combat"} />
+        <MetricCard label="Top Power" value={topPower?.powerName ?? "No power"} helper={topPower ? `${Math.round(topPower.totalDamage).toLocaleString()} by ${topPower.owner}` : "Waiting for damage"} />
+        <MetricCard label="Companion Share" value={`${(companionShare(preview.data?.companionDamage ?? [], allDamage) * 100).toFixed(1)}%`} helper={showCompanions ? "Merged into owners" : "Hidden from player totals"} />
+        <MetricCard label="Crit Rate" value={`${(visibleCritRate * 100).toFixed(1)}%`} helper={`${visibleHits.toLocaleString()} hits`} />
+        <MetricCard label="Parser Review" value={(preview.data?.failedCount ?? 0).toLocaleString()} helper={`${(preview.data?.parsedCount ?? 0).toLocaleString()} parsed`} />
+      </div>
+
+      <div className="combat-intelligence-grid">
+        <Card className="panel chart-card" component="article">
+          <div className="panel-header">
+            <div>
+              <h2>Damage Leaders</h2>
+              <p>Top party contributors after the current companion visibility setting.</p>
+            </div>
+            <StatusBadge tone={source.data?.state === "watching" ? "good" : "warning"}>
+              {source.data?.state === "watching" ? "Live" : "No source"}
+            </StatusBadge>
+          </div>
+          {topDamageRows.length ? (
+            <>
+              <div className="chart-shell">
+                <BarChart
+                  borderRadius={6}
+                  height={260}
+                  margin={{ bottom: 70, left: 72, right: 18, top: 18 }}
+                  series={[
+                    {
+                      color: "#0071e3",
+                      data: topDamageRows.map((row) => Math.round(row.totalDamage)),
+                      label: "Damage",
+                    },
+                  ]}
+                  xAxis={[
+                    {
+                      data: topDamageRows.map((row) => shortName(row.name)),
+                      scaleType: "band",
+                    },
+                  ]}
+                />
+              </div>
+              <div className="leader-link-row">
+                {topDamageRows.map((row) => (
+                  <Button
+                    component={Link}
+                    key={`${row.sourceKind}-${row.name}`}
+                    size="small"
+                    to={`/live/players/${encodeURIComponent(row.name)}`}
+                    variant="text"
+                  >
+                    {row.rank}. {row.name}
+                  </Button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p>Choose a combat log to draw the live damage chart.</p>
+          )}
+        </Card>
+
+        <Card className="panel chart-card" component="article">
+          <div className="panel-header">
+            <div>
+              <h2>Damage Source Mix</h2>
+              <p>Separate player damage from companion contribution before deciding whether to merge it.</p>
+            </div>
+          </div>
+          <div className="source-mix-panel">
+            <PieChart
+              height={210}
+              hideLegend
+              margin={{ bottom: 0, left: 0, right: 0, top: 0 }}
+              series={[
+                {
+                  data: [
+                    { id: "players", label: "Players", value: Math.max(rawPlayerDamage, 0) },
+                    { id: "companions", label: "Companions", value: Math.max(rawCompanionDamage, 0) },
+                  ],
+                  innerRadius: 52,
+                  outerRadius: 88,
+                },
+              ]}
+            />
+            <div className="source-mix-list">
+              <div>
+                <span>Players</span>
+                <strong>{Math.round(rawPlayerDamage).toLocaleString()}</strong>
+                <LinearProgress value={sourceMixTotal ? (rawPlayerDamage / sourceMixTotal) * 100 : 0} variant="determinate" />
+              </div>
+              <div>
+                <span>Companions</span>
+                <strong>{Math.round(rawCompanionDamage).toLocaleString()}</strong>
+                <LinearProgress value={sourceMixTotal ? (rawCompanionDamage / sourceMixTotal) * 100 : 0} variant="determinate" />
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
 
       <div className="dashboard-main">
@@ -132,7 +237,7 @@ export function LiveScreen() {
           <Card className="panel visual-panel" component="article">
             <div className="panel-header">
               <div>
-                <h2>Party Damage</h2>
+                <h2>Player Damage Leaderboard</h2>
                 <p>{damageTab === "current" ? "Current counter since last refresh." : "Past counters saved when Refresh Counter was pressed."}</p>
               </div>
               <div className="tab-row">
@@ -187,7 +292,7 @@ export function LiveScreen() {
       <div className="content-grid">
         <Card className="panel panel-large" component="article">
           <div className="panel-header">
-            <h2>Party Ranking Details</h2>
+            <h2>Player Damage Details</h2>
             <StatusBadge tone={source.data?.state === "watching" ? "good" : "warning"}>
               {source.data?.message ?? "No source selected"}
             </StatusBadge>
@@ -201,6 +306,7 @@ export function LiveScreen() {
                   <th>Total Damage</th>
                   <th>Hits</th>
                   <th>Crit %</th>
+                  <th>Trend</th>
                   <th>Top Power</th>
                 </tr>
               </thead>
@@ -212,16 +318,35 @@ export function LiveScreen() {
                     onClick={() => setSelectedName(row.name)}
                   >
                     <td>{row.rank}</td>
-                    <td>{row.name}</td>
+                    <td>
+                      <Button
+                        component={Link}
+                        onClick={(event) => event.stopPropagation()}
+                        size="small"
+                        to={`/live/players/${encodeURIComponent(row.name)}`}
+                        variant="text"
+                      >
+                        {row.name}
+                      </Button>
+                    </td>
                     <td>{Math.round(row.totalDamage).toLocaleString()}</td>
                     <td>{row.hitCount.toLocaleString()}</td>
                     <td>{(row.critRate * 100).toFixed(1)}</td>
+                    <td>
+                      <SparkLineChart
+                        aria-label={`${row.name} damage trend`}
+                        color="#0071e3"
+                        data={row.damageTrend.length ? row.damageTrend : [0]}
+                        height={32}
+                        width={96}
+                      />
+                    </td>
                     <td>{row.topPower ?? "-"}</td>
                   </tr>
                 ))}
                 {!visibleDamageRows.length ? (
                   <tr>
-                    <td colSpan={6}>Choose a combat log to show party damage.</td>
+                    <td colSpan={7}>Choose a combat log to show party damage.</td>
                   </tr>
                 ) : null}
               </tbody>
@@ -262,8 +387,8 @@ export function LiveScreen() {
                 series={[
                   {
                     data: [
-                      { id: "players", label: "Players", value: playerDamage },
-                      { id: "companions", label: "Companions", value: companionDamage },
+                      { id: "players", label: "Players", value: rawPlayerDamage },
+                      { id: "companions", label: "Companions", value: rawCompanionDamage },
                     ],
                     innerRadius: 34,
                     outerRadius: 55,
@@ -272,8 +397,8 @@ export function LiveScreen() {
                 width={120}
               />
               <div>
-                <strong>{(companionShare(preview.data?.companionDamage ?? [], totalVisibleDamage) * 100).toFixed(1)}%</strong>
-                <p>Companion share while visible.</p>
+                <strong>{(companionShare(preview.data?.companionDamage ?? [], allDamage) * 100).toFixed(1)}%</strong>
+                <p>Raw companion share in the selected log.</p>
               </div>
             </div>
           </Card>
@@ -309,6 +434,10 @@ function companionShare(companions: Array<{ totalDamage: number }>, totalDamage:
   }
 
   return companions.reduce((sum, row) => sum + row.totalDamage, 0) / totalDamage;
+}
+
+function shortName(name: string) {
+  return name.length > 14 ? `${name.slice(0, 13)}...` : name;
 }
 
 function FloatingLiveWidget({

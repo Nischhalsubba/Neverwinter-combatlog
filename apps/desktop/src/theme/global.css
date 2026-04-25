@@ -257,7 +257,86 @@ p {
 }
 
 .summary-strip {
-  grid-template-columns: repeat(5, minmax(140px, 1fr));
+  grid-template-columns: repeat(6, minmax(140px, 1fr));
+}
+
+.combat-intelligence-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
+  gap: 16px;
+  min-width: 0;
+}
+
+.chart-card {
+  display: grid;
+  gap: 16px;
+  min-height: 330px;
+}
+
+.chart-shell {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.source-mix-panel {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  align-items: center;
+  gap: 18px;
+}
+
+.source-mix-list {
+  display: grid;
+  gap: 18px;
+}
+
+.source-mix-list div {
+  display: grid;
+  gap: 8px;
+}
+
+.source-mix-list span {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.source-mix-list strong {
+  font-size: 22px;
+}
+
+.leader-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.player-detail-hero {
+  display: grid;
+  max-width: 760px;
+  gap: 12px;
+}
+
+.player-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 0.9fr);
+  gap: 16px;
+  min-width: 0;
+}
+
+.power-detail-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.45fr);
+  align-items: center;
+  gap: 18px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.power-detail-row > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
 }
 
 .dashboard-main {
@@ -289,7 +368,7 @@ p {
 }
 
 .content-grid {
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 2fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
   min-width: 0;
 }
 
@@ -771,6 +850,12 @@ md-assist-chip {
   .summary-strip,
   .settings-grid {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .combat-intelligence-grid,
+  .player-detail-grid,
+  .source-mix-panel {
+    grid-template-columns: 1fr;
   }
 
   .content-grid {

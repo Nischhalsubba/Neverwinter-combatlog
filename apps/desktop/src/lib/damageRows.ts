@@ -39,6 +39,7 @@ function mergeCompanionIntoOwner(owner: PartyDamageDto, companion: PartyDamageDt
   owner.critCount += companion.critCount;
   owner.critRate = owner.hitCount > 0 ? owner.critCount / owner.hitCount : 0;
   owner.powerBreakdown = mergePowerBreakdowns(owner.powerBreakdown, companion.powerBreakdown);
+  owner.damageTrend = mergeDamageTrends(owner.damageTrend, companion.damageTrend);
   owner.topPower = owner.powerBreakdown[0]?.powerName ?? owner.topPower;
 }
 
@@ -62,9 +63,15 @@ function mergePowerBreakdowns(
   return Array.from(byPower.values()).sort((a, b) => b.totalDamage - a.totalDamage);
 }
 
+function mergeDamageTrends(left: number[], right: number[]) {
+  const length = Math.max(left.length, right.length);
+  return Array.from({ length }, (_, index) => (left[index] ?? 0) + (right[index] ?? 0));
+}
+
 function cloneDamageRow(row: PartyDamageDto): PartyDamageDto {
   return {
     ...row,
+    damageTrend: [...row.damageTrend],
     powerBreakdown: row.powerBreakdown.map((power) => ({ ...power })),
   };
 }
@@ -72,4 +79,3 @@ function cloneDamageRow(row: PartyDamageDto): PartyDamageDto {
 function normalizeName(name: string) {
   return name.trim().toLocaleLowerCase();
 }
-

@@ -77,6 +77,7 @@ export type PartyDamageDto = {
   topPower: string | null;
   sourceKind: string;
   ownerName: string | null;
+  damageTrend: number[];
   powerBreakdown: Array<{
     powerName: string;
     totalDamage: number;

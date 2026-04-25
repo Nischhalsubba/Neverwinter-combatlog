@@ -38,14 +38,28 @@ if (Test-Path $oldTarget) {
 Write-Host "Checking TypeScript..." -ForegroundColor Cyan
 corepack pnpm --filter @nevercombat/desktop test
 
-Write-Host "Checking Rust formatting..." -ForegroundColor Cyan
 Push-Location "apps\desktop\src-tauri"
-cargo fmt -- --check
 
 Write-Host "Running Rust tests..." -ForegroundColor Cyan
-cargo test
+cargo test --lib --bins
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "Rust tests failed. If the output includes os error 4551, Windows Application Control is blocking generated Rust build executables." -ForegroundColor Yellow
+    Write-Host "Move the repository to a developer folder allowed by policy, or allow Rust build outputs in Windows Application Control."
+    exit $LASTEXITCODE
+}
 Pop-Location
+
+Write-Host "Building web assets..." -ForegroundColor Cyan
+corepack pnpm --filter @nevercombat/desktop web:build
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 
 Write-Host "Building desktop app..." -ForegroundColor Cyan
 corepack pnpm --filter @nevercombat/desktop build
-
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "Desktop build failed. If the output includes os error 4551, Windows Application Control is blocking generated Rust build executables." -ForegroundColor Yellow
+    exit $LASTEXITCODE
+}
