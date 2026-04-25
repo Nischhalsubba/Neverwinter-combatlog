@@ -4,6 +4,7 @@
 
 ### Files changed
 - `AGENT_MEMORY.md`
+- `README.md`
 - `apps/desktop/src-tauri/src/commands/mod.rs`
 - `apps/desktop/src-tauri/src/engine/mod.rs`
 - `apps/desktop/src-tauri/src/lib.rs`
@@ -82,6 +83,7 @@
 - Combat-log summarization moved out of Tauri commands into a Rust `engine` module. Commands now act as IPC/DTO adapters while the engine owns line reading, parsing, classification counts, damage aggregation, and trend compression.
 - Engine summarization now reads with `BufRead::read_line` and carries actual byte offsets into `RawLogLine` instead of always using `byte_offset: 0`.
 - Windows build testing should avoid Rust doctests for now. The Tauri lib has `doctest = false`, and `build-all.ps1` runs `cargo test --lib --bins`.
+- README now documents Windows prerequisites, one-command local run, one-command build, manual dev commands, automated checks, product test checklist, and Windows Application Control troubleshooting.
 - Treat the finalized PRD, UI/UX spec, technical spec, and delivery backlog from `C:\Users\acer\Downloads\Compressed\Neverwinter-Combat-Analyzer-Finalized-Docs\` as source of truth.
 - Use Tauri 2 + Rust + React/TypeScript + SQLite for the Windows desktop MVP.
 - Preserve raw combat log lines and normalized parser output from the first scaffold.
@@ -134,6 +136,9 @@
 - User requested a full layout redesign, a Live Combat refresh button that resets counters to zero, prior counter records saved in a Party Damage history tab, and no static/placeholder information.
 
 ### Current status
+- Updated `README.md` with local run/build/test/product-test instructions for Windows.
+- Verification passed after README update: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed: PowerShell syntax check for `scripts/start-dev.ps1` and `scripts/build-all.ps1`.
 - Added `apps/desktop/src-tauri/src/engine/mod.rs` as the first backend engine boundary and moved preview summarization logic there.
 - `scripts/build-all.ps1` now runs the simpler Rust test command `cargo test --lib --bins`.
 - Cargo doctests are disabled for the Tauri library because this product currently has no doctest examples and full `cargo test` was failing during rustdoc external-crate resolution.
@@ -231,6 +236,7 @@
 - Verification passed after replacing the broken widget window with the in-app widget: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, and `corepack pnpm --filter @nevercombat/desktop web:build`.
 
 ### Next exact step
+- User can run `.\start-dev.cmd` for local development or `.\build-all.cmd` for build/checks; if os error 4551 appears, follow the README Windows Application Control section.
 - Continue with the next engine step once Windows Application Control allows Rust build-script execution: wire SQLite writes for raw and parsed events from `engine::summarize_combat_log`, then replace in-memory imported/live records.
 - Run `.\start-dev.cmd`, import or link the user's real combat log, click a Damage Leaders name, and visually confirm `/live/players/:playerName` shows the combatant detail page with trend and power charts.
 - Run `.\start-dev.cmd` from the repo root. Validate Open Widget shows the in-app Nexus floating widget, Close Widget works from both the Live screen and the widget itself, and Choose Log Folder/File plus Replay Import work while the widget is open.
