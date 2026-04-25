@@ -1,6 +1,8 @@
 node_modules/
 dist/
 target/
+bin/
+obj/
 .cargo-target/
 .vite/
 .turbo/

@@ -4,11 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "tauri dev",
-    "build": "tauri build",
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
     "web:dev": "vite --host 127.0.0.1",
     "web:build": "tsc --noEmit && vite build",
-    "test": "tsc --noEmit"
+    "test": "tsc --noEmit",
+    "legacy:tauri:dev": "tauri dev",
+    "legacy:tauri:build": "tauri build"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

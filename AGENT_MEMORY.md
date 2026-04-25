@@ -3,6 +3,29 @@
 ## 2026-04-14
 
 ### Files changed
+- `NuGet.Config`
+- `apps/windows/NexusCombatAnalyzer.Host/NexusCombatAnalyzer.Host.csproj`
+- `.gitignore`
+- `scripts/start-dev.ps1`
+- `scripts/build-all.ps1`
+- `apps/desktop/package.json`
+- `apps/windows/NexusCombatAnalyzer.Engine/NexusCombatAnalyzer.Engine.csproj`
+- `apps/windows/NexusCombatAnalyzer.Engine/Models/EventClassification.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Models/RawLogLine.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Models/ParsedEvent.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Models/ParseFailure.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Models/ParseOutcome.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Parsing/NeverwinterLogParser.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Summaries/DamageRow.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Summaries/CombatLogSummary.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Summaries/CombatLogSummarizer.cs`
+- `apps/windows/NexusCombatAnalyzer.Tests/NexusCombatAnalyzer.Tests.csproj`
+- `apps/windows/NexusCombatAnalyzer.Tests/Program.cs`
+- `apps/windows/NexusCombatAnalyzer.Host/NexusCombatAnalyzer.Host.csproj`
+- `apps/windows/NexusCombatAnalyzer.Host/App.xaml`
+- `apps/windows/NexusCombatAnalyzer.Host/App.xaml.cs`
+- `apps/windows/NexusCombatAnalyzer.Host/MainWindow.xaml`
+- `apps/windows/NexusCombatAnalyzer.Host/MainWindow.xaml.cs`
 - `AGENT_MEMORY.md`
 - `README.md`
 - `scripts/start-dev.ps1`
@@ -78,6 +101,14 @@
 - `apps/desktop/src-tauri/migrations/0001_initial_schema.sql`
 
 ### Decisions made
+- .NET publish targets `win-x64`, so restore must also include `-r win-x64`; otherwise `project.assets.json` lacks `net8.0-windows/win-x64` and publish fails with `NETSDK1047`.
+- Add repo-level `NuGet.Config` with explicit `nuget.org` source because the user's `dotnet nuget list source` returned `No sources found`, causing WebView2 restore failure `NU1100`.
+- Superseded the Rust/Tauri runtime direction for future work because the user's Windows Application Control policy blocks Rust-generated build executables with os error 4551.
+- New runtime direction is C#/.NET for parser, engine, storage, and Windows desktop hosting, while keeping React/TypeScript/MUI for the UI.
+- Added a parallel .NET engine scaffold instead of deleting the Rust code, so prior implementation remains available during migration.
+- The C# parser keeps the legacy Neverwinter 12-field mapping from ACT parity work: owner 0/1, source 2/3, target 4/5, power 6/7, type 8, flags 9, magnitude 10, base magnitude 11.
+- One-command scripts now require .NET SDK instead of Rust/Cargo and run the WPF/WebView2 host with the React Vite dev server.
+- `@nevercombat/desktop` default `dev` and `build` scripts now run Vite/TypeScript only. Tauri commands are retained only as explicit `legacy:tauri:*` scripts.
 - Live/replay damage aggregation now prioritizes Neverwinter owner/player attribution: player damage is grouped by `owner_name` when `owner_ref` is a player ref, while companion/entity damage remains in the companion leaderboard with owner metadata.
 - Live Combat dashboard now prioritizes endgame at-a-glance reads: total visible damage, top player, top power, companion share, crit rate, parser review, top damage bar chart, and player-vs-companion source mix chart.
 - Combatant rows now carry a compact dynamic damage trend so MUI X line/sparkline charts can visualize damage spikes without static sample data.
@@ -113,6 +144,8 @@
 - Expanded sidebar destinations with detail content: Live source health/classification, Replay import size breakdown, Encounters workflow, Encounter Detail analysis placeholders, Widget behavior/appearance/modes, and comprehensive Settings categories.
 
 ### Mistakes or failed approaches
+- After NuGet source was fixed, the first .NET publish failed with `NETSDK1047` because restore succeeded only for `net8.0-windows`, while publish requested `net8.0-windows/win-x64` with `--no-restore`.
+- First .NET host build failed on the user's machine with `NU1100: Unable to resolve Microsoft.Web.WebView2` because no NuGet package sources were configured globally.
 - After clearing the generated Cargo target and retrying serially, Rust commands are still blocked by Windows Application Control on generated build-script executables such as `icu_normalizer_data`, `serde`, `getrandom`, and others. This is an OS policy blocker before crate compilation, not an engine source error.
 - MUI X `SparkLineChart` in the installed version uses `color`, not `colors`; TypeScript rejected the array prop and it was corrected.
 - MUI X `PieChart` does not accept `slotProps.legend.hidden`; TypeScript rejected it. Switched to the supported `hideLegend` prop.
@@ -139,6 +172,28 @@
 - User requested a full layout redesign, a Live Combat refresh button that resets counters to zero, prior counter records saved in a Party Damage history tab, and no static/placeholder information.
 
 ### Current status
+- Added `<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>` to the .NET host project.
+- Updated `scripts/build-all.ps1` to restore the host with `--configfile NuGet.Config -r win-x64` before publishing with `--no-restore`.
+- Updated `README.md` manual publish and troubleshooting commands to restore with `-r win-x64`.
+- Verification passed after RID restore fix: PowerShell syntax check for `scripts/start-dev.ps1` and `scripts/build-all.ps1`.
+- Verification passed after RID restore fix: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed after RID restore fix: `corepack pnpm --filter @nevercombat/desktop web:build`.
+- Added `NuGet.Config` at repo root with `https://api.nuget.org/v3/index.json`.
+- Updated start/build scripts to run `dotnet restore ... --configfile NuGet.Config` before `dotnet run` or `dotnet publish`.
+- Updated `README.md` troubleshooting for `NU1100: Unable to resolve Microsoft.Web.WebView2`.
+- Added initial C# engine project under `apps/windows/NexusCombatAnalyzer.Engine`.
+- Added C# raw line, parsed event, parse failure/outcome, event classification, quote-aware parser, and combat-log summary aggregation models.
+- Added `apps/windows/NexusCombatAnalyzer.Tests` as a simple console test harness so parser tests can run with `dotnet run` without requiring xUnit/NUnit packages.
+- Added `apps/windows/NexusCombatAnalyzer.Host` as a WPF/WebView2 shell that can load either Vite dev server via `NCA_WEB_DEV_URL` or built React assets from `apps/desktop/dist`.
+- Updated `scripts/start-dev.ps1` to start the React dev server and then run the .NET Windows host.
+- Updated `scripts/build-all.ps1` to run TypeScript checks, C# parser tests, web build, and `dotnet publish` to `dist/windows`.
+- Added `bin/` and `obj/` to `.gitignore` for .NET build outputs.
+- Updated `README.md` to document the C#/.NET migration path, new prerequisites, run/build/test commands, and why Rust/Tauri is superseded.
+- Updated `apps/desktop/package.json` so default app scripts avoid Tauri/Cargo.
+- Verification passed: PowerShell syntax check for `scripts/start-dev.ps1` and `scripts/build-all.ps1`.
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop web:build`.
+- .NET verification is blocked in this assistant environment because no .NET SDK is installed. The command reports `No .NET SDKs were found`; user must install .NET 8 SDK once.
 - Fixed the avoidable local-run `EPERM` by removing `corepack enable` from `scripts/start-dev.ps1` and `scripts/build-all.ps1`.
 - `scripts/start-dev.ps1` now prints a clearer Windows Application Control message if Tauri dev exits with os error 4551.
 - Verification passed after script fix: PowerShell syntax check for `scripts/start-dev.ps1` and `scripts/build-all.ps1`.
@@ -243,6 +298,7 @@
 - Verification passed after replacing the broken widget window with the in-app widget: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, and `corepack pnpm --filter @nevercombat/desktop web:build`.
 
 ### Next exact step
+- Rerun `.\build-all.cmd`; restore should now include the `win-x64` target required by publish.
 - User can rerun `.\start-dev.cmd`; the `pnpx.CMD` EPERM should be gone. If os error 4551 remains, Windows Application Control must allow Rust-generated build executables.
 - Continue with the next engine step once Windows Application Control allows Rust build-script execution: wire SQLite writes for raw and parsed events from `engine::summarize_combat_log`, then replace in-memory imported/live records.
 - Run `.\start-dev.cmd`, import or link the user's real combat log, click a Damage Leaders name, and visually confirm `/live/players/:playerName` shows the combatant detail page with trend and power charts.

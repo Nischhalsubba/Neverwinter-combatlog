@@ -21,7 +21,7 @@ Set-Location $repoRoot
 
 Require-Command "node" "Install Node.js LTS, then reopen PowerShell."
 Require-Command "corepack" "Install a current Node.js release that includes Corepack."
-Require-Command "cargo" "Install Rust from https://rustup.rs, then reopen PowerShell."
+Require-Command "dotnet" "Install the .NET 8 SDK from https://dotnet.microsoft.com/download/dotnet/8.0, then reopen PowerShell."
 
 Write-Host "Checking pnpm through Corepack..." -ForegroundColor Cyan
 corepack pnpm --version
@@ -38,17 +38,19 @@ if (Test-Path $oldTarget) {
 Write-Host "Checking TypeScript..." -ForegroundColor Cyan
 corepack pnpm --filter @nevercombat/desktop test
 
-Push-Location "apps\desktop\src-tauri"
-
-Write-Host "Running Rust tests..." -ForegroundColor Cyan
-cargo test --lib --bins
+Write-Host "Running C# engine tests..." -ForegroundColor Cyan
+dotnet run --project "apps\windows\NexusCombatAnalyzer.Tests\NexusCombatAnalyzer.Tests.csproj"
 if ($LASTEXITCODE -ne 0) {
-    Write-Host ""
-    Write-Host "Rust tests failed. If the output includes os error 4551, Windows Application Control is blocking generated Rust build executables." -ForegroundColor Yellow
-    Write-Host "Move the repository to a developer folder allowed by policy, or allow Rust build outputs in Windows Application Control."
     exit $LASTEXITCODE
 }
-Pop-Location
+
+Write-Host "Restoring .NET desktop packages..." -ForegroundColor Cyan
+dotnet restore "apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.csproj" --configfile "NuGet.Config" -r win-x64
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "Could not restore .NET packages. Check that this machine can reach https://api.nuget.org/v3/index.json." -ForegroundColor Yellow
+    exit $LASTEXITCODE
+}
 
 Write-Host "Building web assets..." -ForegroundColor Cyan
 corepack pnpm --filter @nevercombat/desktop web:build
@@ -56,10 +58,8 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-Write-Host "Building desktop app..." -ForegroundColor Cyan
-corepack pnpm --filter @nevercombat/desktop build
+Write-Host "Publishing Windows desktop app..." -ForegroundColor Cyan
+dotnet publish "apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.csproj" -c Release -r win-x64 --self-contained false -o "dist\windows" --no-restore
 if ($LASTEXITCODE -ne 0) {
-    Write-Host ""
-    Write-Host "Desktop build failed. If the output includes os error 4551, Windows Application Control is blocking generated Rust build executables." -ForegroundColor Yellow
     exit $LASTEXITCODE
 }
