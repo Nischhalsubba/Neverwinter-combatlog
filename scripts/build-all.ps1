@@ -23,8 +23,8 @@ Require-Command "node" "Install Node.js LTS, then reopen PowerShell."
 Require-Command "corepack" "Install a current Node.js release that includes Corepack."
 Require-Command "cargo" "Install Rust from https://rustup.rs, then reopen PowerShell."
 
-Write-Host "Preparing pnpm..." -ForegroundColor Cyan
-corepack enable
+Write-Host "Checking pnpm through Corepack..." -ForegroundColor Cyan
+corepack pnpm --version
 
 Write-Host "Installing workspace dependencies..." -ForegroundColor Cyan
 corepack pnpm install

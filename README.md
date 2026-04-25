@@ -53,7 +53,7 @@ corepack pnpm start
 
 What this does:
 
-- Enables Corepack.
+- Uses pnpm through Corepack without writing shims into `C:\Program Files\nodejs`.
 - Installs workspace dependencies with pnpm.
 - Removes any old Tauri target folder inside the OneDrive project path.
 - Starts Tauri dev mode for the desktop app.
@@ -248,9 +248,16 @@ corepack pnpm install
 If pnpm is not recognized:
 
 ```powershell
-corepack enable
 corepack pnpm --version
 ```
+
+Do not run `corepack enable` unless PowerShell is opened as Administrator. On some Windows installs it tries to write `pnpx.CMD` into `C:\Program Files\nodejs` and fails with:
+
+```text
+EPERM: operation not permitted, open 'C:\Program Files\nodejs\pnpx.CMD'
+```
+
+The project scripts use `corepack pnpm ...` directly to avoid that Program Files write.
 
 If Rust is not recognized:
 
