@@ -16,6 +16,24 @@ function Require-Command {
     }
 }
 
+function Stop-ExistingAstralHost {
+    $processes = Get-CimInstance Win32_Process |
+        Where-Object {
+            $_.Name -like "dotnet*" -and
+            $_.CommandLine -and
+            (
+                $_.CommandLine -like "*NexusCombatAnalyzer.Host*" -or
+                $_.CommandLine -like "*AstralCombat.dll*" -or
+                $_.CommandLine -like "*NexusCombatAnalyzer.dll*"
+            )
+        }
+
+    foreach ($process in $processes) {
+        Write-Host "Stopping existing Astral Combat host process $($process.ProcessId)..." -ForegroundColor Yellow
+        Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
 
@@ -59,6 +77,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Publishing Windows desktop app..." -ForegroundColor Cyan
+Stop-ExistingAstralHost
 dotnet publish "apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.csproj" -c Release -r win-x64 --self-contained false -o "dist\windows" --no-restore
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE

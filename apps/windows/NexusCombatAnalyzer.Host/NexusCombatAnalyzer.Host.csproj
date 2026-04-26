@@ -6,7 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>NexusCombatAnalyzer</AssemblyName>
+    <AssemblyName>AstralCombat</AssemblyName>
     <RootNamespace>NexusCombatAnalyzer.Host</RootNamespace>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>

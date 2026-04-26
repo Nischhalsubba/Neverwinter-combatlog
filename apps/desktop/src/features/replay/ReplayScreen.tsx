@@ -38,12 +38,12 @@ export function ReplayScreen() {
     <section className="dashboard-page">
       <div className="screen-heading">
         <div>
-          <p className="eyebrow">Primary Workflow</p>
-          <h1>Replay Recorded Logs</h1>
-          <p>Import old combat logs and immediately see visual party damage, parser health, and log size before deeper encounter analysis.</p>
+          <p className="eyebrow">Replay</p>
+          <h1>Review saved fights</h1>
+          <p>Import a combat log and get the same visual damage view without being in game.</p>
         </div>
         <Button onClick={() => importLogs.mutate()} variant="contained">
-          Import Logs
+          Import Log
         </Button>
       </div>
       <div className="summary-strip">
@@ -71,17 +71,17 @@ export function ReplayScreen() {
         <section className="dashboard-column">
           <Card className="panel control-panel" component="article">
             <div>
-              <h2>Replay Dashboard</h2>
-              <p>Review imported logs visually first, then click any combatant for a power-by-power breakdown.</p>
+            <h2>Replay controls</h2>
+              <p>Compare saved fights, then click any combatant for power details.</p>
             </div>
             <label className="switch-row">
-              <span>Show companions in replay damage</span>
+              <span>Add companions to owner totals</span>
               <Switch checked={showCompanions} onChange={(_, checked) => setShowCompanions(checked)} />
             </label>
           </Card>
           <BreakdownBars
-            title="Top Replay Damage"
-            description="Total damage across imported logs. Click the detail list below to inspect one combatant."
+            title="Top damage"
+            description="Total damage across imported logs."
             data={visibleRows.slice(0, 12).map((row, index) => ({
               label: `${row.rank}. ${row.name}${row.sourceKind === "companion" ? " (companion)" : ""}`,
               value: Math.round(row.totalDamage),
@@ -89,8 +89,8 @@ export function ReplayScreen() {
             }))}
           />
           <BreakdownBars
-            title="Companion Replay Leaderboard"
-            description="Companion/entity damage remains visible as its own leaderboard."
+            title="Companion damage"
+            description="Summoned ally damage across imported logs."
             data={(importedLogs.data ?? [])
               .flatMap((log) => log.companionDamage.map((row) => ({ ...row, name: `${row.name} (${log.name})` })))
               .sort((left, right) => right.totalDamage - left.totalDamage)
@@ -106,7 +106,7 @@ export function ReplayScreen() {
       </div>
       <div className="content-grid">
         <Card className="panel" component="article">
-          <h2>Imported Logs</h2>
+          <h2>Logs</h2>
           {!importedLogs.data?.length ? <p>No recorded logs imported yet.</p> : null}
           <div className="list-stack">
             {(importedLogs.data ?? []).map((log) => (
@@ -120,7 +120,7 @@ export function ReplayScreen() {
           </div>
         </Card>
         <Card className="panel panel-large" component="article">
-          <h2>Replay Ranking Details</h2>
+          <h2>Replay table</h2>
           <div className="responsive-table-wrap">
             <table className="data-table">
               <thead>

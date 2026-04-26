@@ -9,9 +9,9 @@ import logoUrl from "../../assets/nexus-logo.png";
 import { getLiveSourcePreview, getSourceStatus } from "../../ipc/api";
 
 const navItems = [
-  { to: "/live", label: "Live Combat" },
-  { to: "/replay", label: "Replay Logs" },
-  { to: "/encounters", label: "Analysis" },
+  { to: "/live", label: "Live" },
+  { to: "/replay", label: "Replay" },
+  { to: "/encounters", label: "Players" },
   { to: "/widget", label: "Widget" },
   { to: "/settings", label: "Settings" },
 ];
@@ -24,11 +24,11 @@ export function AppLayout() {
     <div className="app-shell">
       <aside className="nav-rail" aria-label="Primary navigation">
         <Box className="brand-mark">
-          <img alt="Nexus Combat Analyzer" src={logoUrl} />
-          <span>Nexus</span>
+          <img alt="Astral Combat" src={logoUrl} />
+          <span>Astral Combat</span>
         </Box>
         <Typography className="nav-caption" component="p" variant="caption">
-          Visual combat review
+          Live damage made readable.
         </Typography>
         <nav>
           {navItems.map((item) => (

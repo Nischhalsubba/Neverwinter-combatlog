@@ -16,7 +16,7 @@ public partial class MainWindow : Window
     {
         var userDataFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "NexusCombatAnalyzer",
+            "AstralCombat",
             "WebView2");
         Directory.CreateDirectory(userDataFolder);
 
@@ -42,7 +42,7 @@ public partial class MainWindow : Window
         WebView.NavigateToString("""
             <html>
               <body style="font-family:Segoe UI,Arial;background:#1b1b1b;color:white;padding:32px">
-                <h1>Nexus Combat Analyzer</h1>
+                <h1>Astral Combat</h1>
                 <p>Build the React UI first with <code>corepack pnpm --filter @nevercombat/desktop web:build</code>.</p>
               </body>
             </html>

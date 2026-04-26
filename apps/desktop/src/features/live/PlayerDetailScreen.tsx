@@ -35,9 +35,9 @@ export function PlayerDetailScreen() {
         <Card className="panel player-detail-hero" component="article">
           <p className="eyebrow">Combatant Detail</p>
           <h1>{decodedName || "Unknown combatant"}</h1>
-          <p>This combatant is not in the current live damage set. Return to Live Combat and choose a row from the current leaderboard.</p>
+          <p>This combatant is not in the current damage set. Return to Live and choose a row from the current board.</p>
           <Button component={Link} to="/live" variant="contained">
-            Back to Live Combat
+            Back to Live
           </Button>
         </Card>
       </section>
@@ -54,7 +54,7 @@ export function PlayerDetailScreen() {
         </div>
         <div className="button-row">
           <Button component={Link} to="/live" variant="outlined">
-            Back to Live Combat
+            Back to Live
           </Button>
           <Chip label={member.sourceKind} variant="outlined" />
         </div>
@@ -78,7 +78,7 @@ export function PlayerDetailScreen() {
             </div>
             <SparkLineChart
               aria-label={`${member.name} mini damage trend`}
-              color="#0071e3"
+              color="#00a7b5"
               data={trend}
               height={44}
               width={130}
@@ -87,7 +87,7 @@ export function PlayerDetailScreen() {
           <LineChart
             height={280}
             margin={{ bottom: 36, left: 72, right: 18, top: 18 }}
-            series={[{ color: "#0071e3", data: trend, label: "Damage" }]}
+            series={[{ color: "#00a7b5", data: trend, label: "Damage" }]}
             xAxis={[{ data: trend.map((_, index) => index + 1), scaleType: "point" }]}
           />
         </Card>
@@ -102,7 +102,7 @@ export function PlayerDetailScreen() {
               margin={{ bottom: 36, left: 160, right: 24, top: 18 }}
               series={[
                 {
-                  color: "#5856d6",
+                  color: "#2fbf71",
                   data: topPowers.map((power) => Math.round(power.totalDamage)),
                   label: "Damage",
                 },

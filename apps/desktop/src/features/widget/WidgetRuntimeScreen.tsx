@@ -34,13 +34,13 @@ export function WidgetRuntimeScreen() {
   return (
     <main className="widget-runtime">
       <header className="widget-runtime-header" data-tauri-drag-region>
-        <img alt="Nexus Combat Analyzer" src={logoUrl} />
+        <img alt="Astral Combat" src={logoUrl} />
         <div data-tauri-drag-region>
           <Typography component="strong" variant="subtitle2">
-            Nexus
+            Astral
           </Typography>
           <Typography color="text.secondary" variant="caption">
-            Live combat
+            Live fight
           </Typography>
         </div>
         <Button color="inherit" onClick={() => closeWidget.mutate()} size="small" variant="text">

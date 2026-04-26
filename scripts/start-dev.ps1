@@ -16,6 +16,24 @@ function Require-Command {
     }
 }
 
+function Stop-ExistingAstralHost {
+    $processes = Get-CimInstance Win32_Process |
+        Where-Object {
+            $_.Name -like "dotnet*" -and
+            $_.CommandLine -and
+            (
+                $_.CommandLine -like "*NexusCombatAnalyzer.Host*" -or
+                $_.CommandLine -like "*AstralCombat.dll*" -or
+                $_.CommandLine -like "*NexusCombatAnalyzer.dll*"
+            )
+        }
+
+    foreach ($process in $processes) {
+        Write-Host "Stopping existing Astral Combat host process $($process.ProcessId)..." -ForegroundColor Yellow
+        Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $repoRoot
 
@@ -60,7 +78,7 @@ try {
         exit 1
     }
 
-    Write-Host "Starting Nexus Combat Analyzer .NET host..." -ForegroundColor Cyan
+    Write-Host "Starting Astral Combat .NET host..." -ForegroundColor Cyan
     $env:NCA_WEB_DEV_URL = $webUrl
     dotnet restore "apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.csproj" --configfile "NuGet.Config"
     if ($LASTEXITCODE -ne 0) {
@@ -69,16 +87,17 @@ try {
         exit $LASTEXITCODE
     }
 
+    Stop-ExistingAstralHost
     dotnet build "apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.csproj" -c Debug --no-restore /p:UseAppHost=false
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
 
-    $hostDll = Join-Path $repoRoot "apps\windows\NexusCombatAnalyzer.Host\bin\Debug\net8.0-windows\NexusCombatAnalyzer.dll"
+    $hostDll = Join-Path $repoRoot "apps\windows\NexusCombatAnalyzer.Host\bin\Debug\net8.0-windows\AstralCombat.dll"
     dotnet $hostDll
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
-        Write-Host "Nexus Combat Analyzer did not start. If Windows still reports os error 4551, the local policy is blocking generated .NET assemblies too." -ForegroundColor Yellow
+        Write-Host "Astral Combat did not start. If Windows still reports os error 4551, the local policy is blocking generated .NET assemblies too." -ForegroundColor Yellow
         exit $LASTEXITCODE
     }
 }

@@ -3,6 +3,15 @@
 ## 2026-04-14
 
 ### Files changed
+- `apps/desktop/src/theme/global.css`
+- `apps/desktop/src/theme/muiTheme.ts`
+- `apps/desktop/src/app/layout/AppLayout.tsx`
+- `apps/desktop/index.html`
+- `apps/desktop/src/features/live/LiveScreen.tsx`
+- `apps/desktop/src/features/live/PlayerDetailScreen.tsx`
+- `apps/desktop/src/features/replay/ReplayScreen.tsx`
+- `apps/desktop/src/features/widget/WidgetBuilderScreen.tsx`
+- `apps/desktop/src/features/widget/WidgetRuntimeScreen.tsx`
 - `apps/windows/NexusCombatAnalyzer.Host/App.xaml.cs`
 - `apps/windows/NexusCombatAnalyzer.Host/NexusBridge.cs`
 - `apps/windows/NexusCombatAnalyzer.Engine/Summaries/DamageRow.cs`
@@ -108,6 +117,11 @@
 - `apps/desktop/src-tauri/migrations/0001_initial_schema.sql`
 
 ### Decisions made
+- Rebranded the user-facing app from Nexus Combat Analyzer to Astral Combat.
+- New visual identity uses a dark left command rail, bright readable workspace, and emerald/cyan/crimson/amber accents for combat charts.
+- Kept internal project folder names such as `NexusCombatAnalyzer.Host` stable for now to avoid disruptive path/script churn; visible app copy and window title now use Astral Combat.
+- Simplified navigation and labels to `Live`, `Replay`, `Players`, `Widget`, `Settings`, `Log File`, and `New Fight`.
+- Start/build scripts now stop an existing Astral/Nexus .NET host process before rebuilding so DLL file locks do not break local iteration.
 - Buttons were broken because the React UI still called Tauri IPC while the app now runs in .NET WebView2. Added a WebView2 host object bridge named `nexus`.
 - The .NET bridge returns JSON matching existing frontend DTOs so React screens can keep using TanStack Query and chart components.
 - Parser classification now counts known damage event types such as `Physical` as damage, while `Power` is resource and `TriggerComplex` is meta even when magnitude is positive.
@@ -158,6 +172,7 @@
 - Expanded sidebar destinations with detail content: Live source health/classification, Replay import size breakdown, Encounters workflow, Encounter Detail analysis placeholders, Widget behavior/appearance/modes, and comprehensive Settings categories.
 
 ### Mistakes or failed approaches
+- First post-rebrand .NET host build failed because an already running `.NET Host` process locked `NexusCombatAnalyzer.Engine.dll`; scripts now stop the existing host before build/publish.
 - Running .NET tests and host build in parallel caused a transient file lock on the shared engine DLL; rerun .NET builds serially.
 - Enabling Windows Forms for native dialogs made `Application` ambiguous in `App.xaml.cs`; fixed by fully qualifying `System.Windows.Application`.
 - Keeping Tauri API calls after moving to .NET made buttons appear clickable but nonfunctional under WebView2.
@@ -192,6 +207,15 @@
 - User requested a full layout redesign, a Live Combat refresh button that resets counters to zero, prior counter records saved in a Party Damage history tab, and no static/placeholder information.
 
 ### Current status
+- Replaced the prior light Apple-style CSS with the Astral Combat layout and palette.
+- Updated MUI theme colors, font stack, shadows, and typography weights for the new brand.
+- Updated app shell, page copy, widget copy, HTML metadata, WPF title, README, and startup messages to Astral Combat.
+- Updated host assembly output to `AstralCombat.dll` and adjusted `start-dev.ps1`.
+- Updated `scripts/start-dev.ps1` and `scripts/build-all.ps1` to stop an existing host process before rebuilding/publishing.
+- Verification passed after rebrand: PowerShell syntax check for `scripts/start-dev.ps1` and `scripts/build-all.ps1`.
+- Verification passed after rebrand: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed after rebrand: `corepack pnpm --filter @nevercombat/desktop web:build`.
+- Verification passed after rebrand: `dotnet build apps/windows/NexusCombatAnalyzer.Host/NexusCombatAnalyzer.Host.csproj -c Debug --no-restore /p:UseAppHost=false`.
 - Added optional `--summarize <path>` mode to the C# test harness for full combat-log parser inspection.
 - Verification passed: `dotnet build apps/windows/NexusCombatAnalyzer.Host/NexusCombatAnalyzer.Host.csproj -c Debug --no-restore /p:UseAppHost=false`.
 - Verification passed: `dotnet build apps/windows/NexusCombatAnalyzer.Tests/NexusCombatAnalyzer.Tests.csproj -c Debug --no-restore`.
@@ -342,7 +366,7 @@
 - Verification passed after replacing the broken widget window with the in-app widget: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, and `corepack pnpm --filter @nevercombat/desktop web:build`.
 
 ### Next exact step
-- Run TypeScript and .NET tests, then start the app and validate buttons against the provided combat log.
+- Rerun `.\start-dev.cmd` and visually confirm Astral Combat branding, simple navigation, and button behavior with the provided combat log.
 - User can rerun `.\start-dev.cmd`; the `pnpx.CMD` EPERM should be gone. If os error 4551 remains, Windows Application Control must allow Rust-generated build executables.
 - Continue with the next engine step once Windows Application Control allows Rust build-script execution: wire SQLite writes for raw and parsed events from `engine::summarize_combat_log`, then replace in-memory imported/live records.
 - Run `.\start-dev.cmd`, import or link the user's real combat log, click a Damage Leaders name, and visually confirm `/live/players/:playerName` shows the combatant detail page with trend and power charts.

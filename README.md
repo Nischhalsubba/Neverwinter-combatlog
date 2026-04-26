@@ -1,6 +1,6 @@
-# Nexus Combat Analyzer
+# Astral Combat
 
-Windows-first desktop combat log analyzer for Neverwinter, with ACT-style parser parity, live tracking, replay review, companion attribution, and a lightweight widget.
+Windows-first desktop combat log analyzer for Neverwinter. Astral Combat focuses on simple visual reads: live damage, replay review, companion attribution, player breakdowns, charts, and a compact widget.
 
 The finalized PRD, UI/UX specification, technical specification, and delivery backlog are the source of truth for this repository.
 
@@ -59,7 +59,7 @@ What this does:
 - Installs workspace dependencies with pnpm.
 - Starts the React/Vite dev server on `http://127.0.0.1:1420`.
 - Builds the .NET WPF/WebView2 desktop host without a generated apphost `.exe`.
-- Starts the host with `dotnet NexusCombatAnalyzer.dll` and points it at the dev server.
+- Starts the host with `dotnet AstralCombat.dll` and points it at the dev server.
 
 ## Build Locally
 
@@ -149,42 +149,42 @@ dotnet publish apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.cs
 
 Use this after `.\start-dev.cmd` opens the desktop app.
 
-### Live Combat
+### Live
 
-1. Open `Live Combat`.
-2. Click `Choose Log Folder`.
+1. Open `Live`.
+2. Click `Log Folder`.
 3. Select the folder that contains Neverwinter `Combat*.log` files.
 4. Confirm the top app bar changes from no source to the selected combat log.
-5. Confirm `Lines Read`, `Parsed Lines`, `Parser Review`, damage charts, and recent events update.
-6. Click `Choose Log File` and select a specific `.log` file.
+5. Confirm damage cards, charts, parser review, and recent reads update.
+6. Click `Log File` and select a specific `.log` file.
 7. Confirm the same live dashboard updates from that file.
-8. Click `Refresh Counter`.
-9. Confirm current damage resets and the previous counter appears under the `History` tab in `Player Damage Leaderboard`.
+8. Click `New Fight`.
+9. Confirm current damage resets and the previous counter appears under the saved fight tab.
 
 ### Player And Companion Damage
 
-1. Confirm `Player Damage Details` shows player rows.
-2. Toggle `Show companions in main damage`.
+1. Confirm `Player table` shows player rows.
+2. Toggle `Add companions to owner totals`.
 3. Confirm player totals include companion damage when enabled and exclude companion damage when disabled.
-4. Confirm `Companion Damage Leaderboard` still shows companion/entity damage separately.
-5. Click a player name in `Damage Leaders` or `Player Damage Details`.
+4. Confirm `Companion damage` still shows companion/entity damage separately.
+5. Click a player name in the damage chart or player table.
 6. Confirm the player detail page opens at `/live/players/:playerName`.
 7. Confirm the detail page shows rank, damage, share, hits, crit rate, top power, damage trend, and top powers.
 
-### Replay Logs
+### Replay
 
-1. Open `Replay Logs`.
-2. Click `Import Logs`.
+1. Open `Replay`.
+2. Click `Import Log`.
 3. Select one or more recorded `.log` files.
 4. Confirm imported logs appear in the list.
 5. Confirm replay damage, companion damage, parsed lines, failed lines, and ranking details update.
 
 ### Widget
 
-1. Open `Live Combat`.
-2. Click `Open Widget`.
+1. Open `Live`.
+2. Click `Show Widget`.
 3. Confirm the in-app floating widget appears.
-4. Click `Close Widget`.
+4. Click `Hide Widget`.
 5. Confirm it closes.
 6. Reopen it, then click `Choose Log Folder`, `Choose Log File`, or `Import Logs`.
 7. Confirm file dialogs still open while the widget is open.
@@ -312,7 +312,7 @@ C:\Program Files\dotnet\dotnet.exe.WebView2\EBWebView
 the app is being launched through `dotnet.exe`, so WebView2 tried to place browser data beside `dotnet.exe`. The host now sets its WebView2 user data folder to:
 
 ```text
-%LOCALAPPDATA%\NexusCombatAnalyzer\WebView2
+%LOCALAPPDATA%\AstralCombat\WebView2
 ```
 
 Retry:
@@ -326,9 +326,20 @@ If restore still fails, check that Windows, antivirus, firewall, or a corporate 
 If the app opens but no combat data appears:
 
 - Make sure Neverwinter has written a `Combat*.log` file.
-- Use `Choose Log Folder` for the folder containing the latest `Combat*.log`.
-- Use `Choose Log File` to force a specific log file.
-- Import the same file under `Replay Logs` to check whether the parser can read it as a recorded log.
+- Use `Log Folder` for the folder containing the latest `Combat*.log`.
+- Use `Log File` to force a specific log file.
+- Import the same file under `Replay` to check whether the parser can read it as a recorded log.
+
+## Design Direction
+
+Astral Combat uses a new identity built for fast endgame reads:
+
+- Dark left navigation for app orientation.
+- Bright readable work area for charts and tables.
+- Emerald, cyan, crimson, and amber accents for combat meaning.
+- Short labels such as `Live`, `Replay`, `New Fight`, and `Log File`.
+- Charts before tables wherever possible.
+- Companion damage visible separately and optionally merged into owners.
 
 ## Product Principles
 

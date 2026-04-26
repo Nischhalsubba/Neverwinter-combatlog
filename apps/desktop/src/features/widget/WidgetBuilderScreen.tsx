@@ -15,14 +15,14 @@ export function WidgetBuilderScreen() {
     <section className="screen-grid">
       <div className="screen-heading">
         <div>
-          <p className="eyebrow">Live Widget</p>
-          <h1>Widget Builder</h1>
-          <p>{widget.data?.isOpen ? "The live widget window is open." : "Open the live widget from Live Combat to mirror these metrics during combat."}</p>
+          <p className="eyebrow">Widget</p>
+          <h1>Small fight view</h1>
+          <p>{widget.data?.isOpen ? "The widget is visible." : "Open the widget from Live to keep core numbers nearby."}</p>
         </div>
       </div>
       <div className="content-grid">
         <article className="panel">
-          <h2>Presets</h2>
+          <h2>Modes</h2>
           <div className="chip-row">
             {presets.map((preset) => (
               <Chip key={preset} label={preset} variant="outlined" />
@@ -52,7 +52,7 @@ export function WidgetBuilderScreen() {
           },
           {
             title: "Appearance",
-            body: "Apple-style neutral surfaces and blue interactive controls follow DESIGN.md.",
+            body: "Compact Astral Combat styling keeps the numbers readable.",
           },
           {
             title: "Modes",

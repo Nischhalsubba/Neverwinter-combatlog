@@ -94,33 +94,33 @@ export function LiveScreen() {
     <section className="dashboard-page">
       <div className="screen-heading">
         <div>
-          <p className="eyebrow">Endgame Combat Review</p>
-          <h1>Live Combat</h1>
-          <p>Track the current fight with damage leaders, companion contribution, critical rate, top powers, and parser review in one glance.</p>
+          <p className="eyebrow">Live Fight</p>
+          <h1>See the fight now</h1>
+          <p>Pick your combat log, then read the fight from left to right: total damage, leaders, powers, companions, and parser health.</p>
         </div>
         <div className="button-row">
           <Button onClick={() => chooseFolder.mutate()} variant="outlined">
-            Choose Log Folder
+            Log Folder
           </Button>
           <Button onClick={() => chooseFile.mutate()} variant="outlined">
-            Choose Log File
+            Log File
           </Button>
           <Button onClick={() => openWidget.mutate()} variant="outlined">
-            Open Widget
+            Show Widget
           </Button>
           <Button onClick={() => closeWidget.mutate()} variant="outlined">
-            Close Widget
+            Hide Widget
           </Button>
           <Button onClick={() => resetCounter.mutate()} variant="contained">
-            Refresh Counter
+            New Fight
           </Button>
         </div>
       </div>
 
       <div className="summary-strip">
-        <MetricCard label="Total Damage" value={Math.round(totalVisibleDamage).toLocaleString()} helper={showCompanions ? "Players + owned companions" : "Players only"} />
-        <MetricCard label="Top Player" value={topPlayer?.name ?? "No damage"} helper={topPlayer ? Math.round(topPlayer.totalDamage).toLocaleString() : "Waiting for combat"} />
-        <MetricCard label="Top Power" value={topPower?.powerName ?? "No power"} helper={topPower ? `${Math.round(topPower.totalDamage).toLocaleString()} by ${topPower.owner}` : "Waiting for damage"} />
+        <MetricCard label="Damage" value={Math.round(totalVisibleDamage).toLocaleString()} helper={showCompanions ? "Players + companions" : "Players only"} />
+        <MetricCard label="Leader" value={topPlayer?.name ?? "No damage"} helper={topPlayer ? Math.round(topPlayer.totalDamage).toLocaleString() : "Waiting"} />
+        <MetricCard label="Best Power" value={topPower?.powerName ?? "No power"} helper={topPower ? `${Math.round(topPower.totalDamage).toLocaleString()} by ${topPower.owner}` : "Waiting"} />
         <MetricCard label="Companion Share" value={`${(companionShare(preview.data?.companionDamage ?? [], allDamage) * 100).toFixed(1)}%`} helper={showCompanions ? "Merged into owners" : "Hidden from player totals"} />
         <MetricCard label="Crit Rate" value={`${(visibleCritRate * 100).toFixed(1)}%`} helper={`${visibleHits.toLocaleString()} hits`} />
         <MetricCard label="Parser Review" value={(preview.data?.failedCount ?? 0).toLocaleString()} helper={`${(preview.data?.parsedCount ?? 0).toLocaleString()} parsed`} />
@@ -130,8 +130,8 @@ export function LiveScreen() {
         <Card className="panel chart-card" component="article">
           <div className="panel-header">
             <div>
-              <h2>Damage Leaders</h2>
-              <p>Top party contributors after the current companion visibility setting.</p>
+              <h2>Who is carrying damage?</h2>
+              <p>The largest bars are the players or companions doing the most work.</p>
             </div>
             <StatusBadge tone={source.data?.state === "watching" ? "good" : "warning"}>
               {source.data?.state === "watching" ? "Live" : "No source"}
@@ -174,15 +174,15 @@ export function LiveScreen() {
               </div>
             </>
           ) : (
-            <p>Choose a combat log to draw the live damage chart.</p>
+            <p>Choose a combat log to draw the damage chart.</p>
           )}
         </Card>
 
         <Card className="panel chart-card" component="article">
           <div className="panel-header">
             <div>
-              <h2>Damage Source Mix</h2>
-              <p>Separate player damage from companion contribution before deciding whether to merge it.</p>
+              <h2>Players vs companions</h2>
+              <p>See how much damage is coming from party members and summoned allies.</p>
             </div>
           </div>
           <div className="source-mix-panel">
@@ -221,7 +221,7 @@ export function LiveScreen() {
         <section className="dashboard-column">
           <Card className="panel control-panel" component="article">
             <div>
-              <h2>Damage Dashboard</h2>
+              <h2>Fight controls</h2>
               <p>
                 {source.data?.state === "watching"
                   ? `Counting from ${preview.data?.path ?? "selected log"}`
@@ -229,7 +229,7 @@ export function LiveScreen() {
               </p>
             </div>
             <label className="switch-row">
-              <span>Show companions in main damage</span>
+              <span>Add companions to owner totals</span>
               <Switch checked={showCompanions} onChange={(_, checked) => setShowCompanions(checked)} />
             </label>
           </Card>
@@ -237,22 +237,22 @@ export function LiveScreen() {
           <Card className="panel visual-panel" component="article">
             <div className="panel-header">
               <div>
-                <h2>Player Damage Leaderboard</h2>
-                <p>{damageTab === "current" ? "Current counter since last refresh." : "Past counters saved when Refresh Counter was pressed."}</p>
+                <h2>Damage board</h2>
+                <p>{damageTab === "current" ? "Current fight since New Fight." : "Saved fights from New Fight."}</p>
               </div>
               <div className="tab-row">
                 <button className={damageTab === "current" ? "tab tab-active" : "tab"} onClick={() => setDamageTab("current")} type="button">
-                  Current
+                  Now
                 </button>
                 <button className={damageTab === "history" ? "tab tab-active" : "tab"} onClick={() => setDamageTab("history")} type="button">
-                  History
+                  Saved
                 </button>
               </div>
             </div>
             {damageTab === "current" ? (
               <BreakdownBars
-                title="Current Damage"
-                description="Click a row in the table for detailed power breakdown."
+                title="Current damage"
+                description="Click a player below to inspect powers."
                 data={visibleDamageRows.map((row, index) => ({
                   label: `${row.rank}. ${row.name}${row.sourceKind === "companion" ? " (companion)" : ""}`,
                   value: Math.round(row.totalDamage),
@@ -270,14 +270,14 @@ export function LiveScreen() {
                     <strong>{Math.round(record.totalDamage).toLocaleString()}</strong>
                   </article>
                 ))}
-                {!preview.data?.history.length ? <p>No previous counters yet. Press Refresh Counter after damage is shown to save one.</p> : null}
+                {!preview.data?.history.length ? <p>No saved fights yet. Press New Fight after damage appears.</p> : null}
               </div>
             )}
           </Card>
 
           <BreakdownBars
-            title="Companion Damage Leaderboard"
-            description="Companion/entity damage is separated so it can be reviewed without hiding player performance."
+            title="Companion damage"
+            description="Summoned ally damage stays visible even when it is merged into owners."
             data={(preview.data?.companionDamage ?? []).map((row, index) => ({
               label: `${row.rank}. ${row.name}`,
               value: Math.round(row.totalDamage),
@@ -292,7 +292,7 @@ export function LiveScreen() {
       <div className="content-grid">
         <Card className="panel panel-large" component="article">
           <div className="panel-header">
-            <h2>Player Damage Details</h2>
+            <h2>Player table</h2>
             <StatusBadge tone={source.data?.state === "watching" ? "good" : "warning"}>
               {source.data?.message ?? "No source selected"}
             </StatusBadge>
@@ -303,7 +303,7 @@ export function LiveScreen() {
                 <tr>
                   <th>Rank</th>
                   <th>Name</th>
-                  <th>Total Damage</th>
+                <th>Damage</th>
                   <th>Hits</th>
                   <th>Crit %</th>
                   <th>Trend</th>
@@ -357,8 +357,8 @@ export function LiveScreen() {
         <aside className="insight-stack">
           <Card className="panel parser-health-compact" component="article">
             <div>
-              <p className="eyebrow">Parser Health</p>
-              <h2>{source.data?.state === "watching" ? "Watching" : "Waiting"}</h2>
+              <p className="eyebrow">Parser</p>
+              <h2>{source.data?.state === "watching" ? "Reading" : "Waiting"}</h2>
               <p>{source.data?.message ?? "No source selected"}</p>
             </div>
             <div className="health-meter">
@@ -366,7 +366,7 @@ export function LiveScreen() {
             </div>
           </Card>
           <Card className="panel" component="article">
-            <h2>Recent Events</h2>
+            <h2>Recent reads</h2>
             {!preview.data?.recentEvents.length ? <p>No events received yet.</p> : null}
             <div className="compact-event-list">
               {(preview.data?.recentEvents ?? []).slice(-5).map((event, index) => (
@@ -378,7 +378,7 @@ export function LiveScreen() {
             </div>
           </Card>
           <Card className="panel" component="article">
-            <h2>Damage Mix</h2>
+            <h2>Source mix</h2>
             <div className="donut-row">
               <PieChart
                 height={120}
@@ -406,8 +406,8 @@ export function LiveScreen() {
       </div>
 
       <BreakdownBars
-        title="Log Classification"
-        description="Every line is counted. Unknown or failed rows stay visible for parser debugging."
+        title="Log line types"
+        description="Every line is counted so parser issues stay visible."
         data={(preview.data?.classificationCounts ?? []).map((item, index) => ({
           label: item.classification,
           value: item.count,
@@ -456,10 +456,10 @@ function FloatingLiveWidget({
   return (
     <Card className="floating-live-widget" elevation={6}>
       <div className="floating-live-widget-header">
-        <img alt="Nexus Combat Analyzer" src={logoUrl} />
+        <img alt="Astral Combat" src={logoUrl} />
         <div>
           <Typography component="strong" variant="subtitle2">
-            Nexus Widget
+            Astral Widget
           </Typography>
           <Typography color="text.secondary" variant="caption">
             Live combat
