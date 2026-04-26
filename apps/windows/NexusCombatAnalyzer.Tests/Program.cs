@@ -11,15 +11,17 @@ if (args.Length == 2 && args[0] == "--summarize")
     Console.WriteLine($"Failed: {summary.FailedLines:N0}");
     Console.WriteLine($"Player damage: {summary.TotalPlayerDamage:N0}");
     Console.WriteLine($"Companion damage: {summary.TotalCompanionDamage:N0}");
+    Console.WriteLine($"Duration: {summary.DurationSeconds:N1}s");
+    Console.WriteLine($"EncDPS: {summary.EncDps:N0}");
     Console.WriteLine("Top players:");
     foreach (var row in summary.Players.Take(5))
     {
-        Console.WriteLine($"- {row.Name}: {row.Damage:N0} damage, {row.Hits:N0} hits, top power {row.TopPower}");
+        Console.WriteLine($"- {row.Name}: {row.Damage:N0} damage, {row.EncDps:N0} EncDPS, {row.Hits:N0} hits, top power {row.TopPower}");
     }
     Console.WriteLine("Top companions:");
     foreach (var row in summary.Companions.Take(5))
     {
-        Console.WriteLine($"- {row.Name} ({row.OwnerName ?? "unknown owner"}): {row.Damage:N0} damage, {row.Hits:N0} hits, top power {row.TopPower}");
+        Console.WriteLine($"- {row.Name} ({row.OwnerName ?? "unknown owner"}): {row.Damage:N0} damage, {row.EncDps:N0} EncDPS, {row.Hits:N0} hits, top power {row.TopPower}");
     }
     return;
 }
@@ -34,7 +36,8 @@ var tests = new List<(string Name, Action Test)>
     ("does not count power/resource rows as damage", DoesNotCountPowerResourceRowsAsDamage),
     ("recovers simple unquoted comma in owner name", RecoversUnquotedCommaInOwnerName),
     ("parses real Neverwinter dummy damage line", ParsesRealNeverwinterDummyDamageLine),
-    ("parses real Neverwinter companion damage line", ParsesRealNeverwinterCompanionDamageLine)
+    ("parses real Neverwinter companion damage line", ParsesRealNeverwinterCompanionDamageLine),
+    ("computes encounter duration and EncDPS", ComputesEncounterDurationAndEncDps)
 };
 
 foreach (var (name, test) in tests)
@@ -124,6 +127,28 @@ static void ParsesRealNeverwinterCompanionDamageLine()
     AssertEqual("C[289998 Pet_M28_Flapjack]", parsed.SourceRef);
     AssertEqual("Loose the Ballista!", parsed.PowerName);
     AssertEqual(154234d, parsed.Magnitude);
+}
+
+static void ComputesEncounterDurationAndEncDps()
+{
+    var tempPath = Path.Combine(Path.GetTempPath(), $"nca-encdps-{Guid.NewGuid():N}.log");
+    File.WriteAllLines(tempPath,
+    [
+        "26:04:15:10:00:00.0::Ar-chew,P[123],Ar-chew,P[123],Target Dummy,C[1],Aimed Shot,Pow[77],Physical,,100,100",
+        "26:04:15:10:00:10.0::Ar-chew,P[123],Ar-chew,P[123],Target Dummy,C[1],Aimed Shot,Pow[77],Physical,Critical,300,300"
+    ]);
+
+    try
+    {
+        var summary = new CombatLogSummarizer().SummarizeFile(tempPath);
+        AssertEqual(10d, summary.DurationSeconds);
+        AssertEqual(40d, summary.EncDps);
+        AssertEqual(40d, summary.Players[0].EncDps);
+    }
+    finally
+    {
+        File.Delete(tempPath);
+    }
 }
 
 static ParsedEvent Parse(string line)

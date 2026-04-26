@@ -4,6 +4,28 @@ Windows-first desktop combat log analyzer for Neverwinter. Astral Combat focuses
 
 The finalized PRD, UI/UX specification, technical specification, and delivery backlog are the source of truth for this repository.
 
+ACT/Neverwinter plugin parity is tracked in `docs\ACT_PARITY.md`. The current engine already ports the Neverwinter field mapping, owner/companion attribution, damage aggregation, and ACT-style `EncDPS`; remaining ACT columns and export variables are listed there as implementation work.
+
+## Optional AI Insights
+
+Astral Combat can generate short AI combat reviews from parsed summary metrics. This is optional and disabled until you add your own API key.
+
+Current provider:
+
+- OpenRouter `openrouter/free`
+- Uses OpenRouter free-model routing when available
+- Sends summary metrics only, not the full raw combat log
+- Stores the API key in the current browser profile through `localStorage`
+
+Setup:
+
+1. Create an OpenRouter API key.
+2. Run `.\start-dev.cmd`.
+3. Open `Settings`.
+4. Paste the key under `OpenRouter free-model insights`.
+5. Keep the model as `openrouter/free` unless you want a specific OpenRouter model.
+6. Open `Live` or a player detail page and click `Generate` in the AI Analyst panel.
+
 ## Stack
 
 - Desktop shell: .NET 8 WPF + Microsoft WebView2
@@ -41,7 +63,7 @@ Open PowerShell in the repository root:
 cd C:\Users\acer\OneDrive\Documents\Projects\Neverwinter-combatlog
 ```
 
-One command installs dependencies and starts the desktop app:
+One command installs dependencies and starts the app in browser-safe mode:
 
 ```powershell
 .\start-dev.cmd
@@ -58,8 +80,16 @@ What this does:
 - Uses pnpm through Corepack without writing shims into `C:\Program Files\nodejs`.
 - Installs workspace dependencies with pnpm.
 - Starts the React/Vite dev server on `http://127.0.0.1:1420`.
-- Builds the .NET WPF/WebView2 desktop host without a generated apphost `.exe`.
-- Starts the host with `dotnet AstralCombat.dll` and points it at the dev server.
+- Opens the app in your default browser.
+- Uses the in-browser parser fallback when Windows Application Control blocks generated desktop assemblies.
+
+Browser-safe mode supports selecting/importing combat log files, parsing logs, replay review, charts, player detail pages, reset history, and the in-app widget. True live folder tailing requires a native desktop host, but your current Windows policy blocks generated `.dll` files too.
+
+If your machine later allows the .NET host, start the desktop WebView2 shell explicitly:
+
+```powershell
+.\start-dev.cmd -Desktop
+```
 
 ## Build Locally
 
@@ -96,10 +126,16 @@ Install dependencies:
 corepack pnpm install
 ```
 
-Start only the desktop app:
+Start the browser-safe dev app:
 
 ```powershell
 .\start-dev.cmd
+```
+
+Start the desktop host only when Windows Application Control allows generated .NET assemblies:
+
+```powershell
+.\start-dev.cmd -Desktop
 ```
 
 Build only the frontend web assets:
@@ -287,19 +323,19 @@ dotnet restore apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.cs
 .\build-all.cmd
 ```
 
-If `.\start-dev.cmd` fails with:
+If `.\start-dev.cmd -Desktop` fails with:
 
 ```text
 An Application Control policy has blocked this file. (os error 4551)
 ```
 
-the development script is designed to avoid running the generated `.exe`. It builds with `/p:UseAppHost=false` and runs the app DLL through `dotnet.exe`. Pull the latest script change and retry:
+the local Windows policy is blocking generated .NET assemblies. The normal `.\start-dev.cmd` command now avoids this by running the app in browser-safe mode:
 
 ```powershell
 .\start-dev.cmd
 ```
 
-If it still fails, the local policy is blocking generated .NET assemblies too. In that case, run the published output from a developer-approved folder or adjust Windows Application Control for this project path.
+Use `.\start-dev.cmd -Desktop` only after this project path or generated build output is approved by Windows Application Control.
 
 If WebView2 shows:
 

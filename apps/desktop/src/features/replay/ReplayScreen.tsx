@@ -60,6 +60,7 @@ export function ReplayScreen() {
           label="Needs Review"
           value={(importedLogs.data ?? []).reduce((sum, log) => sum + log.failedCount, 0).toLocaleString()}
         />
+        <MetricSummary label="Avg EncDPS" value={Math.round(calculateReplayEncDps(importedLogs.data ?? [])).toLocaleString()} />
         <MetricSummary
           label="Party Rows"
           value={(importedLogs.data ?? [])
@@ -129,6 +130,7 @@ export function ReplayScreen() {
                   <th>Combatant</th>
                   <th>Type</th>
                   <th>Total Damage</th>
+                  <th>EncDPS</th>
                   <th>Hits</th>
                   <th>Crit %</th>
                   <th>Top Power</th>
@@ -145,6 +147,7 @@ export function ReplayScreen() {
                     <td>{row.name}</td>
                     <td>{row.sourceKind}</td>
                     <td>{Math.round(row.totalDamage).toLocaleString()}</td>
+                    <td>{Math.round(row.encDps).toLocaleString()}</td>
                     <td>{row.hitCount.toLocaleString()}</td>
                     <td>{(row.critRate * 100).toFixed(1)}</td>
                     <td>{row.topPower ?? "-"}</td>
@@ -152,7 +155,7 @@ export function ReplayScreen() {
                 ))}
                 {!visibleRows.length ? (
                   <tr>
-                    <td colSpan={7}>Import a recorded log to show replay damage.</td>
+                    <td colSpan={8}>Import a recorded log to show replay damage.</td>
                   </tr>
                 ) : null}
               </tbody>
@@ -171,4 +174,16 @@ function MetricSummary({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </article>
   );
+}
+
+function calculateReplayEncDps(logs: Array<{ durationSeconds: number; partyDamage: Array<{ totalDamage: number }>; companionDamage: Array<{ totalDamage: number }> }>) {
+  const damage = logs.reduce(
+    (sum, log) =>
+      sum
+      + log.partyDamage.reduce((rowSum, row) => rowSum + row.totalDamage, 0)
+      + log.companionDamage.reduce((rowSum, row) => rowSum + row.totalDamage, 0),
+    0,
+  );
+  const seconds = logs.reduce((sum, log) => sum + log.durationSeconds, 0);
+  return seconds > 0 ? damage / seconds : damage;
 }

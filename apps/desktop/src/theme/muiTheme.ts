@@ -4,11 +4,11 @@ export const muiTheme = createTheme({
   palette: {
     mode: "light",
     primary: {
-      main: "#00a7b5",
+      main: "#0f766e",
       contrastText: "#ffffff",
     },
     secondary: {
-      main: "#2fbf71",
+      main: "#475569",
     },
     success: {
       main: "#237a3b",
@@ -17,33 +17,33 @@ export const muiTheme = createTheme({
       main: "#8b6200",
     },
     error: {
-      main: "#b82f29",
+      main: "#b42318",
     },
     background: {
-      default: "#f8fbf8",
+      default: "#f5f7fa",
       paper: "#ffffff",
     },
     text: {
-      primary: "#161a18",
-      secondary: "#65706a",
+      primary: "#101828",
+      secondary: "#667085",
     },
-    divider: "rgba(16, 18, 17, 0.10)",
+    divider: "rgba(16, 24, 40, 0.10)",
   },
   shape: {
     borderRadius: 8,
   },
   typography: {
-    fontFamily: 'Inter, "Segoe UI", Arial, sans-serif',
+    fontFamily: 'Aptos, "Segoe UI", Inter, Arial, sans-serif',
     h1: {
-      fontFamily: 'Inter, "Segoe UI", Arial, sans-serif',
+      fontFamily: 'Aptos, "Segoe UI", Inter, Arial, sans-serif',
       fontSize: "2.5rem",
-      fontWeight: 800,
+      fontWeight: 700,
       lineHeight: 1.1,
       letterSpacing: 0,
     },
     h2: {
       fontSize: "1.25rem",
-      fontWeight: 800,
+      fontWeight: 700,
       letterSpacing: 0,
     },
     button: {
@@ -60,7 +60,7 @@ export const muiTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 8,
-          minHeight: 40,
+          minHeight: 38,
         },
       },
     },
@@ -68,7 +68,7 @@ export const muiTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 8,
-          boxShadow: "rgba(16, 18, 17, 0.10) 0 18px 42px",
+          boxShadow: "rgba(16, 24, 40, 0.06) 0 12px 28px",
         },
       },
     },

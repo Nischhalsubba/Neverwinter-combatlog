@@ -85,12 +85,14 @@ public sealed class NexusBridge
                 Guid.NewGuid().ToString("N"),
                 $"Counter {_history.Count + 1}",
                 current.Path,
-                current.LineCount,
-                current.ParsedCount,
-                current.FailedCount,
-                current.PartyDamage.Sum(row => row.TotalDamage) + current.CompanionDamage.Sum(row => row.TotalDamage),
-                current.PartyDamage,
-                current.CompanionDamage));
+            current.LineCount,
+            current.ParsedCount,
+            current.FailedCount,
+            current.DurationSeconds,
+            current.EncDps,
+            current.PartyDamage.Sum(row => row.TotalDamage) + current.CompanionDamage.Sum(row => row.TotalDamage),
+            current.PartyDamage,
+            current.CompanionDamage));
         }
 
         if (!string.IsNullOrWhiteSpace(_livePath) && File.Exists(_livePath))
@@ -149,7 +151,7 @@ public sealed class NexusBridge
     {
         if (string.IsNullOrWhiteSpace(_livePath) || !File.Exists(_livePath))
         {
-            return new LiveSourcePreviewDto(null, 0, 0, 0, [], [], [], _history, []);
+            return new LiveSourcePreviewDto(null, 0, 0, 0, 0, 0, [], [], [], _history, []);
         }
 
         var summary = _summarizer.SummarizeFile(_livePath, _liveBaselineBytes);
@@ -158,6 +160,8 @@ public sealed class NexusBridge
             summary.LinesRead,
             summary.ParsedLines,
             summary.FailedLines,
+            summary.DurationSeconds,
+            summary.EncDps,
             [new ClassificationCountDto("Damage", summary.Players.Sum(row => row.Hits) + summary.Companions.Sum(row => row.Hits))],
             ToPartyRows(summary.Players, "player"),
             ToPartyRows(summary.Companions, "companion"),
@@ -176,6 +180,8 @@ public sealed class NexusBridge
             summary.LinesRead,
             summary.ParsedLines,
             summary.FailedLines,
+            summary.DurationSeconds,
+            summary.EncDps,
             [new ClassificationCountDto("Damage", summary.Players.Sum(row => row.Hits) + summary.Companions.Sum(row => row.Hits))],
             ToPartyRows(summary.Players, "player"),
             ToPartyRows(summary.Companions, "companion"));
@@ -188,6 +194,8 @@ public sealed class NexusBridge
                 index + 1,
                 string.IsNullOrWhiteSpace(row.Name) ? "Unknown" : row.Name,
                 row.Damage,
+                row.EncDps,
+                row.DurationSeconds,
                 row.Hits,
                 row.CriticalHits,
                 row.CriticalRate,
@@ -219,6 +227,8 @@ public sealed class NexusBridge
         int Rank,
         string Name,
         double TotalDamage,
+        double EncDps,
+        double DurationSeconds,
         int HitCount,
         int CritCount,
         double CritRate,
@@ -235,6 +245,8 @@ public sealed class NexusBridge
         long LineCount,
         long ParsedCount,
         long FailedCount,
+        double DurationSeconds,
+        double EncDps,
         double TotalDamage,
         IReadOnlyList<PartyDamageDto> PartyDamage,
         IReadOnlyList<PartyDamageDto> CompanionDamage);
@@ -244,6 +256,8 @@ public sealed class NexusBridge
         long LineCount,
         long ParsedCount,
         long FailedCount,
+        double DurationSeconds,
+        double EncDps,
         IReadOnlyList<ClassificationCountDto> ClassificationCounts,
         IReadOnlyList<PartyDamageDto> PartyDamage,
         IReadOnlyList<PartyDamageDto> CompanionDamage,
@@ -257,6 +271,8 @@ public sealed class NexusBridge
         long LineCount,
         long ParsedCount,
         long FailedCount,
+        double DurationSeconds,
+        double EncDps,
         IReadOnlyList<ClassificationCountDto> ClassificationCounts,
         IReadOnlyList<PartyDamageDto> PartyDamage,
         IReadOnlyList<PartyDamageDto> CompanionDamage);

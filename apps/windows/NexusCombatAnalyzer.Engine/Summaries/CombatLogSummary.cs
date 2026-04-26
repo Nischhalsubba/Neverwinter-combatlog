@@ -5,6 +5,8 @@ public sealed record CombatLogSummary(
     long LinesRead,
     long ParsedLines,
     long FailedLines,
+    double DurationSeconds,
+    double EncDps,
     double TotalPlayerDamage,
     double TotalCompanionDamage,
     IReadOnlyList<DamageRow> Players,

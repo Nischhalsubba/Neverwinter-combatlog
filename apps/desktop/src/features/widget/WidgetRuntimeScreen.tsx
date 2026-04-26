@@ -20,6 +20,7 @@ export function WidgetRuntimeScreen() {
     onSuccess: (data) => queryClient.setQueryData(["widget-status"], data),
   });
   const totalDamage = (preview.data?.partyDamage ?? []).reduce((sum, row) => sum + row.totalDamage, 0);
+  const encDps = preview.data?.durationSeconds ? totalDamage / preview.data.durationSeconds : totalDamage;
   const leader = preview.data?.partyDamage[0];
   const maxDamage = Math.max(leader?.totalDamage ?? 0, 1);
 
@@ -51,9 +52,12 @@ export function WidgetRuntimeScreen() {
         <Stack spacing={1.5}>
           <div className="widget-runtime-stat">
             <Typography color="text.secondary" variant="caption">
-              Visible damage
+              EncDPS
             </Typography>
-            <Typography variant="h5">{Math.round(totalDamage).toLocaleString()}</Typography>
+            <Typography variant="h5">{Math.round(encDps).toLocaleString()}</Typography>
+            <Typography color="text.secondary" variant="caption">
+              {Math.round(totalDamage).toLocaleString()} total
+            </Typography>
           </div>
           <div className="widget-runtime-stat">
             <Typography color="text.secondary" variant="caption">

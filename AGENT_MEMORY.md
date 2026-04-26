@@ -117,6 +117,8 @@
 - `apps/desktop/src-tauri/migrations/0001_initial_schema.sql`
 
 ### Decisions made
+- Superseded the prior Astral Combat long dashboard layout for Live. Live should now be a one-screen command center; deeper information moves into the right inspector or existing player detail page.
+- Core Live view now prioritizes only log selection, fight reset, widget toggle, six metrics, damage leaders chart, player table, source mix, saved fights, and selected combatant detail.
 - Rebranded the user-facing app from Nexus Combat Analyzer to Astral Combat.
 - New visual identity uses a dark left command rail, bright readable workspace, and emerald/cyan/crimson/amber accents for combat charts.
 - Kept internal project folder names such as `NexusCombatAnalyzer.Host` stable for now to avoid disruptive path/script churn; visible app copy and window title now use Astral Combat.
@@ -172,6 +174,7 @@
 - Expanded sidebar destinations with detail content: Live source health/classification, Replay import size breakdown, Encounters workflow, Encounter Detail analysis placeholders, Widget behavior/appearance/modes, and comprehensive Settings categories.
 
 ### Mistakes or failed approaches
+- The prior redesigned Live screen required too much vertical scrolling and mixed core and secondary information. Reworked Live to fit within the viewport with internal scroll regions only.
 - First post-rebrand .NET host build failed because an already running `.NET Host` process locked `NexusCombatAnalyzer.Engine.dll`; scripts now stop the existing host before build/publish.
 - Running .NET tests and host build in parallel caused a transient file lock on the shared engine DLL; rerun .NET builds serially.
 - Enabling Windows Forms for native dialogs made `Application` ambiguous in `App.xaml.cs`; fixed by fully qualifying `System.Windows.Application`.
@@ -207,6 +210,11 @@
 - User requested a full layout redesign, a Live Combat refresh button that resets counters to zero, prior counter records saved in a Party Damage history tab, and no static/placeholder information.
 
 ### Current status
+- Reworked `LiveScreen.tsx` into a viewport-sized command center and removed the long stacked sections from Live.
+- Added compact Live-specific CSS in `global.css`: fixed-height Live page, compact metric strip, internal scrolling table/history, and right-side inspector behavior.
+- Verification passed after compact Live redesign: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed after compact Live redesign: `corepack pnpm --filter @nevercombat/desktop web:build`.
+- Verification passed after stopping existing host process: `dotnet build apps/windows/NexusCombatAnalyzer.Host/NexusCombatAnalyzer.Host.csproj -c Debug --no-restore /p:UseAppHost=false`.
 - Replaced the prior light Apple-style CSS with the Astral Combat layout and palette.
 - Updated MUI theme colors, font stack, shadows, and typography weights for the new brand.
 - Updated app shell, page copy, widget copy, HTML metadata, WPF title, README, and startup messages to Astral Combat.
@@ -366,10 +374,141 @@
 - Verification passed after replacing the broken widget window with the in-app widget: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, and `corepack pnpm --filter @nevercombat/desktop web:build`.
 
 ### Next exact step
-- Rerun `.\start-dev.cmd` and visually confirm Astral Combat branding, simple navigation, and button behavior with the provided combat log.
+- Run TypeScript/web build after the compact Live command-center redesign, then validate in app at 100vw/100vh.
 - User can rerun `.\start-dev.cmd`; the `pnpx.CMD` EPERM should be gone. If os error 4551 remains, Windows Application Control must allow Rust-generated build executables.
 - Continue with the next engine step once Windows Application Control allows Rust build-script execution: wire SQLite writes for raw and parsed events from `engine::summarize_combat_log`, then replace in-memory imported/live records.
 - Run `.\start-dev.cmd`, import or link the user's real combat log, click a Damage Leaders name, and visually confirm `/live/players/:playerName` shows the combatant detail page with trend and power charts.
 - Run `.\start-dev.cmd` from the repo root. Validate Open Widget shows the in-app Nexus floating widget, Close Widget works from both the Live screen and the widget itself, and Choose Log Folder/File plus Replay Import work while the widget is open.
 - Continue replacing remaining custom tables/layout panels with MUI Table/Grid/Stack in the next UI pass.
 - Release build check `corepack pnpm --filter @nevercombat/desktop build` is still blocked by Windows Application Control policy on generated `wry` release build scripts under `C:\Users\acer\AppData\Local\NeverwinterCombatAnalyzer\cargo-target\release\build\...`; this is an OS policy/environment blocker, not a TypeScript/Rust compile error.
+
+## 2026-04-26
+
+### Files changed
+- `apps/desktop/src/ipc/localEngine.ts`
+- `apps/desktop/src/ipc/api.ts`
+- `scripts/start-dev.ps1`
+- `start-dev.cmd`
+- `README.md`
+- `AGENT_MEMORY.md`
+
+### Decisions made
+- Superseded the DLL-through-`dotnet.exe` default dev path because Windows Application Control now blocks the generated `AstralCombat.dll` itself.
+- `.\start-dev.cmd` now defaults to browser-safe mode: install dependencies, start Vite, and open `http://127.0.0.1:1420`.
+- Desktop WebView2 host remains available only with `.\start-dev.cmd -Desktop` for machines where generated .NET assemblies are allowed.
+- Added a TypeScript local parser/summary fallback so browser-safe mode can load log files/folders, import replay logs, reset counters, show charts, and toggle the in-app widget without native IPC.
+
+### Mistakes or failed approaches
+- The previous apphost-free .NET workaround avoided blocked generated `.exe` files but did not handle policies that also block generated `.dll` files.
+- Browser-safe mode cannot do true live file tailing or unrestricted native folder watching because browsers do not allow arbitrary filesystem watches.
+
+### Current status
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed: PowerShell syntax check for `scripts/start-dev.ps1`.
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop web:build`.
+
+### Next exact step
+- User should run `.\start-dev.cmd`; it should open the browser-safe app instead of trying to execute the blocked `AstralCombat.dll`.
+- In the app, use `Log File` or `Replay > Import Log` to load combat logs. Use `Log Folder` to select a folder snapshot; true tailing still requires an approved native host.
+
+## 2026-04-26 ACT EncDPS Pass
+
+### Files changed
+- `apps/windows/NexusCombatAnalyzer.Engine/Summaries/DamageRow.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Summaries/CombatLogSummary.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Summaries/CombatLogSummarizer.cs`
+- `apps/windows/NexusCombatAnalyzer.Host/NexusBridge.cs`
+- `apps/windows/NexusCombatAnalyzer.Tests/Program.cs`
+- `apps/desktop/src/ipc/api.ts`
+- `apps/desktop/src/ipc/localEngine.ts`
+- `apps/desktop/src/lib/damageRows.ts`
+- `apps/desktop/src/features/live/LiveScreen.tsx`
+- `apps/desktop/src/features/live/PlayerDetailScreen.tsx`
+- `apps/desktop/src/features/replay/ReplayScreen.tsx`
+- `apps/desktop/src/features/widget/WidgetRuntimeScreen.tsx`
+- `apps/desktop/src/components/DamageDetailPanel.tsx`
+- `docs/ACT_PARITY.md`
+- `README.md`
+- `AGENT_MEMORY.md`
+
+### Decisions made
+- Implemented ACT-style `EncDPS` as total damage divided by encounter duration from first damaging event to last damaging event.
+- Exposed encounter duration and EncDPS in both the C# engine/bridge and browser-safe TypeScript fallback engine.
+- Added EncDPS to Live metrics, Live player table, combatant detail panel, player detail page, Replay summary/table, and widget displays.
+- Added `docs/ACT_PARITY.md` as the tracked implementation map for ACT/Neverwinter plugin parity from `Neverwinter_6-11-2020.cs`.
+
+### Mistakes or failed approaches
+- Full ACT parity cannot be honestly completed in one pass; documented the remaining ACT columns/export variables and engine behavior as a parity backlog instead of pretending it is done.
+- .NET test execution remains blocked by Windows Application Control on generated test DLLs, though compile/build checks pass.
+
+### Current status
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop web:build`.
+- Verification passed: `dotnet build apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.csproj -c Debug --no-restore /p:UseAppHost=false`.
+- Verification blocked: `dotnet run --project apps\windows\NexusCombatAnalyzer.Tests\NexusCombatAnalyzer.Tests.csproj` because Windows Application Control blocks the generated test DLL.
+
+### Next exact step
+- Implement the next ACT parity slice: combatant `Average`, `MinHit`, `MaxHit`, `CritHits`, `Swings`, `ToHit`, and `Crit%` from the parsed damage events, then surface them in player detail and Replay.
+
+## 2026-04-26 Enterprise Live KPI/UI Pass
+
+### Files changed
+- `apps/desktop/src/features/live/LiveScreen.tsx`
+- `apps/desktop/src/features/live/PlayerDetailScreen.tsx`
+- `apps/desktop/src/app/layout/AppLayout.tsx`
+- `apps/desktop/src/lib/damageRows.ts`
+- `apps/desktop/src/theme/global.css`
+- `apps/desktop/src/theme/muiTheme.ts`
+- `AGENT_MEMORY.md`
+
+### Decisions made
+- Superseded the Live KPI strip that used volatile single-combatant values such as `Leader`.
+- Live dashboard cards now use combat-log-wide metrics applicable to every loaded log: Total Damage, EncDPS, Duration, Parsed Events, Combatants, Crit Rate, Top Power, and Companion Share.
+- Unknown/blank combatant names are now presented as `Unassigned owner` instead of `Unknown`.
+- Reworked the visual direction toward an enterprise analysis console: neutral workspace, restrained teal primary accent, flatter white panels, less decorative gradient styling, and denser KPI cards.
+
+### Mistakes or failed approaches
+- Prior dashboard card choices over-emphasized one player and could show `Leader: Unknown`, which is not useful for all-log analysis.
+- Prior visual direction still felt too game-like and inconsistent; this pass reduces color noise and moves toward a professional product UI.
+
+### Current status
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop web:build`.
+- Verification passed: `dotnet build apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.csproj -c Debug --no-restore /p:UseAppHost=false`.
+
+### Next exact step
+- Validate the Live screen visually in browser-safe mode at the user's target resolution and tune spacing if the eight KPI cards wrap or feel cramped.
+
+## 2026-04-26 AI/Responsive Redesign Pass
+
+### Files changed
+- `apps/desktop/src/ai/combatInsights.ts`
+- `apps/desktop/src/components/AiInsightPanel.tsx`
+- `apps/desktop/src/features/settings/SettingsScreen.tsx`
+- `apps/desktop/src/features/live/LiveScreen.tsx`
+- `apps/desktop/src/features/live/PlayerDetailScreen.tsx`
+- `apps/desktop/src/app/routes/routes.tsx`
+- `apps/desktop/src/theme/global.css`
+- `apps/desktop/vite.config.ts`
+- `README.md`
+- `AGENT_MEMORY.md`
+
+### Decisions made
+- Added optional BYO-key AI analysis using OpenRouter `openrouter/free`; the app remains fully usable without an AI key.
+- AI sends parsed summary metrics only, not the full raw combat log, and stores the API key in browser `localStorage`.
+- Replaced Live KPI labels with party-wide cards: Party Damage, Party EncDPS, Fight Time, Damage Events, Active Players, Party Crit Rate, Parse Quality, and Pet Share.
+- Redesigned player detail with breadcrumbs, a hero score, damage pacing line chart, power mix donut, power leaderboard, and AI Analyst panel.
+- Added route-level lazy loading and vendor/chart chunks to reduce the main app entry bundle.
+- Removed fixed desktop-only minimum width behavior and added responsive navigation/layout rules for narrower windows.
+
+### Mistakes or failed approaches
+- Previous manual chunk split produced circular chunk warnings; replaced it with chart/vendor chunking.
+- OpenRouter free models are not guaranteed capacity; AI feature must handle rate limits and API errors gracefully.
+
+### Current status
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop web:build`.
+- Verification passed: `dotnet build apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.csproj -c Debug --no-restore /p:UseAppHost=false`.
+
+### Next exact step
+- Run the browser-safe app, add an OpenRouter key in Settings, load a real combat log, then test AI Analyst generation on Live and a player detail page.

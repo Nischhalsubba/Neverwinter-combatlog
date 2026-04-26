@@ -1,4 +1,5 @@
 using System.Text;
+using System.Globalization;
 using NexusCombatAnalyzer.Engine.Models;
 using NexusCombatAnalyzer.Engine.Parsing;
 
@@ -24,6 +25,8 @@ public sealed class CombatLogSummarizer
         long parsedLines = 0;
         long failedLines = 0;
         var byteOffset = stream.Position;
+        DateTime? firstDamageAt = null;
+        DateTime? lastDamageAt = null;
 
         while (reader.ReadLine() is { } line)
         {
@@ -42,6 +45,12 @@ public sealed class CombatLogSummarizer
             if (outcome.Event.Classification != EventClassification.Damage || outcome.Event.Magnitude <= 0)
             {
                 continue;
+            }
+
+            if (TryParseNeverwinterTimestamp(outcome.Event.RawTimestamp, out var damageAt))
+            {
+                firstDamageAt ??= damageAt;
+                lastDamageAt = damageAt;
             }
 
             var isCompanion = IsCompanion(outcome.Event);
@@ -64,16 +73,48 @@ public sealed class CombatLogSummarizer
 
         var playerRows = players.Values.Select(row => row.ToImmutable()).OrderByDescending(row => row.Damage).ToArray();
         var companionRows = companions.Values.Select(row => row.ToImmutable()).OrderByDescending(row => row.Damage).ToArray();
+        var durationSeconds = CalculateDurationSeconds(firstDamageAt, lastDamageAt);
+        var totalDamage = playerRows.Sum(row => row.Damage) + companionRows.Sum(row => row.Damage);
 
         return new CombatLogSummary(
             path,
             linesRead,
             parsedLines,
             failedLines,
+            durationSeconds,
+            durationSeconds > 0 ? totalDamage / durationSeconds : totalDamage,
             playerRows.Sum(row => row.Damage),
             companionRows.Sum(row => row.Damage),
-            playerRows,
-            companionRows);
+            ApplyEncounterDuration(playerRows, durationSeconds),
+            ApplyEncounterDuration(companionRows, durationSeconds));
+    }
+
+    private static IReadOnlyList<DamageRow> ApplyEncounterDuration(IReadOnlyList<DamageRow> rows, double durationSeconds) =>
+        rows.Select(row => row with
+        {
+            DurationSeconds = durationSeconds,
+            EncDps = durationSeconds > 0 ? row.Damage / durationSeconds : row.Damage
+        }).ToArray();
+
+    private static double CalculateDurationSeconds(DateTime? firstDamageAt, DateTime? lastDamageAt)
+    {
+        if (firstDamageAt is null || lastDamageAt is null)
+        {
+            return 0;
+        }
+
+        var seconds = (lastDamageAt.Value - firstDamageAt.Value).TotalSeconds;
+        return seconds <= 0 ? 1 : seconds;
+    }
+
+    private static bool TryParseNeverwinterTimestamp(string rawTimestamp, out DateTime timestamp)
+    {
+        return DateTime.TryParseExact(
+            rawTimestamp,
+            ["yy:MM:dd:HH:mm:ss.FFFFFFF", "yy:MM:dd:HH:mm:ss"],
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeLocal,
+            out timestamp);
     }
 
     private static bool IsCompanion(ParsedEvent parsedEvent)
@@ -136,7 +177,7 @@ public sealed class CombatLogSummarizer
                 ? "Unknown"
                 : powerBreakdown[0].PowerName;
 
-            return new DamageRow(Name, Reference, OwnerName, Damage, Hits, CriticalHits, topPower, powerBreakdown, BuildTrend());
+            return new DamageRow(Name, Reference, OwnerName, Damage, 0, 0, Hits, CriticalHits, topPower, powerBreakdown, BuildTrend());
         }
 
         private IReadOnlyList<double> BuildTrend()

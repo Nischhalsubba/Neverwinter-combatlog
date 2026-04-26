@@ -1,6 +1,10 @@
+import { useState } from "react";
+import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import Divider from "@mui/material/Divider";
 import Switch from "@mui/material/Switch";
+import TextField from "@mui/material/TextField";
+import { getCombatAiSettings, saveCombatAiSettings } from "../../ai/combatInsights";
 
 const sections = [
   {
@@ -38,6 +42,15 @@ const sections = [
 ];
 
 export function SettingsScreen() {
+  const [aiSettings, setAiSettings] = useState(getCombatAiSettings);
+  const [saved, setSaved] = useState(false);
+
+  function saveAi() {
+    saveCombatAiSettings(aiSettings);
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1800);
+  }
+
   return (
     <section className="screen-grid">
       <div className="screen-heading">
@@ -47,6 +60,32 @@ export function SettingsScreen() {
           <p>Configure parser behavior, attribution, encounter rules, display density, widget presets, exports, and debug logging.</p>
         </div>
       </div>
+      <Card className="panel settings-ai-panel" component="article">
+        <div>
+          <p className="eyebrow">Optional AI</p>
+          <h2>OpenRouter free-model insights</h2>
+          <p>
+            Add your own OpenRouter API key to generate short combat reviews from parsed metrics. The app stores the key only in this browser profile.
+          </p>
+        </div>
+        <div className="settings-ai-form">
+          <TextField
+            label="OpenRouter API key"
+            onChange={(event) => setAiSettings((current) => ({ ...current, apiKey: event.target.value }))}
+            placeholder="sk-or-..."
+            type="password"
+            value={aiSettings.apiKey}
+          />
+          <TextField
+            label="Model"
+            onChange={(event) => setAiSettings((current) => ({ ...current, model: event.target.value }))}
+            value={aiSettings.model}
+          />
+          <Button onClick={saveAi} variant="contained">
+            {saved ? "Saved" : "Save AI Settings"}
+          </Button>
+        </div>
+      </Card>
       <div className="settings-grid">
         {sections.map((section) => (
           <Card key={section.title} className="panel" component="article">

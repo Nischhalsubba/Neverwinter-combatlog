@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { localEngine } from "./localEngine";
 
 export type SourceStatusDto = {
   state: "missing" | "ready" | "watching" | "warning" | "disconnected";
@@ -24,6 +25,8 @@ export type ImportedLogDto = {
   lineCount: number;
   parsedCount: number;
   failedCount: number;
+  durationSeconds: number;
+  encDps: number;
   classificationCounts: Array<{
     classification: string;
     count: number;
@@ -41,6 +44,8 @@ export type LiveSourcePreviewDto = {
   lineCount: number;
   parsedCount: number;
   failedCount: number;
+  durationSeconds: number;
+  encDps: number;
   classificationCounts: Array<{
     classification: string;
     count: number;
@@ -62,6 +67,8 @@ export type LiveHistoryRecordDto = {
   lineCount: number;
   parsedCount: number;
   failedCount: number;
+  durationSeconds: number;
+  encDps: number;
   totalDamage: number;
   partyDamage: PartyDamageDto[];
   companionDamage: PartyDamageDto[];
@@ -71,6 +78,8 @@ export type PartyDamageDto = {
   rank: number;
   name: string;
   totalDamage: number;
+  encDps: number;
+  durationSeconds: number;
   hitCount: number;
   critCount: number;
   critRate: number;
@@ -91,6 +100,10 @@ export function getSourceStatus() {
     return fromBridge<SourceStatusDto>(bridge.GetSourceStatusJson());
   }
 
+  if (!hasTauriRuntime()) {
+    return localEngine.getSourceStatus();
+  }
+
   return invoke<SourceStatusDto>("get_source_status");
 }
 
@@ -106,6 +119,10 @@ export async function chooseLiveLogFolderWithDialog() {
   const bridge = getNexusBridge();
   if (bridge) {
     return fromBridge<SourceStatusDto>(bridge.ChooseLiveLogFolderJson());
+  }
+
+  if (!hasTauriRuntime()) {
+    return localEngine.chooseLiveLogFolder();
   }
 
   const selected = await openDialogWithWidgetHidden({
@@ -125,6 +142,10 @@ export async function chooseLiveLogFileWithDialog() {
   const bridge = getNexusBridge();
   if (bridge) {
     return fromBridge<SourceStatusDto>(bridge.ChooseLiveLogFileJson());
+  }
+
+  if (!hasTauriRuntime()) {
+    return localEngine.chooseLiveLogFile();
   }
 
   const selected = await openDialogWithWidgetHidden({
@@ -147,6 +168,10 @@ export function getLiveSourcePreview() {
     return fromBridge<LiveSourcePreviewDto>(bridge.GetLiveSourcePreviewJson());
   }
 
+  if (!hasTauriRuntime()) {
+    return localEngine.getLiveSourcePreview();
+  }
+
   return invoke<LiveSourcePreviewDto>("get_live_source_preview");
 }
 
@@ -156,6 +181,10 @@ export function resetLiveCounter() {
     return fromBridge<LiveSourcePreviewDto>(bridge.ResetLiveCounterJson());
   }
 
+  if (!hasTauriRuntime()) {
+    return localEngine.resetLiveCounter();
+  }
+
   return invoke<LiveSourcePreviewDto>("reset_live_counter");
 }
 
@@ -163,6 +192,10 @@ export function getImportedLogs() {
   const bridge = getNexusBridge();
   if (bridge) {
     return fromBridge<ImportedLogDto[]>(bridge.GetImportedLogsJson());
+  }
+
+  if (!hasTauriRuntime()) {
+    return localEngine.getImportedLogs();
   }
 
   return invoke<ImportedLogDto[]>("get_imported_logs");
@@ -176,6 +209,10 @@ export async function importLogFilesWithDialog() {
   const bridge = getNexusBridge();
   if (bridge) {
     return fromBridge<ImportedLogDto[]>(bridge.ImportLogFilesJson());
+  }
+
+  if (!hasTauriRuntime()) {
+    return localEngine.importLogFiles();
   }
 
   const selected = await openDialogWithWidgetHidden({
@@ -194,6 +231,10 @@ export async function importLogFilesWithDialog() {
 }
 
 export function getLiveRankings() {
+  if (!hasTauriRuntime()) {
+    return Promise.resolve([]);
+  }
+
   return invoke<LiveRankingRowDto[]>("get_live_rankings");
 }
 
@@ -201,6 +242,10 @@ export function getWidgetStatus() {
   const bridge = getNexusBridge();
   if (bridge) {
     return fromBridge<WidgetStatusDto>(bridge.GetWidgetStatusJson());
+  }
+
+  if (!hasTauriRuntime()) {
+    return localEngine.getWidgetStatus();
   }
 
   return invoke<WidgetStatusDto>("get_widget_status");
@@ -212,6 +257,10 @@ export function openWidgetWindow() {
     return fromBridge<WidgetStatusDto>(bridge.OpenWidgetWindowJson());
   }
 
+  if (!hasTauriRuntime()) {
+    return localEngine.openWidgetWindow();
+  }
+
   return invoke<WidgetStatusDto>("open_widget_window");
 }
 
@@ -221,6 +270,10 @@ export function closeWidgetWindow() {
     return fromBridge<WidgetStatusDto>(bridge.CloseWidgetWindowJson());
   }
 
+  if (!hasTauriRuntime()) {
+    return localEngine.closeWidgetWindow();
+  }
+
   return invoke<WidgetStatusDto>("close_widget_window");
 }
 
@@ -228,6 +281,10 @@ export function toggleWidgetWindow() {
   const bridge = getNexusBridge();
   if (bridge) {
     return fromBridge<WidgetStatusDto>(bridge.ToggleWidgetWindowJson());
+  }
+
+  if (!hasTauriRuntime()) {
+    return localEngine.toggleWidgetWindow();
   }
 
   return invoke<WidgetStatusDto>("toggle_widget_window");
@@ -275,6 +332,10 @@ function getNexusBridge(): NexusBridge | null {
     (window as unknown as { chrome?: { webview?: { hostObjects?: { sync?: { nexus?: NexusBridge } } } } })
       .chrome?.webview?.hostObjects?.sync?.nexus ?? null
   );
+}
+
+function hasTauriRuntime() {
+  return Boolean((window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
 }
 
 function fromBridge<T>(json: string): Promise<T> {

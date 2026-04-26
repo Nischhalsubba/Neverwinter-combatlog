@@ -28,7 +28,7 @@ export function AppLayout() {
           <span>Astral Combat</span>
         </Box>
         <Typography className="nav-caption" component="p" variant="caption">
-          Live damage made readable.
+          Combat intelligence workspace.
         </Typography>
         <nav>
           {navItems.map((item) => (
@@ -46,7 +46,7 @@ export function AppLayout() {
             <strong>{source.data?.message ?? "No source selected"}</strong>
           </div>
           <div>
-            <p className="label">Live Lines</p>
+            <p className="label">Parsed Lines</p>
             <strong>{(preview.data?.lineCount ?? 0).toLocaleString()}</strong>
           </div>
           </Toolbar>

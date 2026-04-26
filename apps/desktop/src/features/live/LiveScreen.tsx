@@ -9,7 +9,7 @@ import { PieChart } from "@mui/x-charts/PieChart";
 import { SparkLineChart } from "@mui/x-charts/SparkLineChart";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { BreakdownBars } from "../../components/BreakdownBars";
+import { AiInsightPanel } from "../../components/AiInsightPanel";
 import { DamageDetailPanel } from "../../components/DamageDetailPanel";
 import { MetricCard } from "../../components/MetricCard";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -77,347 +77,192 @@ export function LiveScreen() {
   const selectedMember =
     visibleDamageRows.find((row) => row.name === selectedName) ?? visibleDamageRows[0] ?? null;
   const totalVisibleDamage = visibleDamageRows.reduce((sum, row) => sum + row.totalDamage, 0);
+  const visibleEncDps = preview.data?.durationSeconds
+    ? totalVisibleDamage / preview.data.durationSeconds
+    : totalVisibleDamage;
   const rawPlayerDamage = (preview.data?.partyDamage ?? []).reduce((sum, row) => sum + row.totalDamage, 0);
   const rawCompanionDamage = (preview.data?.companionDamage ?? []).reduce((sum, row) => sum + row.totalDamage, 0);
   const allDamage = rawPlayerDamage + rawCompanionDamage;
-  const topPlayer = visibleDamageRows.find((row) => row.sourceKind !== "companion") ?? visibleDamageRows[0] ?? null;
-  const topPower = visibleDamageRows
-    .flatMap((row) => row.powerBreakdown.map((power) => ({ ...power, owner: row.name })))
-    .sort((left, right) => right.totalDamage - left.totalDamage)[0];
   const visibleHits = visibleDamageRows.reduce((sum, row) => sum + row.hitCount, 0);
   const visibleCrits = visibleDamageRows.reduce((sum, row) => sum + row.critCount, 0);
   const visibleCritRate = visibleHits > 0 ? visibleCrits / visibleHits : 0;
+  const activePlayers = visibleDamageRows.filter((row) => row.sourceKind !== "companion").length;
+  const combatantCount = visibleDamageRows.length;
+  const eventCount = preview.data?.parsedCount ?? 0;
+  const parseQuality = eventCount + (preview.data?.failedCount ?? 0) > 0
+    ? eventCount / (eventCount + (preview.data?.failedCount ?? 0))
+    : 0;
   const topDamageRows = visibleDamageRows.slice(0, 8);
   const sourceMixTotal = Math.max(allDamage, 0);
 
   return (
-    <section className="dashboard-page">
-      <div className="screen-heading">
+    <section className="live-command-page">
+      <header className="live-command-header">
         <div>
-          <p className="eyebrow">Live Fight</p>
-          <h1>See the fight now</h1>
-          <p>Pick your combat log, then read the fight from left to right: total damage, leaders, powers, companions, and parser health.</p>
+          <p className="eyebrow">Live Analysis</p>
+          <h1>Encounter command center</h1>
+          <p>{source.data?.message ?? "Choose a log file to analyze party-wide combat performance."}</p>
         </div>
         <div className="button-row">
-          <Button onClick={() => chooseFolder.mutate()} variant="outlined">
-            Log Folder
-          </Button>
-          <Button onClick={() => chooseFile.mutate()} variant="outlined">
-            Log File
-          </Button>
-          <Button onClick={() => openWidget.mutate()} variant="outlined">
-            Show Widget
-          </Button>
-          <Button onClick={() => closeWidget.mutate()} variant="outlined">
-            Hide Widget
-          </Button>
-          <Button onClick={() => resetCounter.mutate()} variant="contained">
-            New Fight
+          <Button onClick={() => chooseFile.mutate()} variant="contained">Log File</Button>
+          <Button onClick={() => chooseFolder.mutate()} variant="outlined">Log Folder</Button>
+          <Button onClick={() => resetCounter.mutate()} variant="outlined">New Fight</Button>
+          <Button onClick={() => (widget.data?.isOpen ? closeWidget.mutate() : openWidget.mutate())} variant="outlined">
+            {widget.data?.isOpen ? "Hide Widget" : "Show Widget"}
           </Button>
         </div>
+      </header>
+
+      <div className="live-metrics-strip">
+        <MetricCard label="Party Damage" value={Math.round(totalVisibleDamage).toLocaleString()} helper={showCompanions ? "Players + companions" : "Players only"} />
+        <MetricCard label="Party EncDPS" value={Math.round(visibleEncDps).toLocaleString()} helper="All visible damage per second" />
+        <MetricCard label="Fight Time" value={formatDuration(preview.data?.durationSeconds ?? 0)} helper="First hit to last hit" />
+        <MetricCard label="Damage Events" value={visibleHits.toLocaleString()} helper={`${eventCount.toLocaleString()} parsed rows`} />
+        <MetricCard label="Active Players" value={activePlayers.toLocaleString()} helper={`${combatantCount.toLocaleString()} total combatants`} />
+        <MetricCard label="Party Crit Rate" value={`${(visibleCritRate * 100).toFixed(1)}%`} helper={`${visibleCrits.toLocaleString()} crit hits`} />
+        <MetricCard label="Parse Quality" value={`${(parseQuality * 100).toFixed(1)}%`} helper={`${(preview.data?.failedCount ?? 0).toLocaleString()} rows need review`} />
+        <MetricCard label="Pet Share" value={`${(companionShare(preview.data?.companionDamage ?? [], allDamage) * 100).toFixed(1)}%`} helper={showCompanions ? "Included in party" : "Separated"} />
       </div>
 
-      <div className="summary-strip">
-        <MetricCard label="Damage" value={Math.round(totalVisibleDamage).toLocaleString()} helper={showCompanions ? "Players + companions" : "Players only"} />
-        <MetricCard label="Leader" value={topPlayer?.name ?? "No damage"} helper={topPlayer ? Math.round(topPlayer.totalDamage).toLocaleString() : "Waiting"} />
-        <MetricCard label="Best Power" value={topPower?.powerName ?? "No power"} helper={topPower ? `${Math.round(topPower.totalDamage).toLocaleString()} by ${topPower.owner}` : "Waiting"} />
-        <MetricCard label="Companion Share" value={`${(companionShare(preview.data?.companionDamage ?? [], allDamage) * 100).toFixed(1)}%`} helper={showCompanions ? "Merged into owners" : "Hidden from player totals"} />
-        <MetricCard label="Crit Rate" value={`${(visibleCritRate * 100).toFixed(1)}%`} helper={`${visibleHits.toLocaleString()} hits`} />
-        <MetricCard label="Parser Review" value={(preview.data?.failedCount ?? 0).toLocaleString()} helper={`${(preview.data?.parsedCount ?? 0).toLocaleString()} parsed`} />
-      </div>
-
-      <div className="combat-intelligence-grid">
-        <Card className="panel chart-card" component="article">
-          <div className="panel-header">
-            <div>
-              <h2>Who is carrying damage?</h2>
-              <p>The largest bars are the players or companions doing the most work.</p>
-            </div>
-            <StatusBadge tone={source.data?.state === "watching" ? "good" : "warning"}>
-              {source.data?.state === "watching" ? "Live" : "No source"}
-            </StatusBadge>
-          </div>
-          {topDamageRows.length ? (
-            <>
-              <div className="chart-shell">
-                <BarChart
-                  borderRadius={6}
-                  height={260}
-                  margin={{ bottom: 70, left: 72, right: 18, top: 18 }}
-                  series={[
-                    {
-                      color: "#0071e3",
-                      data: topDamageRows.map((row) => Math.round(row.totalDamage)),
-                      label: "Damage",
-                    },
-                  ]}
-                  xAxis={[
-                    {
-                      data: topDamageRows.map((row) => shortName(row.name)),
-                      scaleType: "band",
-                    },
-                  ]}
-                />
-              </div>
-              <div className="leader-link-row">
-                {topDamageRows.map((row) => (
-                  <Button
-                    component={Link}
-                    key={`${row.sourceKind}-${row.name}`}
-                    size="small"
-                    to={`/live/players/${encodeURIComponent(row.name)}`}
-                    variant="text"
-                  >
-                    {row.rank}. {row.name}
-                  </Button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p>Choose a combat log to draw the damage chart.</p>
-          )}
-        </Card>
-
-        <Card className="panel chart-card" component="article">
-          <div className="panel-header">
-            <div>
-              <h2>Players vs companions</h2>
-              <p>See how much damage is coming from party members and summoned allies.</p>
-            </div>
-          </div>
-          <div className="source-mix-panel">
-            <PieChart
-              height={210}
-              hideLegend
-              margin={{ bottom: 0, left: 0, right: 0, top: 0 }}
-              series={[
-                {
-                  data: [
-                    { id: "players", label: "Players", value: Math.max(rawPlayerDamage, 0) },
-                    { id: "companions", label: "Companions", value: Math.max(rawCompanionDamage, 0) },
-                  ],
-                  innerRadius: 52,
-                  outerRadius: 88,
-                },
-              ]}
-            />
-            <div className="source-mix-list">
-              <div>
-                <span>Players</span>
-                <strong>{Math.round(rawPlayerDamage).toLocaleString()}</strong>
-                <LinearProgress value={sourceMixTotal ? (rawPlayerDamage / sourceMixTotal) * 100 : 0} variant="determinate" />
-              </div>
-              <div>
-                <span>Companions</span>
-                <strong>{Math.round(rawCompanionDamage).toLocaleString()}</strong>
-                <LinearProgress value={sourceMixTotal ? (rawCompanionDamage / sourceMixTotal) * 100 : 0} variant="determinate" />
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <div className="dashboard-main">
-        <section className="dashboard-column">
-          <Card className="panel control-panel" component="article">
-            <div>
-              <h2>Fight controls</h2>
-              <p>
-                {source.data?.state === "watching"
-                  ? `Counting from ${preview.data?.path ?? "selected log"}`
-                  : "Choose a log to start live counting."}
-              </p>
-            </div>
-            <label className="switch-row">
-              <span>Add companions to owner totals</span>
-              <Switch checked={showCompanions} onChange={(_, checked) => setShowCompanions(checked)} />
-            </label>
-          </Card>
-
-          <Card className="panel visual-panel" component="article">
+      <main className="live-command-grid">
+        <section className="live-primary-stack">
+          <Card className="panel live-chart-panel" component="article">
             <div className="panel-header">
               <div>
-                <h2>Damage board</h2>
-                <p>{damageTab === "current" ? "Current fight since New Fight." : "Saved fights from New Fight."}</p>
+              <h2>Damage distribution</h2>
+              <p>Every combatant with parsed damage, sorted by contribution.</p>
               </div>
-              <div className="tab-row">
-                <button className={damageTab === "current" ? "tab tab-active" : "tab"} onClick={() => setDamageTab("current")} type="button">
-                  Now
-                </button>
-                <button className={damageTab === "history" ? "tab tab-active" : "tab"} onClick={() => setDamageTab("history")} type="button">
-                  Saved
-                </button>
-              </div>
+              <StatusBadge tone={source.data?.state === "watching" ? "good" : "warning"}>
+                {source.data?.state === "watching" ? "Reading" : "No source"}
+              </StatusBadge>
             </div>
-            {damageTab === "current" ? (
-              <BreakdownBars
-                title="Current damage"
-                description="Click a player below to inspect powers."
-                data={visibleDamageRows.map((row, index) => ({
-                  label: `${row.rank}. ${row.name}${row.sourceKind === "companion" ? " (companion)" : ""}`,
-                  value: Math.round(row.totalDamage),
-                  tone: row.sourceKind === "companion" ? "tertiary" : index % 2 === 0 ? "primary" : "secondary",
-                }))}
+            {topDamageRows.length ? (
+              <BarChart
+                borderRadius={6}
+                height={250}
+                margin={{ bottom: 48, left: 70, right: 18, top: 12 }}
+                series={[{ color: "#0f766e", data: topDamageRows.map((row) => Math.round(row.totalDamage)), label: "Damage" }]}
+                xAxis={[{ data: topDamageRows.map((row) => shortName(row.name)), scaleType: "band" }]}
               />
             ) : (
-              <div className="history-list">
-                {(preview.data?.history ?? []).map((record) => (
-                  <article className="history-item" key={record.id}>
-                    <div>
-                      <strong>{record.title}</strong>
-                      <span>{record.lineCount.toLocaleString()} lines / {record.parsedCount.toLocaleString()} parsed</span>
-                    </div>
-                    <strong>{Math.round(record.totalDamage).toLocaleString()}</strong>
-                  </article>
-                ))}
-                {!preview.data?.history.length ? <p>No saved fights yet. Press New Fight after damage appears.</p> : null}
+              <div className="empty-live-state">
+                <strong>No combat loaded</strong>
+                <span>Click Log File and choose a Neverwinter combat log.</span>
               </div>
             )}
           </Card>
 
-          <BreakdownBars
-            title="Companion damage"
-            description="Summoned ally damage stays visible even when it is merged into owners."
-            data={(preview.data?.companionDamage ?? []).map((row, index) => ({
-              label: `${row.rank}. ${row.name}`,
-              value: Math.round(row.totalDamage),
-              tone: index % 2 === 0 ? "tertiary" : "secondary",
-            }))}
-          />
+          <Card className="panel live-table-panel" component="article">
+            <div className="panel-header">
+              <div>
+                <h2>Combatant ledger</h2>
+                <p>Click a row for the inspector, or open the full detail page.</p>
+              </div>
+              <label className="compact-switch-row">
+                <span>Merge companions</span>
+                <Switch checked={showCompanions} onChange={(_, checked) => setShowCompanions(checked)} />
+              </label>
+            </div>
+            <div className="responsive-table-wrap live-table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Damage</th>
+                    <th>EncDPS</th>
+                    <th>Crit</th>
+                    <th>Trend</th>
+                    <th>Power</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleDamageRows.map((row) => (
+                    <tr key={`${row.sourceKind}-${row.name}`} className={selectedMember?.name === row.name ? "selected-row" : undefined} onClick={() => setSelectedName(row.name)}>
+                      <td>{row.rank}</td>
+                      <td>
+                        <Button component={Link} onClick={(event) => event.stopPropagation()} size="small" to={`/live/players/${encodeURIComponent(row.name)}`} variant="text">
+                          {row.name}
+                        </Button>
+                      </td>
+                      <td>{Math.round(row.totalDamage).toLocaleString()}</td>
+                      <td>{Math.round(row.encDps).toLocaleString()}</td>
+                      <td>{(row.critRate * 100).toFixed(1)}%</td>
+                      <td>
+                        <SparkLineChart aria-label={`${row.name} damage trend`} color="#0f766e" data={row.damageTrend.length ? row.damageTrend : [0]} height={28} width={92} />
+                      </td>
+                      <td>{row.topPower ?? "-"}</td>
+                    </tr>
+                  ))}
+                  {!visibleDamageRows.length ? (
+                    <tr>
+                      <td colSpan={7}>No player damage yet.</td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </section>
 
-        <DamageDetailPanel member={selectedMember} totalDamage={totalVisibleDamage} />
-      </div>
-
-      <div className="content-grid">
-        <Card className="panel panel-large" component="article">
-          <div className="panel-header">
-            <h2>Player table</h2>
-            <StatusBadge tone={source.data?.state === "watching" ? "good" : "warning"}>
-              {source.data?.message ?? "No source selected"}
-            </StatusBadge>
-          </div>
-          <div className="responsive-table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>Name</th>
-                <th>Damage</th>
-                  <th>Hits</th>
-                  <th>Crit %</th>
-                  <th>Trend</th>
-                  <th>Top Power</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleDamageRows.map((row) => (
-                  <tr
-                    key={`${row.sourceKind}-${row.name}`}
-                    className={selectedMember?.name === row.name ? "selected-row" : undefined}
-                    onClick={() => setSelectedName(row.name)}
-                  >
-                    <td>{row.rank}</td>
-                    <td>
-                      <Button
-                        component={Link}
-                        onClick={(event) => event.stopPropagation()}
-                        size="small"
-                        to={`/live/players/${encodeURIComponent(row.name)}`}
-                        variant="text"
-                      >
-                        {row.name}
-                      </Button>
-                    </td>
-                    <td>{Math.round(row.totalDamage).toLocaleString()}</td>
-                    <td>{row.hitCount.toLocaleString()}</td>
-                    <td>{(row.critRate * 100).toFixed(1)}</td>
-                    <td>
-                      <SparkLineChart
-                        aria-label={`${row.name} damage trend`}
-                        color="#0071e3"
-                        data={row.damageTrend.length ? row.damageTrend : [0]}
-                        height={32}
-                        width={96}
-                      />
-                    </td>
-                    <td>{row.topPower ?? "-"}</td>
-                  </tr>
-                ))}
-                {!visibleDamageRows.length ? (
-                  <tr>
-                    <td colSpan={7}>Choose a combat log to show party damage.</td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        <aside className="insight-stack">
-          <Card className="panel parser-health-compact" component="article">
-            <div>
-              <p className="eyebrow">Parser</p>
-              <h2>{source.data?.state === "watching" ? "Reading" : "Waiting"}</h2>
-              <p>{source.data?.message ?? "No source selected"}</p>
-            </div>
-            <div className="health-meter">
-              {preview.data?.lineCount ? Math.round(((preview.data.parsedCount ?? 0) / preview.data.lineCount) * 100) : 0}%
-            </div>
-          </Card>
-          <Card className="panel" component="article">
-            <h2>Recent reads</h2>
-            {!preview.data?.recentEvents.length ? <p>No events received yet.</p> : null}
-            <div className="compact-event-list">
-              {(preview.data?.recentEvents ?? []).slice(-5).map((event, index) => (
-                <div className="compact-event" key={`${event.timestamp}-${event.classification}-${index}`}>
-                  <strong>{event.classification}</strong>
-                  <span>{event.summary}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-          <Card className="panel" component="article">
-            <h2>Source mix</h2>
-            <div className="donut-row">
+        <aside className="live-side-stack">
+          <DamageDetailPanel member={selectedMember} totalDamage={totalVisibleDamage} />
+          <AiInsightPanel preview={preview.data} selected={selectedMember} />
+          <Card className="panel live-mini-panel" component="article">
+            <h2>Players vs companions</h2>
+            <div className="live-mix-row">
               <PieChart
-                height={120}
+                height={132}
                 hideLegend
                 margin={{ bottom: 0, left: 0, right: 0, top: 0 }}
-                series={[
-                  {
-                    data: [
-                      { id: "players", label: "Players", value: rawPlayerDamage },
-                      { id: "companions", label: "Companions", value: rawCompanionDamage },
-                    ],
-                    innerRadius: 34,
-                    outerRadius: 55,
-                  },
-                ]}
-                width={120}
+                series={[{ data: [{ id: "players", label: "Players", value: Math.max(rawPlayerDamage, 0) }, { id: "companions", label: "Companions", value: Math.max(rawCompanionDamage, 0) }], innerRadius: 34, outerRadius: 58 }]}
+                width={132}
               />
-              <div>
-                <strong>{(companionShare(preview.data?.companionDamage ?? [], allDamage) * 100).toFixed(1)}%</strong>
-                <p>Raw companion share in the selected log.</p>
+              <div className="source-mix-list">
+                <div>
+                  <span>Players</span>
+                  <strong>{Math.round(rawPlayerDamage).toLocaleString()}</strong>
+                  <LinearProgress value={sourceMixTotal ? (rawPlayerDamage / sourceMixTotal) * 100 : 0} variant="determinate" />
+                </div>
+                <div>
+                  <span>Companions</span>
+                  <strong>{Math.round(rawCompanionDamage).toLocaleString()}</strong>
+                  <LinearProgress value={sourceMixTotal ? (rawCompanionDamage / sourceMixTotal) * 100 : 0} variant="determinate" />
+                </div>
               </div>
             </div>
           </Card>
+          <Card className="panel live-mini-panel" component="article">
+            <div className="panel-header">
+              <h2>Saved fights</h2>
+              <button className={damageTab === "history" ? "tab tab-active" : "tab"} onClick={() => setDamageTab(damageTab === "history" ? "current" : "history")} type="button">
+                {damageTab === "history" ? "Hide" : "Show"}
+              </button>
+            </div>
+            {damageTab === "history" ? (
+              <div className="history-list live-history-scroll">
+                {(preview.data?.history ?? []).map((record) => (
+                  <article className="history-item" key={record.id}>
+                    <div>
+                      <strong>{record.title}</strong>
+                      <span>{record.lineCount.toLocaleString()} lines</span>
+                    </div>
+                    <strong>{Math.round(record.totalDamage).toLocaleString()}</strong>
+                  </article>
+                ))}
+                {!preview.data?.history.length ? <p>No saved fights yet.</p> : null}
+              </div>
+            ) : (
+              <p>Use New Fight to save the current counter and start fresh.</p>
+            )}
+          </Card>
         </aside>
-      </div>
-
-      <BreakdownBars
-        title="Log line types"
-        description="Every line is counted so parser issues stay visible."
-        data={(preview.data?.classificationCounts ?? []).map((item, index) => ({
-          label: item.classification,
-          value: item.count,
-          tone: index % 3 === 0 ? "primary" : index % 3 === 1 ? "secondary" : "tertiary",
-        }))}
-      />
+      </main>
 
       {widget.data?.isOpen ? (
         <FloatingLiveWidget
           failedCount={preview.data?.failedCount ?? 0}
+          encDps={visibleEncDps}
           leader={visibleDamageRows[0] ?? null}
           lineCount={preview.data?.lineCount ?? 0}
           onClose={() => closeWidget.mutate()}
@@ -440,14 +285,27 @@ function shortName(name: string) {
   return name.length > 14 ? `${name.slice(0, 13)}...` : name;
 }
 
+function formatDuration(seconds: number) {
+  if (seconds <= 0) {
+    return "0s";
+  }
+
+  const wholeSeconds = Math.round(seconds);
+  const minutes = Math.floor(wholeSeconds / 60);
+  const remainingSeconds = wholeSeconds % 60;
+  return minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${remainingSeconds}s`;
+}
+
 function FloatingLiveWidget({
   failedCount,
+  encDps,
   leader,
   lineCount,
   onClose,
   totalDamage,
 }: {
   failedCount: number;
+  encDps: number;
   leader: ReturnType<typeof buildDamageRows>[number] | null;
   lineCount: number;
   onClose: () => void;
@@ -471,9 +329,12 @@ function FloatingLiveWidget({
       </div>
       <div className="floating-live-widget-stat">
         <Typography color="text.secondary" variant="caption">
-          Visible damage
+          EncDPS
         </Typography>
-        <Typography variant="h5">{Math.round(totalDamage).toLocaleString()}</Typography>
+        <Typography variant="h5">{Math.round(encDps).toLocaleString()}</Typography>
+        <Typography color="text.secondary" variant="caption">
+          {Math.round(totalDamage).toLocaleString()} total damage
+        </Typography>
       </div>
       <div className="floating-live-widget-stat">
         <Typography color="text.secondary" variant="caption">
@@ -503,3 +364,4 @@ function FloatingLiveWidget({
     </Card>
   );
 }
+

@@ -26,6 +26,7 @@ export function DamageDetailPanel({ member, totalDamage }: DamageDetailPanelProp
       <h2>{member.name}</h2>
       <div className="detail-stat-grid">
         <MetricCard label="Damage" value={Math.round(member.totalDamage).toLocaleString()} />
+        <MetricCard label="EncDPS" value={Math.round(member.encDps).toLocaleString()} />
         <MetricCard label="Share" value={`${(share * 100).toFixed(1)}%`} />
         <MetricCard label="Hits" value={member.hitCount.toLocaleString()} />
         <MetricCard label="Crit Rate" value={`${(member.critRate * 100).toFixed(1)}%`} />
@@ -43,4 +44,3 @@ export function DamageDetailPanel({ member, totalDamage }: DamageDetailPanelProp
     </article>
   );
 }
-

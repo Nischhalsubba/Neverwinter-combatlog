@@ -38,6 +38,8 @@ function mergeCompanionIntoOwner(owner: PartyDamageDto, companion: PartyDamageDt
   owner.hitCount += companion.hitCount;
   owner.critCount += companion.critCount;
   owner.critRate = owner.hitCount > 0 ? owner.critCount / owner.hitCount : 0;
+  owner.durationSeconds = Math.max(owner.durationSeconds, companion.durationSeconds);
+  owner.encDps = owner.durationSeconds > 0 ? owner.totalDamage / owner.durationSeconds : owner.totalDamage;
   owner.powerBreakdown = mergePowerBreakdowns(owner.powerBreakdown, companion.powerBreakdown);
   owner.damageTrend = mergeDamageTrends(owner.damageTrend, companion.damageTrend);
   owner.topPower = owner.powerBreakdown[0]?.powerName ?? owner.topPower;
@@ -71,6 +73,7 @@ function mergeDamageTrends(left: number[], right: number[]) {
 function cloneDamageRow(row: PartyDamageDto): PartyDamageDto {
   return {
     ...row,
+    name: normalizeDisplayName(row.name),
     damageTrend: [...row.damageTrend],
     powerBreakdown: row.powerBreakdown.map((power) => ({ ...power })),
   };
@@ -78,4 +81,9 @@ function cloneDamageRow(row: PartyDamageDto): PartyDamageDto {
 
 function normalizeName(name: string) {
   return name.trim().toLocaleLowerCase();
+}
+
+function normalizeDisplayName(name: string) {
+  const trimmed = name.trim();
+  return !trimmed || trimmed.toLocaleLowerCase() === "unknown" ? "Unassigned owner" : trimmed;
 }

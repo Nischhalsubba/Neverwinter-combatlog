@@ -1,3 +1,7 @@
+param(
+    [switch] $Desktop
+)
+
 $ErrorActionPreference = "Stop"
 
 function Require-Command {
@@ -39,7 +43,6 @@ Set-Location $repoRoot
 
 Require-Command "node" "Install Node.js LTS, then reopen PowerShell."
 Require-Command "corepack" "Install a current Node.js release that includes Corepack."
-Require-Command "dotnet" "Install the .NET 8 SDK from https://dotnet.microsoft.com/download/dotnet/8.0, then reopen PowerShell."
 
 Write-Host "Checking pnpm through Corepack..." -ForegroundColor Cyan
 corepack pnpm --version
@@ -55,6 +58,36 @@ if (Test-Path $oldTarget) {
 
 $webUrl = "http://127.0.0.1:1420"
 $webArgs = @("pnpm", "--filter", "@nevercombat/desktop", "web:dev")
+
+if (-not $Desktop) {
+    Write-Host "Starting Astral Combat in browser-safe mode..." -ForegroundColor Cyan
+    Write-Host "Windows is blocking generated desktop assemblies on this machine, so this mode runs through Node/Vite only." -ForegroundColor Yellow
+    $webProcess = Start-Process -FilePath "corepack" -ArgumentList $webArgs -PassThru
+
+    try {
+        for ($attempt = 0; $attempt -lt 40; $attempt++) {
+            try {
+                Invoke-WebRequest -Uri $webUrl -UseBasicParsing -TimeoutSec 1 | Out-Null
+                break
+            }
+            catch {
+                Start-Sleep -Milliseconds 500
+            }
+        }
+
+        Write-Host "Opening $webUrl" -ForegroundColor Cyan
+        Start-Process $webUrl
+        Wait-Process -Id $webProcess.Id
+        exit $webProcess.ExitCode
+    }
+    finally {
+        if ($webProcess -and -not $webProcess.HasExited) {
+            Stop-Process -Id $webProcess.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Require-Command "dotnet" "Install the .NET 8 SDK from https://dotnet.microsoft.com/download/dotnet/8.0, then reopen PowerShell."
 
 Write-Host "Starting React dev server..." -ForegroundColor Cyan
 $webProcess = Start-Process -FilePath "corepack" -ArgumentList $webArgs -PassThru -WindowStyle Hidden

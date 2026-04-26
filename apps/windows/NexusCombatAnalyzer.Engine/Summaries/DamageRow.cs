@@ -5,6 +5,8 @@ public sealed record DamageRow(
     string Ref,
     string? OwnerName,
     double Damage,
+    double EncDps,
+    double DurationSeconds,
     int Hits,
     int CriticalHits,
     string TopPower,
