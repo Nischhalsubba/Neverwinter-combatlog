@@ -69,8 +69,16 @@ try {
         exit $LASTEXITCODE
     }
 
-    dotnet run --project "apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.csproj"
+    dotnet build "apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.csproj" -c Debug --no-restore /p:UseAppHost=false
     if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+
+    $hostDll = Join-Path $repoRoot "apps\windows\NexusCombatAnalyzer.Host\bin\Debug\net8.0-windows\NexusCombatAnalyzer.dll"
+    dotnet $hostDll
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "Nexus Combat Analyzer did not start. If Windows still reports os error 4551, the local policy is blocking generated .NET assemblies too." -ForegroundColor Yellow
         exit $LASTEXITCODE
     }
 }

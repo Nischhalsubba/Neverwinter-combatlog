@@ -86,6 +86,11 @@ export type PartyDamageDto = {
 };
 
 export function getSourceStatus() {
+  const bridge = getNexusBridge();
+  if (bridge) {
+    return fromBridge<SourceStatusDto>(bridge.GetSourceStatusJson());
+  }
+
   return invoke<SourceStatusDto>("get_source_status");
 }
 
@@ -98,6 +103,11 @@ export function chooseLiveLogFile() {
 }
 
 export async function chooseLiveLogFolderWithDialog() {
+  const bridge = getNexusBridge();
+  if (bridge) {
+    return fromBridge<SourceStatusDto>(bridge.ChooseLiveLogFolderJson());
+  }
+
   const selected = await openDialogWithWidgetHidden({
     directory: true,
     multiple: false,
@@ -112,6 +122,11 @@ export async function chooseLiveLogFolderWithDialog() {
 }
 
 export async function chooseLiveLogFileWithDialog() {
+  const bridge = getNexusBridge();
+  if (bridge) {
+    return fromBridge<SourceStatusDto>(bridge.ChooseLiveLogFileJson());
+  }
+
   const selected = await openDialogWithWidgetHidden({
     directory: false,
     multiple: false,
@@ -127,14 +142,29 @@ export async function chooseLiveLogFileWithDialog() {
 }
 
 export function getLiveSourcePreview() {
+  const bridge = getNexusBridge();
+  if (bridge) {
+    return fromBridge<LiveSourcePreviewDto>(bridge.GetLiveSourcePreviewJson());
+  }
+
   return invoke<LiveSourcePreviewDto>("get_live_source_preview");
 }
 
 export function resetLiveCounter() {
+  const bridge = getNexusBridge();
+  if (bridge) {
+    return fromBridge<LiveSourcePreviewDto>(bridge.ResetLiveCounterJson());
+  }
+
   return invoke<LiveSourcePreviewDto>("reset_live_counter");
 }
 
 export function getImportedLogs() {
+  const bridge = getNexusBridge();
+  if (bridge) {
+    return fromBridge<ImportedLogDto[]>(bridge.GetImportedLogsJson());
+  }
+
   return invoke<ImportedLogDto[]>("get_imported_logs");
 }
 
@@ -143,6 +173,11 @@ export function importLogFiles() {
 }
 
 export async function importLogFilesWithDialog() {
+  const bridge = getNexusBridge();
+  if (bridge) {
+    return fromBridge<ImportedLogDto[]>(bridge.ImportLogFilesJson());
+  }
+
   const selected = await openDialogWithWidgetHidden({
     directory: false,
     multiple: true,
@@ -163,18 +198,38 @@ export function getLiveRankings() {
 }
 
 export function getWidgetStatus() {
+  const bridge = getNexusBridge();
+  if (bridge) {
+    return fromBridge<WidgetStatusDto>(bridge.GetWidgetStatusJson());
+  }
+
   return invoke<WidgetStatusDto>("get_widget_status");
 }
 
 export function openWidgetWindow() {
+  const bridge = getNexusBridge();
+  if (bridge) {
+    return fromBridge<WidgetStatusDto>(bridge.OpenWidgetWindowJson());
+  }
+
   return invoke<WidgetStatusDto>("open_widget_window");
 }
 
 export function closeWidgetWindow() {
+  const bridge = getNexusBridge();
+  if (bridge) {
+    return fromBridge<WidgetStatusDto>(bridge.CloseWidgetWindowJson());
+  }
+
   return invoke<WidgetStatusDto>("close_widget_window");
 }
 
 export function toggleWidgetWindow() {
+  const bridge = getNexusBridge();
+  if (bridge) {
+    return fromBridge<WidgetStatusDto>(bridge.ToggleWidgetWindowJson());
+  }
+
   return invoke<WidgetStatusDto>("toggle_widget_window");
 }
 
@@ -199,4 +254,29 @@ async function openDialogWithWidgetHidden(options: OpenDialogOptions) {
 
 function delay(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+type NexusBridge = {
+  GetSourceStatusJson: () => string;
+  ChooseLiveLogFolderJson: () => string;
+  ChooseLiveLogFileJson: () => string;
+  GetLiveSourcePreviewJson: () => string;
+  ResetLiveCounterJson: () => string;
+  GetImportedLogsJson: () => string;
+  ImportLogFilesJson: () => string;
+  GetWidgetStatusJson: () => string;
+  OpenWidgetWindowJson: () => string;
+  CloseWidgetWindowJson: () => string;
+  ToggleWidgetWindowJson: () => string;
+};
+
+function getNexusBridge(): NexusBridge | null {
+  return (
+    (window as unknown as { chrome?: { webview?: { hostObjects?: { sync?: { nexus?: NexusBridge } } } } })
+      .chrome?.webview?.hostObjects?.sync?.nexus ?? null
+  );
+}
+
+function fromBridge<T>(json: string): Promise<T> {
+  return Promise.resolve(JSON.parse(json) as T);
 }

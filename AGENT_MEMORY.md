@@ -3,6 +3,13 @@
 ## 2026-04-14
 
 ### Files changed
+- `apps/windows/NexusCombatAnalyzer.Host/App.xaml.cs`
+- `apps/windows/NexusCombatAnalyzer.Host/NexusBridge.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Summaries/DamageRow.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Summaries/CombatLogSummarizer.cs`
+- `apps/windows/NexusCombatAnalyzer.Engine/Parsing/NeverwinterLogParser.cs`
+- `apps/desktop/src/ipc/api.ts`
+- `apps/windows/NexusCombatAnalyzer.Tests/Program.cs`
 - `NuGet.Config`
 - `apps/windows/NexusCombatAnalyzer.Host/NexusCombatAnalyzer.Host.csproj`
 - `.gitignore`
@@ -101,6 +108,13 @@
 - `apps/desktop/src-tauri/migrations/0001_initial_schema.sql`
 
 ### Decisions made
+- Buttons were broken because the React UI still called Tauri IPC while the app now runs in .NET WebView2. Added a WebView2 host object bridge named `nexus`.
+- The .NET bridge returns JSON matching existing frontend DTOs so React screens can keep using TanStack Query and chart components.
+- Parser classification now counts known damage event types such as `Physical` as damage, while `Power` is resource and `TriggerComplex` is meta even when magnitude is positive.
+- Real Neverwinter log examples from `combatlog_2026-04-15_00-00-00.log` are now test fixtures for dummy player damage and companion damage.
+- WebView2 must use an explicit per-user data directory because dev startup runs through `dotnet.exe`; otherwise WebView2 tries to write under `C:\Program Files\dotnet\dotnet.exe.WebView2`.
+- Dev startup should avoid `dotnet run` because it executes the generated `NexusCombatAnalyzer.exe`, which the user's Windows Application Control blocks with os error 4551.
+- `start-dev.ps1` now builds the .NET host with `/p:UseAppHost=false` and launches `NexusCombatAnalyzer.dll` through trusted `dotnet.exe`.
 - .NET publish targets `win-x64`, so restore must also include `-r win-x64`; otherwise `project.assets.json` lacks `net8.0-windows/win-x64` and publish fails with `NETSDK1047`.
 - Add repo-level `NuGet.Config` with explicit `nuget.org` source because the user's `dotnet nuget list source` returned `No sources found`, causing WebView2 restore failure `NU1100`.
 - Superseded the Rust/Tauri runtime direction for future work because the user's Windows Application Control policy blocks Rust-generated build executables with os error 4551.
@@ -144,6 +158,12 @@
 - Expanded sidebar destinations with detail content: Live source health/classification, Replay import size breakdown, Encounters workflow, Encounter Detail analysis placeholders, Widget behavior/appearance/modes, and comprehensive Settings categories.
 
 ### Mistakes or failed approaches
+- Running .NET tests and host build in parallel caused a transient file lock on the shared engine DLL; rerun .NET builds serially.
+- Enabling Windows Forms for native dialogs made `Application` ambiguous in `App.xaml.cs`; fixed by fully qualifying `System.Windows.Application`.
+- Keeping Tauri API calls after moving to .NET made buttons appear clickable but nonfunctional under WebView2.
+- The first C# classifier treated any positive magnitude as damage, which would incorrectly count `Power` and `TriggerComplex` rows from the real Neverwinter log.
+- First DLL-based WebView2 launch failed because the default WebView2 user data folder was derived from `dotnet.exe` and pointed to unwritable `C:\Program Files\dotnet\...`.
+- `dotnet run` is not safe under the user's Application Control policy because it starts the generated debug apphost executable under `apps/windows/NexusCombatAnalyzer.Host/bin/Debug/...`.
 - After NuGet source was fixed, the first .NET publish failed with `NETSDK1047` because restore succeeded only for `net8.0-windows`, while publish requested `net8.0-windows/win-x64` with `--no-restore`.
 - First .NET host build failed on the user's machine with `NU1100: Unable to resolve Microsoft.Web.WebView2` because no NuGet package sources were configured globally.
 - After clearing the generated Cargo target and retrying serially, Rust commands are still blocked by Windows Application Control on generated build-script executables such as `icu_normalizer_data`, `serde`, `getrandom`, and others. This is an OS policy blocker before crate compilation, not an engine source error.
@@ -172,6 +192,30 @@
 - User requested a full layout redesign, a Live Combat refresh button that resets counters to zero, prior counter records saved in a Party Damage history tab, and no static/placeholder information.
 
 ### Current status
+- Added optional `--summarize <path>` mode to the C# test harness for full combat-log parser inspection.
+- Verification passed: `dotnet build apps/windows/NexusCombatAnalyzer.Host/NexusCombatAnalyzer.Host.csproj -c Debug --no-restore /p:UseAppHost=false`.
+- Verification passed: `dotnet build apps/windows/NexusCombatAnalyzer.Tests/NexusCombatAnalyzer.Tests.csproj -c Debug --no-restore`.
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed: `corepack pnpm --filter @nevercombat/desktop web:build`.
+- Full-log summary execution is blocked in this environment by Windows Application Control on the generated test DLL, but the same parser tests ran successfully before the policy block and both projects compile.
+- Fixed `App.xaml.cs` ambiguity after enabling Windows Forms.
+- Verification passed: `dotnet run --project apps/windows/NexusCombatAnalyzer.Tests/NexusCombatAnalyzer.Tests.csproj` with 9 parser tests, including real Neverwinter player and companion lines.
+- Added `NexusBridge` with native file/folder dialogs, import, live preview, reset counter, widget state, and JSON DTOs for the React app.
+- Registered `NexusBridge` in WebView2 via `AddHostObjectToScript("nexus", ...)`.
+- Updated frontend IPC API to use `window.chrome.webview.hostObjects.sync.nexus` when available, with Tauri fallback retained.
+- Added C# damage rows with power breakdowns and damage trend arrays for UI charts.
+- Updated parser classification to avoid counting `Power`/`TriggerComplex` rows as damage.
+- Added tests using real Neverwinter log line shapes for player dummy damage and companion damage.
+- Updated `apps/windows/NexusCombatAnalyzer.Host/MainWindow.xaml.cs` to create and use `%LOCALAPPDATA%\NexusCombatAnalyzer\WebView2` as the WebView2 user data folder.
+- Updated `README.md` troubleshooting for the WebView2 data directory error.
+- Verification passed after WebView2 user-data fix: PowerShell syntax check for `scripts/start-dev.ps1`.
+- Verification passed after WebView2 user-data fix: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed after WebView2 user-data fix: `corepack pnpm --filter @nevercombat/desktop web:build`.
+- Updated `scripts/start-dev.ps1` to restore, build with `/p:UseAppHost=false`, and run `NexusCombatAnalyzer.dll` via `dotnet`.
+- Updated `README.md` to document the dev apphost avoidance for Windows Application Control error 4551.
+- Verification passed after dev apphost avoidance: PowerShell syntax check for `scripts/start-dev.ps1` and `scripts/build-all.ps1`.
+- Verification passed after dev apphost avoidance: `corepack pnpm --filter @nevercombat/desktop test`.
+- Verification passed after dev apphost avoidance: `corepack pnpm --filter @nevercombat/desktop web:build`.
 - Added `<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>` to the .NET host project.
 - Updated `scripts/build-all.ps1` to restore the host with `--configfile NuGet.Config -r win-x64` before publishing with `--no-restore`.
 - Updated `README.md` manual publish and troubleshooting commands to restore with `-r win-x64`.
@@ -298,7 +342,7 @@
 - Verification passed after replacing the broken widget window with the in-app widget: `corepack pnpm --filter @nevercombat/desktop test`, `cargo fmt -- --check`, and `corepack pnpm --filter @nevercombat/desktop web:build`.
 
 ### Next exact step
-- Rerun `.\build-all.cmd`; restore should now include the `win-x64` target required by publish.
+- Run TypeScript and .NET tests, then start the app and validate buttons against the provided combat log.
 - User can rerun `.\start-dev.cmd`; the `pnpx.CMD` EPERM should be gone. If os error 4551 remains, Windows Application Control must allow Rust-generated build executables.
 - Continue with the next engine step once Windows Application Control allows Rust build-script execution: wire SQLite writes for raw and parsed events from `engine::summarize_combat_log`, then replace in-memory imported/live records.
 - Run `.\start-dev.cmd`, import or link the user's real combat log, click a Damage Leaders name, and visually confirm `/live/players/:playerName` shows the combatant detail page with trend and power charts.

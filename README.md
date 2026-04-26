@@ -58,7 +58,8 @@ What this does:
 - Uses pnpm through Corepack without writing shims into `C:\Program Files\nodejs`.
 - Installs workspace dependencies with pnpm.
 - Starts the React/Vite dev server on `http://127.0.0.1:1420`.
-- Starts the .NET WPF/WebView2 desktop host and points it at the dev server.
+- Builds the .NET WPF/WebView2 desktop host without a generated apphost `.exe`.
+- Starts the host with `dotnet NexusCombatAnalyzer.dll` and points it at the dev server.
 
 ## Build Locally
 
@@ -284,6 +285,40 @@ restore was run without the Windows runtime identifier. Run:
 ```powershell
 dotnet restore apps\windows\NexusCombatAnalyzer.Host\NexusCombatAnalyzer.Host.csproj --configfile NuGet.Config -r win-x64
 .\build-all.cmd
+```
+
+If `.\start-dev.cmd` fails with:
+
+```text
+An Application Control policy has blocked this file. (os error 4551)
+```
+
+the development script is designed to avoid running the generated `.exe`. It builds with `/p:UseAppHost=false` and runs the app DLL through `dotnet.exe`. Pull the latest script change and retry:
+
+```powershell
+.\start-dev.cmd
+```
+
+If it still fails, the local policy is blocking generated .NET assemblies too. In that case, run the published output from a developer-approved folder or adjust Windows Application Control for this project path.
+
+If WebView2 shows:
+
+```text
+We couldn't create the data directory
+Microsoft Edge can't read and write to its data directory:
+C:\Program Files\dotnet\dotnet.exe.WebView2\EBWebView
+```
+
+the app is being launched through `dotnet.exe`, so WebView2 tried to place browser data beside `dotnet.exe`. The host now sets its WebView2 user data folder to:
+
+```text
+%LOCALAPPDATA%\NexusCombatAnalyzer\WebView2
+```
+
+Retry:
+
+```powershell
+.\start-dev.cmd
 ```
 
 If restore still fails, check that Windows, antivirus, firewall, or a corporate proxy is not blocking `api.nuget.org`.

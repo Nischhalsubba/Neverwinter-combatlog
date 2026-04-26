@@ -131,12 +131,14 @@ public sealed class NeverwinterLogParser
         var normalizedType = eventType.Trim().ToLowerInvariant();
         var normalizedFlags = flags.Trim().ToLowerInvariant();
 
-        if (normalizedType.Contains("heal", StringComparison.Ordinal) || normalizedFlags.Contains("heal", StringComparison.Ordinal))
+        if (normalizedType.Contains("heal", StringComparison.Ordinal)
+            || normalizedFlags.Contains("heal", StringComparison.Ordinal)
+            || (normalizedType == "hitpoints" && magnitude < 0))
         {
             return EventClassification.Healing;
         }
 
-        if (normalizedFlags.Contains("shield", StringComparison.Ordinal))
+        if (normalizedType == "shield" || normalizedFlags.Contains("shield", StringComparison.Ordinal))
         {
             return normalizedFlags.Contains("break", StringComparison.Ordinal)
                 ? EventClassification.ShieldBreak
@@ -148,9 +150,16 @@ public sealed class NeverwinterLogParser
             return EventClassification.Immune;
         }
 
-        if (normalizedType.Contains("resource", StringComparison.Ordinal) || normalizedFlags.Contains("resource", StringComparison.Ordinal))
+        if (normalizedType == "power"
+            || normalizedType.Contains("resource", StringComparison.Ordinal)
+            || normalizedFlags.Contains("resource", StringComparison.Ordinal))
         {
             return EventClassification.Resource;
+        }
+
+        if (normalizedType == "triggercomplex")
+        {
+            return EventClassification.Meta;
         }
 
         if (normalizedType.Contains("summon", StringComparison.Ordinal) || normalizedFlags.Contains("summon", StringComparison.Ordinal))
@@ -163,13 +172,27 @@ public sealed class NeverwinterLogParser
             return EventClassification.Control;
         }
 
-        if (magnitude > 0)
+        if (magnitude > 0 && IsDamageType(normalizedType))
         {
             return EventClassification.Damage;
         }
 
         return EventClassification.Unknown;
     }
+
+    private static bool IsDamageType(string normalizedType) =>
+        normalizedType is "physical"
+            or "arcane"
+            or "cold"
+            or "fire"
+            or "lightning"
+            or "necrotic"
+            or "poison"
+            or "psychic"
+            or "radiant"
+            or "thunder"
+            or "force"
+            or "untyped";
 
     private static ParseOutcome Failure(RawLogLine raw, string code, string message, string? rawTimestamp, IReadOnlyList<string> tokens) =>
         ParseOutcome.Failed(new ParseFailure(raw, code, message, rawTimestamp, tokens));

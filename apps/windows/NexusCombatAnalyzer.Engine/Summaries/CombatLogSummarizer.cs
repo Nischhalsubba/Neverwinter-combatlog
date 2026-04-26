@@ -94,6 +94,8 @@ public sealed class CombatLogSummarizer
     private sealed class MutableDamageRow
     {
         private readonly Dictionary<string, double> _powerDamage = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, int> _powerHits = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<double> _damageTrend = [];
 
         public MutableDamageRow(string name, string reference, string? ownerName)
         {
@@ -119,15 +121,37 @@ public sealed class CombatLogSummarizer
             }
 
             _powerDamage[parsedEvent.PowerName] = _powerDamage.GetValueOrDefault(parsedEvent.PowerName) + parsedEvent.Magnitude;
+            _powerHits[parsedEvent.PowerName] = _powerHits.GetValueOrDefault(parsedEvent.PowerName) + 1;
+            _damageTrend.Add(parsedEvent.Magnitude);
         }
 
         public DamageRow ToImmutable()
         {
-            var topPower = _powerDamage.Count == 0
-                ? "Unknown"
-                : _powerDamage.OrderByDescending(pair => pair.Value).First().Key;
+            var powerBreakdown = _powerDamage
+                .Select(pair => new PowerDamageRow(pair.Key, pair.Value, _powerHits.GetValueOrDefault(pair.Key)))
+                .OrderByDescending(row => row.TotalDamage)
+                .ToArray();
 
-            return new DamageRow(Name, Reference, OwnerName, Damage, Hits, CriticalHits, topPower);
+            var topPower = powerBreakdown.Length == 0
+                ? "Unknown"
+                : powerBreakdown[0].PowerName;
+
+            return new DamageRow(Name, Reference, OwnerName, Damage, Hits, CriticalHits, topPower, powerBreakdown, BuildTrend());
+        }
+
+        private IReadOnlyList<double> BuildTrend()
+        {
+            if (_damageTrend.Count <= 24)
+            {
+                return _damageTrend.ToArray();
+            }
+
+            var bucketSize = (int)Math.Ceiling(_damageTrend.Count / 24d);
+            return _damageTrend
+                .Select((value, index) => new { Value = value, Bucket = index / bucketSize })
+                .GroupBy(item => item.Bucket)
+                .Select(group => group.Sum(item => item.Value))
+                .ToArray();
         }
     }
 }

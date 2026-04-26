@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using Microsoft.Web.WebView2.Core;
 
 namespace NexusCombatAnalyzer.Host;
 
@@ -13,8 +14,16 @@ public partial class MainWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        await WebView.EnsureCoreWebView2Async();
+        var userDataFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "NexusCombatAnalyzer",
+            "WebView2");
+        Directory.CreateDirectory(userDataFolder);
+
+        var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
+        await WebView.EnsureCoreWebView2Async(environment);
         WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+        WebView.CoreWebView2.AddHostObjectToScript("nexus", new NexusBridge());
 
         var devUrl = Environment.GetEnvironmentVariable("NCA_WEB_DEV_URL");
         if (!string.IsNullOrWhiteSpace(devUrl))
