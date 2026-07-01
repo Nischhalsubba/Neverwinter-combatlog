@@ -40,11 +40,32 @@
     "entity:Ice Chunk":"artifacts/Icon_Inventory_Artifacts_Symbolofwater.webp",
     "entity:Fell Troll":"artifacts/Icon_Inventory_Artifacts_Eyeofthegiant.webp"
   };
-  const BASES=["./images/","https://nw-hub.com/images/","https://n00bin.github.io/nwc/images/"];
+  const BASES=["https://n00bin.github.io/nwc/images/","https://nw-hub.com/images/","./images/"];
   const norm=s=>String(s||'').toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').trim();
   const byNorm=new Map(Object.entries(MANIFEST).map(([k,v])=>[norm(k),v]));
   function path(kind,name){return MANIFEST[kind+":"+name]||byNorm.get(norm(kind+":"+name))||byNorm.get(norm(name))||null}
   function url(kind,name){const p=path(kind,name);return p?BASES[0]+p:null}
-  function html(kind,name,alt,cls){const p=path(kind,name);if(!p)return'';const safe=String(alt||name||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));return '<img class="assetIcon '+(cls||'')+'" src="'+BASES[0]+p+'" alt="'+safe+'">'}
+  function safeText(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function fallbackGlyph(kind){if(kind==='class')return '◆';if(kind==='entity')return '♛';if(kind==='power')return '✦';return '•'}
+  function html(kind,name,alt,cls){
+    const p=path(kind,name);
+    const safe=safeText(alt||name||'');
+    if(!p)return '<span class="nwIcon '+(cls||'')+'">'+fallbackGlyph(kind)+'</span>';
+    return '<img class="assetIcon '+(cls||'')+'" src="'+BASES[0]+p+'" alt="'+safe+'" data-path="'+p+'" data-base="0" data-kind="'+kind+'" data-alt="'+safe+'">';
+  }
+  function replaceWithFallback(img){
+    const span=document.createElement('span');
+    span.className='nwIcon '+(img.className||'').replace('assetIcon','');
+    span.textContent=fallbackGlyph(img.dataset.kind||'');
+    img.replaceWith(span);
+  }
+  document.addEventListener('error',function(e){
+    const img=e.target;
+    if(!img||!img.classList||!img.classList.contains('assetIcon'))return;
+    const next=(Number(img.dataset.base||0)+1);
+    const p=img.dataset.path;
+    if(p&&next<BASES.length){img.dataset.base=String(next);img.src=BASES[next]+p;return;}
+    replaceWithFallback(img);
+  },true);
   window.NWAssets={MANIFEST,BASES,norm,path,url,html};
 })();
