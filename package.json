@@ -3,10 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "description": "Static browser-based Neverwinter combat log parser.",
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
     "start": "python -m http.server 5173",
     "dev": "python -m http.server 5173",
     "build": "echo Static app: no build step required",
     "test": "echo Open index.html or serve with python -m http.server 5173"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
   }
 }
