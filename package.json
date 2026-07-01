@@ -7,7 +7,7 @@
   "scripts": {
     "start": "python -m http.server 5173",
     "dev": "python -m http.server 5173",
-    "build": "mkdir -p public && cp index.html styles.css parser.js app.js assets.js recovery.js public/",
+    "build": "mkdir -p public && cp index.html styles.css parser.js app.js assets.js class-power-map.js recovery.js power-icon-fix.js public/",
     "test": "echo Open index.html or serve with python -m http.server 5173"
   },
   "devDependencies": {
