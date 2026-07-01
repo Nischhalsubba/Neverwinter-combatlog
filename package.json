@@ -1,16 +1,12 @@
 {
-  "name": "neverwinter-combat-analyzer",
+  "name": "astral-combat-web-parser",
   "private": true,
   "version": "0.1.0",
-  "packageManager": "pnpm@9.15.0",
+  "description": "Static browser-based Neverwinter combat log parser.",
   "scripts": {
-    "start": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-dev.ps1",
-    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-dev.ps1",
-    "build": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-all.ps1",
-    "build:all": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-all.ps1",
-    "test": "pnpm --filter @nevercombat/desktop test"
-  },
-  "devDependencies": {
-    "typescript": "^5.7.2"
+    "start": "python -m http.server 5173",
+    "dev": "python -m http.server 5173",
+    "build": "echo Static app: no build step required",
+    "test": "echo Open index.html or serve with python -m http.server 5173"
   }
 }
