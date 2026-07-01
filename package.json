@@ -7,7 +7,7 @@
   "scripts": {
     "start": "python -m http.server 5173",
     "dev": "python -m http.server 5173",
-    "build": "echo Static app: no build step required",
+    "build": "rm -rf public && mkdir -p public && cp index.html styles.css parser.js app.js public/",
     "test": "echo Open index.html or serve with python -m http.server 5173"
   },
   "devDependencies": {
