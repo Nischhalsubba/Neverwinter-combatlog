@@ -8,8 +8,10 @@
 </head>
 <body>
 <header>
+<div>
 <h1>Astral Combat Web Parser</h1>
 <p class="mut">Upload a Neverwinter combat log. Parsing runs locally in your browser.</p>
+</div>
 <input id="file" type="file" accept=".log,.txt,.csv">
 </header>
 <main>
@@ -22,12 +24,15 @@
 <section id="party"></section>
 <nav id="tabs" class="tabs">
 <button data-tab="overview" class="active">Overview</button>
+<button data-tab="timeline">Timeline & Powers</button>
 <button data-tab="damage">Damage Out</button>
 <button data-tab="healing">Healing</button>
 <button data-tab="taken">Damage Taken</button>
 <button data-tab="shield">Shielding</button>
-<button data-tab="pos">Positioning</button>
 <button data-tab="timing">Timing</button>
+<button data-tab="pos">Positioning</button>
+<button data-tab="deaths">Deaths</button>
+<button data-tab="other">Other</button>
 <button data-tab="formulas">Combat Formulas</button>
 </nav>
 <div id="content" class="panel"><h2>Upload a combat log</h2></div>
