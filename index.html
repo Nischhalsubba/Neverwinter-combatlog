@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Astral Combat Web Parser</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <section>
+      <p class="eyebrow">Neverwinter Combat Log Parser</p>
+      <h1>Astral Combat Web</h1>
+      <p>Upload a combat log, separate boss and mob encounters, inspect damage, healing, shielding, damage taken, positioning, timing, raw hits, and formulas. Everything runs locally in your browser.</p>
+    </section>
+    <section id="drop" class="upload">
+      <input id="file" type="file" accept=".log,.txt,.csv" />
+      <label class="file" for="file">Choose combat log</label>
+      <span>or drop it here</span>
+      <small>No server upload. The browser suffers alone.</small>
+    </section>
+  </header>
+  <main>
+    <div class="toolbar">
+      <div id="status">No log loaded.</div>
+      <label>Player <select id="player"></select></label>
+      <label>Encounter split <select id="mode"><option value="player" selected>Selected player</option><option value="party">Party</option></select></label>
+    </div>
+    <div id="chips" class="chips"></div>
+    <div id="party"></div>
+    <nav id="tabs" class="tabs">
+      <button data-tab="overview" class="active">Overview</button>
+      <button data-tab="damage">Damage Out</button>
+      <button data-tab="healing">Healing</button>
+      <button data-tab="taken">Damage Taken</button>
+      <button data-tab="shield">Shielding</button>
+      <button data-tab="pos">Positioning</button>
+      <button data-tab="timing">Timing</button>
+      <button data-tab="formulas">Combat Formulas</button>
+    </nav>
+    <div id="content"></div>
+  </main>
+  <script type="module" src="./parser.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
