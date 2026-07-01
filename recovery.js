@@ -1,46 +1,50 @@
 (function(){
   const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const safeHtml=s=>String(s).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+  const norm=s=>String(s||'').toLowerCase().replace(/['’]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
   function compact(v,d=1){v=Number(v)||0;const a=Math.abs(v);if(a>=1e12)return(v/1e12).toFixed(d)+'T';if(a>=1e9)return(v/1e9).toFixed(d)+'B';if(a>=1e6)return(v/1e6).toFixed(d)+'M';if(a>=1e3)return(v/1e3).toFixed(d)+'K';return Math.round(v).toLocaleString()}
+  function iconHtml(icon,cls='') {return '<span class="nwIcon '+cls+'" aria-hidden="true">'+icon+'</span>'}
+  const CLASS_DEFS={
+    Wizard:{icon:'◆',color:'#7aa2ff',aliases:['wizard','arcanist','thaumaturge'],powers:['Chilling Cloud','Magic Missile','Icy Rays','Chill Strike','Repel','Entangling Force','Ice Knife','Furious Immolation','Rimefire Smolder','Shatter Strike','Smolder','Fanning the Flame','Fanned Flame','Gathering Flame','Fireball','Icy Terrain']},
+    Ranger:{icon:'◆',color:'#72d087',aliases:['ranger','hunter','warden'],powers:['Electric Shot','Rapid Shot','Aimed Shot','Split the Sky','Thorn Ward','Thorn Strike','Hindering Strike','Hindering Shot','Forest Ghost','Throw Caution','Clear the Ground','Grasping Roots','Slash','Thrust']},
+    Warlock:{icon:'◆',color:'#b477ff',aliases:['warlock','hellbringer','soulweaver'],powers:['Hellish Rebuke','Killing Flames','Soul Scorch','Pillar of Power','Vampiric Embrace','Soulstorm','Infernal Sanction','Soul Pact','Dreadtheft','Hadar Grasp','Arms of Hadar','Warlock’s Bargain','Warlocks Bargain']},
+    Fighter:{icon:'◆',color:'#f3b35b',aliases:['fighter','dreadnought','vanguard'],powers:['Cleave','Shield Throw','Anvil of Doom','Griffon’s Wrath','Griffons Wrath','Linebreaker','Tide of Iron','Heavy Slash','Bull Charge','Commanders Strike','Commander’s Strike']},
+    Cleric:{icon:'◆',color:'#ffe083',aliases:['cleric','arbiter','devout'],powers:['Lance of Faith','Sacred Flame','Daunting Light','Searing Javelin','Forgemaster’s Flame','Forgemasters Flame','Prophecy of Doom','Bastion of Health']},
+    Rogue:{icon:'◆',color:'#ff7a9d',aliases:['rogue','assassin','whisperknife'],powers:['Duelist’s Flurry','Duelists Flurry','Sly Flourish','Lashing Blade','Smoke Bomb','Path of the Blade','Shocking Execution','Wicked Reminder']},
+    Barbarian:{icon:'◆',color:'#ff855c',aliases:['barbarian','blademaster','sentinel'],powers:['Relentless Slash','Brash Strike','Frenzy','Bloodletter','Indomitable Battle Strike','Avalanche of Steel','Mighty Leap','Roar']},
+    Paladin:{icon:'◆',color:'#9bd8ff',aliases:['paladin','oathkeeper','justicar'],powers:['Valorous Strike','Radiant Slam','Smite','Templar’s Wrath','Templars Wrath','Divine Touch','Lay on Hands']},
+    Bard:{icon:'◆',color:'#ff8fd8',aliases:['bard','minstrel','songblade'],powers:['Dancing Lights','Fleche','Phantasmal Concerto','Blaze Flamenco','Defender’s Minuet','Defenders Minuet','Rejuvenating Carol']}
+  };
+  const CATEGORY_ICONS={'At-Will':'⚔','Encounter':'✦','Daily':'✺','Feat':'✧','Class Feature':'◈','Mount':'♞','Item / Enchant':'✹','Pet / Companion':'🐾','Other / Unknown':'?'};
+  const EXACT_ICONS=new Map();
+  const addExact=(arr,icon,cat)=>arr.forEach(n=>EXACT_ICONS.set(norm(n),{icon,cat}));
+  addExact(['Infernal Pounce','Tunnel Vision','Legendary Snail','War Triceratops','Golden Warhorse'],'♞','Mount');
+  addExact(['Empowered Owlbear Figurine','Owlbear Figurine','Tentacle Slam','Loose the Ballista!','Suppressing Fire!'],'◉','Artifact / Companion');
+  addExact(['Mark of the Giant Slayer, Rank 2','Radiant Weapon','Enchanter\'s Hex','Lightning Flash','Spined Devil\'s Influence','Blood Lust'],'✹','Item / Enchant');
+  const POWER_CLASS=new Map();
+  for(const [cls,def] of Object.entries(CLASS_DEFS)){for(const p of def.powers)POWER_CLASS.set(norm(p),cls)}
+  const BOSS_HINTS=['Hunang','Ber','Epli','Oddgeir','Herleifr the Everlasting','The second','Sacrifice','Frozen Totem','Fell Troll','Ice Chunk','Skjoldr','Windshear','Tempestblade','Zephyrhaunt'];
+  function inferClassFromPowerStats(powerRows){const scores={};let total=0;for(const p of powerRows||[]){const key=norm(p.power||p.powerName||'');const weight=Math.log10((p.damage||0)+10)+(p.hits||1)/300;total+=weight;for(const [cls,def] of Object.entries(CLASS_DEFS)){let hit=def.powers.some(x=>norm(x)===key);if(!hit)hit=def.powers.some(x=>key.includes(norm(x))||norm(x).includes(key));if(hit)scores[cls]=(scores[cls]||0)+weight+2}}
+    const sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]);const best=sorted[0];if(!best)return{name:'Unknown',confidence:0,icon:'?',color:'#8b95aa'};const def=CLASS_DEFS[best[0]];return{name:best[0],confidence:Math.min(99,Math.round(best[1]/Math.max(1,total)*100)),icon:def.icon,color:def.color}}
+  function inferClassForPlayer(pid,scope){return inferClassFromPowerStats(NWParser.powers(scope||state.rows,pid))}
+  function resolvePower(power){const key=norm(power);const exact=EXACT_ICONS.get(key);const cls=POWER_CLASS.get(key);let category=exact?.cat||NWParser.category(power);if(cls&&!exact)category=NWParser.category(power);const classDef=cls?CLASS_DEFS[cls]:null;return{power,category,className:cls||null,icon:exact?.icon||CATEGORY_ICONS[category]||classDef?.icon||'?',color:classDef?.color||'#8796ff'}}
+  function resolveEntity(name,id){const n=norm(name);const isBossId=window.NWParser&&NWParser.isBoss&&NWParser.isBoss(id||'');const hinted=BOSS_HINTS.some(b=>n.includes(norm(b)));return{name:name||'Unknown',role:isBossId||hinted?'boss':'mob',icon:isBossId||hinted?'♛':'◆'}}
+  function powerLabel(power){const meta=resolvePower(power);return iconHtml(meta.icon,'cat-'+safeHtml(meta.category).replace(/[^a-z0-9]+/gi,'-'))+'<span>'+safeHtml(power)+'</span>'}
+  function classBadge(cls){const d=CLASS_DEFS[cls.name]||{color:'#8b95aa',icon:'?'};return '<span class="classPill" style="--class-color:'+d.color+'">'+iconHtml(d.icon)+' '+safeHtml(cls.name)+(cls.confidence?'<small>'+cls.confidence+'%</small>':'')+'</span>'}
+  window.NWMeta={CLASS_DEFS,inferClassForPlayer,resolvePower,resolveEntity,powerLabel,classBadge,compact};
   function progressText(p){const mb=p.total?(' / '+(p.total/1048576).toFixed(1)+' MB'):'';const read=p.bytes?((p.bytes/1048576).toFixed(1)+' MB'+mb):'';return `${p.phase||'parsing'} · ${p.rows.toLocaleString()} rows · ${p.lines.toLocaleString()} lines ${read}`}
   if(typeof cell==='function'){
     const oldCell=cell;
-    cell=function(v,k){
-      if(v==null)return'-';
-      if(['damage','total','avg','max','done','received','taken','shielded','absorbed','nonca','missed','potential','actual','base','dps','combat','combatDps'].includes(k))return compact(v);
-      if(['share','crit','critRate','flank','caRate','eff','uptime','effect'].includes(k))return (Number(v)||0).toFixed(1)+'%';
-      if(['hits','ticks','caHits','full','breaks','rank'].includes(k))return Math.round(Number(v)||0).toLocaleString();
-      return oldCell(v,k);
-    };
+    cell=function(v,k){if(v==null)return'-';if(['damage','total','avg','max','done','received','taken','shielded','absorbed','nonca','missed','potential','actual','base','dps','combat','combatDps'].includes(k))return compact(v);if(['share','crit','critRate','flank','caRate','eff','uptime','effect'].includes(k))return (Number(v)||0).toFixed(1)+'%';if(['hits','ticks','caHits','full','breaks','rank'].includes(k))return Math.round(Number(v)||0).toLocaleString();return oldCell(v,k)};
   }
-  async function safeLoad(file){
-    const status=document.querySelector('#status');
-    const content=document.querySelector('#content');
-    try{
-      if(!file)return;
-      status.textContent='Opening '+file.name+'...';
-      content.innerHTML='<section class="panel"><h2>Parsing combat log</h2><p class="mut">Large files are streamed in chunks, indexed, then rendered. No more stack-overflow circus, in theory.</p></section>';
-      await wait(20);
-      state.rows=NWParser.parseFile?await NWParser.parseFile(file,{onProgress:p=>{status.textContent=progressText(p)}}):NWParser.parseLog(await file.text());
-      if(!state.rows.length)throw new Error('No valid combat rows found. Please upload a Neverwinter combat log file.');
-      state.players=NWParser.detectPlayers(state.rows);
-      if(!state.players.length)throw new Error('Rows parsed, but no player-owned combat data was found.');
-      state.playerId=state.players[0].id;
-      state.encounterId='all';
-      state.rawPower=null;
-      state.showHidden=false;
-      state.filter='all';
-      rebuildEncounters();
-      const skipped=state.rows.meta&&state.rows.meta.skipped?(' · skipped '+state.rows.meta.skipped.toLocaleString()+' malformed lines'):'';
-      status.textContent='Parsed '+state.rows.length.toLocaleString()+' rows from '+(state.rows.meta.lines||0).toLocaleString()+' lines'+skipped+'.';
-      await wait(20);
-      render();
-    }catch(err){
-      console.error(err);
-      status.textContent='Could not parse log: '+err.message;
-      content.innerHTML='<section class="panel"><h2>Could not parse this file</h2><p class="mut">'+safeHtml(err.message)+'</p><p class="mut">The parser streams files and reports malformed lines instead of getting stuck at Reading.</p></section>';
-    }
-  }
+  if(typeof inferClass==='function')inferClass=function(pid){return inferClassForPlayer(pid).name};
+  if(typeof playerHeader==='function')playerHeader=function(){const p=player();if(!p)return'';const rows=scopeRows();const m=NWParser.metrics(rows,p.id,activeEncounters());const cls=inferClassForPlayer(p.id);return '<div class="playerHead pro"><div><div class="playerName">'+classBadge(cls)+' <span>'+safeHtml(p.name)+'</span> <span class="badge green">Pets Included</span></div><small class="mut">'+(state.encounterId==='all'?'All encounters':'Focused encounter #'+state.encounterId)+'</small></div><div><span class="badge">'+compact(m.total)+' damage</span><span class="badge">'+compact(m.combatDps)+' combat DPS</span><span class="badge red">'+Math.round(deathRows(rows,p.id).length).toLocaleString()+' deaths</span></div></div>'};
+  if(typeof renderPlayers==='function')renderPlayers=function(){const sel=document.querySelector('#player');sel.innerHTML=state.players.map(p=>'<option value="'+safeHtml(p.id)+'" '+(p.id===state.playerId?'selected':'')+'>'+safeHtml(p.name)+'</option>').join('');if(!state.players.length){document.querySelector('#party').innerHTML='';return}const body=state.players.map((p,i)=>{const m=NWParser.metrics(state.rows,p.id,state.encounters);const cls=inferClassForPlayer(p.id);return '<tr><td>'+Number(i+1).toLocaleString()+'</td><td><b>'+safeHtml(p.name)+'</b></td><td>'+classBadge(cls)+'</td><td>'+compact(m.total)+'</td><td>'+compact(m.dps)+'</td><td>'+compact(m.combatDps)+'</td><td>'+Math.round(m.hits).toLocaleString()+'</td><td>'+dur(m.duration)+'</td></tr>'}).join('');document.querySelector('#party').innerHTML='<section class="panel partyPanel"><h3>Party Overview</h3><div class="table"><table><thead><tr><th>#</th><th>Player</th><th>Class</th><th>Damage</th><th>DPS</th><th>Combat DPS</th><th>Hits</th><th>Duration</th></tr></thead><tbody>'+body+'</tbody></table></div></section>'};
+  if(typeof bars==='function')bars=function(title,items,key='power',alt=''){const mx=Math.max(1,...items.map(x=>x.damage));return '<h3>'+safeHtml(title)+'</h3><div class="bars">'+items.map(x=>{const label=key==='power'?powerLabel(x[key]):safeHtml(x[key]);return '<div class="barrow rich"><span>'+label+'</span><div class="bar '+alt+'"><i style="width:'+Math.max(2,x.damage/mx*100)+'%"></i></div><b>'+((x.share||0).toFixed(1))+'%</b><em>'+compact(x.damage)+'</em></div>'}).join('')+'</div>'};
+  if(typeof renderDamage==='function')renderDamage=function(rows,pid){const ps=NWParser.powers(rows,pid);let html='<section class="panel"><h3>Damage Out - '+ps.length+' Powers</h3><div class="table"><table><thead><tr><th>Power</th><th>Category</th><th>Hits</th><th>Damage</th><th>%</th><th>Avg</th><th>Max</th><th>Crit%</th></tr></thead><tbody>';html+=ps.map((p,i)=>'<tr class="powerRow" data-power="'+i+'"><td>› <b>'+powerLabel(p.power)+'</b></td><td><span class="badge">'+safeHtml(p.category)+'</span></td><td>'+Math.round(p.hits).toLocaleString()+'</td><td>'+compact(p.damage)+'</td><td>'+((p.share||0).toFixed(1))+'%</td><td>'+compact(p.avg)+'</td><td>'+compact(p.max)+'</td><td>'+((p.crit||0).toFixed(1))+'%</td></tr>').join('');html+='</tbody></table></div><div id="raw"></div></section>';document.querySelector('#content').innerHTML=playerHeader()+html;document.querySelectorAll('[data-power]').forEach(tr=>tr.onclick=()=>renderRaw(ps[+tr.dataset.power]));if(state.rawPower){const p=ps.find(x=>x.power===state.rawPower);if(p)renderRaw(p)}};
+  if(typeof renderChips==='function')renderChips=function(){if(!state.encounters.length){document.querySelector('#chips').innerHTML='';return}const visible=state.showHidden?state.encounters:state.encounters.filter(e=>e.visible);const hidden=state.encounters.length-state.encounters.filter(e=>e.visible).length;document.querySelector('#chips').innerHTML='<button class="chip '+(state.encounterId==='all'?'active':'')+'" data-e="all">All Encounters</button>'+visible.map(e=>{const icon=e.type==='boss'?'♛':'◆';return '<button class="chip '+e.type+' '+(String(e.id)===String(state.encounterId)?'active':'')+'" data-e="'+e.id+'"><span class="nwIcon">'+icon+'</span> #'+e.id+' '+safeHtml(e.label)+' <span class="mut">'+dur(e.duration)+'</span></button>'}).join('')+(hidden?'<button id="hidden" class="chip ghost">Show '+hidden+' non-boss</button>':'');document.querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{state.encounterId=b.dataset.e;state.rawPower=null;render()});const h=document.querySelector('#hidden');if(h)h.onclick=()=>{state.showHidden=!state.showHidden;render()}};
+  const style=document.createElement('style');style.textContent='.nwIcon{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;background:rgba(135,150,255,.16);border:1px solid rgba(180,190,255,.25);margin-right:7px;font-size:13px;vertical-align:middle}.classPill{--class-color:#8796ff;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:color-mix(in srgb,var(--class-color) 18%,transparent);border:1px solid color-mix(in srgb,var(--class-color) 56%,#333);color:#edf2ff;font-weight:800}.classPill .nwIcon{background:var(--class-color);color:#101217;border:0;margin-right:2px}.classPill small{font-size:10px;color:#cbd4ff;margin-left:3px}.playerHead.pro{background:linear-gradient(135deg,rgba(38,43,58,.98),rgba(24,27,36,.98));border-color:#404861}.barrow.rich span:first-child,.powerRow b{display:flex;align-items:center;gap:2px}.partyPanel tbody tr:first-child td{background:rgba(139,152,255,.055)}';document.head.appendChild(style);
+  async function safeLoad(file){const status=document.querySelector('#status');const content=document.querySelector('#content');try{if(!file)return;status.textContent='Opening '+file.name+'...';content.innerHTML='<section class="panel"><h2>Parsing combat log</h2><p class="mut">Large files are streamed in chunks, indexed, then rendered.</p></section>';await wait(20);state.rows=NWParser.parseFile?await NWParser.parseFile(file,{onProgress:p=>{status.textContent=progressText(p)}}):NWParser.parseLog(await file.text());if(!state.rows.length)throw new Error('No valid combat rows found.');state.players=NWParser.detectPlayers(state.rows);if(!state.players.length)throw new Error('Rows parsed, but no player-owned combat data was found.');state.playerId=state.players[0].id;state.encounterId='all';state.rawPower=null;state.showHidden=false;state.filter='all';rebuildEncounters();const skipped=state.rows.meta&&state.rows.meta.skipped?(' · skipped '+state.rows.meta.skipped.toLocaleString()+' malformed lines'):'';status.textContent='Parsed '+state.rows.length.toLocaleString()+' rows from '+(state.rows.meta.lines||0).toLocaleString()+' lines'+skipped+'.';await wait(20);render()}catch(err){console.error(err);status.textContent='Could not parse log: '+err.message;content.innerHTML='<section class="panel"><h2>Could not parse this file</h2><p class="mut">'+safeHtml(err.message)+'</p><p class="mut">The parser streams files and reports malformed lines instead of getting stuck at Reading.</p></section>'}}
   window.safeLoadCombatLog=safeLoad;
   window.addEventListener('DOMContentLoaded',()=>{document.body.classList.add('nwhub-redesign');const file=document.querySelector('#file');if(file)file.onchange=e=>safeLoad(e.target.files&&e.target.files[0])});
   window.addEventListener('error',event=>{const status=document.querySelector('#status');const content=document.querySelector('#content');if(status)status.textContent='Parser error: '+event.message;if(content)content.innerHTML='<section class="panel"><h2>Parser error</h2><p class="mut">'+safeHtml(event.message)+'</p></section>'});
