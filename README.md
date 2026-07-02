@@ -7,15 +7,14 @@ Strikeglass reads a combat log in the browser and turns it into player-friendly 
 ## Product principles
 
 - **Local-first:** logs are parsed in the browser. There is no upload server.
-- **Plain language:** numbers are explained for players who do not live inside combat formulas.
+- **Plain language:** every major number, label, table header and power row can explain itself on hover or click.
 - **Decision focused:** highlight rotation, power contribution, survival pressure, encounter windows, and player comparison.
-- **Source transparent:** every metric should be traceable back to the parsed log.
+- **Source transparent:** every metric should be traceable back to parsed combat-log rows.
 - **Distinct interface:** the layout and visual system are intentionally separate from NW-Hub. The behavior may feel familiar, but the product design is its own.
 
 ## What it analyzes
 
 - Party overview with class detection and high-level contribution.
-- Encounter chips for boss and non-boss windows.
 - Encounter-scoped party ranking, so boss or mob filters update the whole party table.
 - Clickable party rows for switching the detailed player view without losing the current encounter filter.
 - Player comparison for damage, combat DPS, crit rate, flank rate, and companion contribution.
@@ -23,12 +22,13 @@ Strikeglass reads a combat log in the browser and turns it into player-friendly 
 - Companion damage ranking for identifying which pets, summons, or companion powers contributed most.
 - Player summary cards for damage, DPS, combat DPS, hits, crit rate, flank rate, healing, damage taken, and shielding.
 - Power breakdowns with NW-Hub asset icons where a matching file exists.
+- Asset Codex for auditing class power names against matched image filenames.
 - Raw hit inspection for verifying individual powers.
 - Timing, rotation, deaths, positioning, and formula reference screens.
 
 ## Interface direction
 
-The current interface uses a light command-center layout with a dark analysis rail, warm paper surfaces, readable tables, and larger player summary cards. It is deliberately not a visual clone of NW-Hub.
+Strikeglass uses a zero-radius analytical interface: warm canvas, white data surfaces, navy analysis rail, green action accent, blue data accent, amber boss accent and restrained motion. The UI is tuned for endgame log review while staying readable for players who do not know combat-parser terminology.
 
 ## Metric notes
 
@@ -61,7 +61,7 @@ The static files can also be opened directly from `index.html` during quick insp
 
 ## Deployment
 
-The Cloudflare Worker serves the static app from `public/`. The build step copies only the files required by the app shell.
+The Cloudflare Worker serves the static app from `public/`. The build script copies the app shell, runtime compatibility files, and the `src/` folder.
 
 ## Privacy
 
@@ -70,19 +70,30 @@ Combat logs stay on the user's machine. Parsing happens locally in the browser r
 ## Repository structure
 
 ```text
-index.html              App shell and product framing
-styles.css              Base interface styles
-theme.css               Legacy theme layer kept for compatibility
-ui-redesign.css         Strikeglass v3 interface system
-ui-redesign.js          Strikeglass v3 layout bootstrap
-app.js                  UI rendering and dashboard screens
-parser.js               Combat-log parsing engine
-assets.js               NW-Hub asset URL resolver
-class-power-map.js      Class power lookup data
-recovery.js             Stability and rendering patch layer
-power-icon-fix.js       Power-icon rendering integration
-feature-layer.js        Encounter scope, comparison, and companion controls
-worker.js               Cloudflare Worker entry
-wrangler.toml           Cloudflare deployment config
-build-static.mjs        Static build copy script
+index.html                         App shell and load order
+styles.css                         Base compatibility styles
+src/core/sg-core.js                Shared DOM, escaping, normalization and style helpers
+src/ui/sg-design-system.css        Primary design system, tokens, layout and motion rules
+src/features/help-controller.js    Unified hover tooltip and click explanation drawer
+docs/architecture.md               DRY architecture and contribution rules
+parser.js                          Combat-log parsing engine
+app.js                             Base dashboard renderer
+assets.js                          NW-Hub asset URL resolver
+asset-coverage-layer.js            Missing icon coverage and fallback candidates
+class-power-map.js                 Class power lookup data
+recovery.js                        Compatibility renderer patch layer
+power-icon-fix.js                  Power-icon rendering integration
+feature-layer.js                   Encounter scope, comparison, and companion controls
+ui-redesign.js                     Minimal bootstrap for body class and hero affordances
+legend-layer.js                    Combat color legend
+ guided-ux-layer.js                Onboarding, encounter filter rendering, and class correction
+class-detection-layer.js           Full-log class inference
+asset-codex-layer.js               Power-to-image audit screen
+worker.js                          Cloudflare Worker entry
+wrangler.toml                      Cloudflare deployment config
+build-static.mjs                   Static build copy script
 ```
+
+## Refactor rule
+
+New shared behavior should go under `src/`. Avoid adding new one-off root-level patch files unless they are compatibility shims for the existing static runtime.
