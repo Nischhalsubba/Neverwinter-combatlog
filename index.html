@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Astral Combat Web Parser</title>
+<title>Astral Combat Coach</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <header>
 <div>
-<h1>Astral Combat Web Parser</h1>
-<p class="mut">Upload a Neverwinter combat log. Parsing runs locally in your browser.</p>
+<h1>Astral Combat Coach</h1>
+<p class="mut">Upload a Neverwinter combat log. The app explains damage, powers, survival and timing in plain player language.</p>
 </div>
 <input id="file" type="file" accept=".log,.txt,.csv">
 </header>
@@ -24,18 +24,18 @@
 <section id="party"></section>
 <nav id="tabs" class="tabs">
 <button data-tab="overview" class="active">Overview</button>
-<button data-tab="timeline">Timeline & Powers</button>
-<button data-tab="damage">Damage Out</button>
+<button data-tab="timeline">Rotation</button>
+<button data-tab="damage">Power Damage</button>
 <button data-tab="healing">Healing</button>
-<button data-tab="taken">Damage Taken</button>
+<button data-tab="taken">Survival</button>
 <button data-tab="shield">Shielding</button>
 <button data-tab="timing">Timing</button>
 <button data-tab="pos">Positioning</button>
 <button data-tab="deaths">Deaths</button>
 <button data-tab="other">Other</button>
-<button data-tab="formulas">Combat Formulas</button>
+<button data-tab="formulas">How numbers work</button>
 </nav>
-<div id="content" class="panel"><h2>Upload a combat log</h2></div>
+<div id="content" class="panel"><h2>Upload a combat log</h2><p class="mut">Start here. We will show what helped your damage, what held it back, and what to improve first.</p></div>
 </main>
 <script src="parser.js"></script>
 <script src="app.js"></script>
