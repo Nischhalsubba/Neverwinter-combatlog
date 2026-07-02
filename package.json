@@ -7,8 +7,8 @@
   "scripts": {
     "start": "python -m http.server 5173",
     "dev": "python -m http.server 5173",
-    "build": "node build-static.mjs",
-    "test": "node build-static.mjs"
+    "build": "mkdir -p public && cp index.html *.css *.js public/",
+    "test": "mkdir -p public && cp index.html *.css *.js public/"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
