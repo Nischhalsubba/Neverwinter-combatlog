@@ -1,14 +1,14 @@
 {
-  "name": "astral-combat-web-parser",
+  "name": "strikeglass",
   "private": true,
-  "version": "0.1.0",
-  "description": "Static browser-based Neverwinter combat log parser.",
+  "version": "0.2.0",
+  "description": "Local-first Neverwinter combat review dashboard.",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "start": "python -m http.server 5173",
     "dev": "python -m http.server 5173",
-    "build": "mkdir -p public && cp index.html styles.css parser.js app.js assets.js nw-hub-assets.js power-icons.js class-power-map.js recovery.js power-icon-fix.js public/",
-    "test": "echo Open index.html or serve with python -m http.server 5173"
+    "build": "node build-static.mjs",
+    "test": "node build-static.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
