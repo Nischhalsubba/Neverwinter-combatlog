@@ -1,14 +1,14 @@
 {
   "name": "strikeglass",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Local-first Neverwinter combat review dashboard.",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "start": "python -m http.server 5173",
     "dev": "python -m http.server 5173",
-    "build": "node build-static.mjs",
-    "test": "node build-static.mjs"
+    "build": "node scripts/smoke-test.mjs && node build-static.mjs",
+    "test": "node scripts/smoke-test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
