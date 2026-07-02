@@ -1,22 +1,44 @@
-# Astral Combat Web Parser
+# Strikeglass
 
-Static browser-based Neverwinter combat log parser.
+A local-first Neverwinter combat review tool for players who want clear answers, not spreadsheet archaeology.
 
-## What it does
+Strikeglass reads a combat log in the browser and turns it into player-friendly insight: what dealt damage, what wasted time, what hurt survivability, and which powers carried the run.
 
-- Upload a Neverwinter combat log in the browser.
-- Parse player damage, DPS, combat DPS, hits, crit rate, flank rate, healing, damage taken, and shielding.
-- Split encounters into boss and mob/non-boss windows.
-- Show hidden/non-boss encounters separately from boss encounters.
-- Show damage power breakdown and raw hits.
-- Include a Combat Formulas tab with parser formulas and Neverwinter formula references.
+## Product principles
+
+- **Local-first:** logs are parsed in the browser. There is no upload server.
+- **Plain language:** numbers are explained for players who do not live inside combat formulas.
+- **Decision focused:** highlight rotation, power contribution, survival pressure, encounter windows, and player comparison.
+- **Source transparent:** every metric should be traceable back to the parsed log.
+- **Distinct interface:** the layout and visual system are intentionally separate from NW-Hub. The behavior may feel familiar, but the product design is its own.
+
+## What it analyzes
+
+- Party overview with class detection and high-level contribution.
+- Encounter chips for boss and non-boss windows.
+- Player summary cards for damage, DPS, combat DPS, hits, crit rate, flank rate, healing, damage taken, and shielding.
+- Power breakdowns with NW-Hub asset icons where a matching file exists.
+- Raw hit inspection for verifying individual powers.
+- Timing, rotation, deaths, positioning, and formula reference screens.
+
+## Metric notes
+
+| Metric | Meaning |
+|---|---|
+| Total Damage | All valid physical damage done by the selected player in the selected scope. |
+| DPS | Total damage divided by the full first-to-last damage duration. Downtime lowers this. |
+| Combat DPS | Total damage divided by active encounter combat time. Better for real performance comparison. |
+| Crit Rate | Critical hits divided by total valid hits. |
+| Flank Rate | Combat-advantage hits divided by total valid hits. |
+| Damage Taken | Physical damage received by the selected player. |
+| Shielded | Shield absorption events credited in the log. |
 
 ## Run locally
 
-Open `index.html` directly, or serve the folder:
-
 ```bash
-python -m http.server 5173
+pnpm install
+pnpm build
+pnpm start
 ```
 
 Then open:
@@ -25,22 +47,28 @@ Then open:
 http://localhost:5173
 ```
 
-## GitHub Pages
+The static files can also be opened directly from `index.html` during quick inspection.
 
-Use GitHub Pages from `main` and `/root`.
+## Deployment
+
+The Cloudflare Worker serves the static app from `public/`. The build step copies only the files required by the app shell.
 
 ## Privacy
 
-The combat log is read by the browser only. There is no backend upload.
+Combat logs stay on the user's machine. Parsing happens locally in the browser runtime.
 
-## Core parser rules
+## Repository structure
 
 ```text
-Valid damage = owner is player + damage type Physical + amount > 0
-Boss = entity template contains _Boss
-Mob = entity template contains _Solo, _Elite, _Standard, or _Minion
-DPS = total damage / first-to-last damage duration
-Combat DPS = total damage / active encounter time
-Crit Rate = critical hit count / total hit count
-Flank Rate = flank hit count / total hit count
+index.html              App shell and product framing
+styles.css              Base interface styles
+app.js                  UI rendering and dashboard screens
+parser.js               Combat-log parsing engine
+assets.js               NW-Hub asset URL resolver
+class-power-map.js      Class power lookup data
+recovery.js             Stability and rendering patch layer
+power-icon-fix.js       Power-icon rendering integration
+worker.js               Cloudflare Worker entry
+wrangler.toml           Cloudflare deployment config
+build-static.mjs        Static build copy script
 ```
