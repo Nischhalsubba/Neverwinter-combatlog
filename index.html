@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Astral Combat Coach</title>
+<title>Strikeglass</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <header>
 <div>
-<h1>Astral Combat Coach</h1>
-<p class="mut">Upload a Neverwinter combat log. The app explains damage, powers, survival and timing in plain player language.</p>
+<h1>Strikeglass</h1>
+<p class="mut">A local combat review dashboard for Neverwinter players. Upload a log and see what carried damage, what wasted time, and what to improve next.</p>
 </div>
 <input id="file" type="file" accept=".log,.txt,.csv">
 </header>
@@ -18,12 +18,12 @@
 <section class="toolbar">
 <span id="status">No log loaded.</span>
 <label>Player <select id="player"></select></label>
-<label>Encounter split <select id="mode"><option value="player">Selected player</option><option value="party">Party</option></select></label>
+<label>Encounter view <select id="mode"><option value="player">Selected player</option><option value="party">Whole party</option></select></label>
 </section>
 <nav id="chips" class="chips"></nav>
 <section id="party"></section>
 <nav id="tabs" class="tabs">
-<button data-tab="overview" class="active">Overview</button>
+<button data-tab="overview" class="active">Snapshot</button>
 <button data-tab="timeline">Rotation</button>
 <button data-tab="damage">Power Damage</button>
 <button data-tab="healing">Healing</button>
@@ -35,7 +35,7 @@
 <button data-tab="other">Other</button>
 <button data-tab="formulas">How numbers work</button>
 </nav>
-<div id="content" class="panel"><h2>Upload a combat log</h2><p class="mut">Start here. We will show what helped your damage, what held it back, and what to improve first.</p></div>
+<div id="content" class="panel"><h2>Drop in a combat log</h2><p class="mut">Strikeglass will explain damage, power contribution, survival pressure and encounter performance in plain player language.</p></div>
 </main>
 <script src="parser.js"></script>
 <script src="app.js"></script>
