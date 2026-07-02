@@ -62,6 +62,7 @@ Combat logs stay on the user's machine. Parsing happens locally in the browser r
 ```text
 index.html              App shell and product framing
 styles.css              Base interface styles
+theme.css               Strikeglass visual theme layer
 app.js                  UI rendering and dashboard screens
 parser.js               Combat-log parsing engine
 assets.js               NW-Hub asset URL resolver
