@@ -10,6 +10,7 @@ const files = [
   'class-power-map.js',
   'recovery.js',
   'power-icon-fix.js',
+  'feature-layer.js',
 ];
 
 await mkdir('public', { recursive: true });
