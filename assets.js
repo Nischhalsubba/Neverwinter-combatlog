@@ -11,7 +11,7 @@
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const uniq=a=>[...new Set(a.filter(Boolean))];
   function classUrl(name){const k=Object.keys(CLASS).find(c=>norm(c)===norm(name));return k?CLASS[k]:''}
-  function currentClassUrl(){try{if(window.player&&window.NWMeta&&window.state){const p=player();const c=NWMeta.inferClassForPlayer(p&&p.id,state.rows);return c&&CLASS[c.name]||''}}catch(_){}return''}
+  function currentClassUrl(){try{if(typeof player==='function'&&window.NWMeta&&typeof state!=='undefined'){const p=player();const c=NWMeta.inferClassForPlayer(p&&p.id,state.rows);return c&&CLASS[c.name]||''}}catch(_){}return''}
   function addExt(out,dir,base){if(!dir||!base)return;for(const e of EXT)out.push(dir+base+e)}
   function candidateBases(name){const s=slug(name);const n=norm(name);const words=n.split(' ').filter(w=>w.length>2&&!['the','and','with','from','rank'].includes(w));const out=[s,s.replace(/-/g,'_')];if(words.length>1){for(let len=Math.min(3,words.length);len>=2;len--)for(let i=0;i+len<=words.length;i++)out.push(words.slice(i,i+len).join('-'))}for(const w of words)out.push(w);return uniq(out)}
   function categoryDirs(cat){
