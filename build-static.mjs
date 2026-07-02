@@ -4,6 +4,7 @@ const files = [
   'index.html',
   'styles.css',
   'theme.css',
+  'ui-redesign.css',
   'parser.js',
   'app.js',
   'assets.js',
@@ -11,6 +12,7 @@ const files = [
   'recovery.js',
   'power-icon-fix.js',
   'feature-layer.js',
+  'ui-redesign.js',
 ];
 
 await mkdir('public', { recursive: true });
