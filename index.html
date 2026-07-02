@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Strikeglass</title>
 <link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="theme.css">
-<link rel="stylesheet" href="ui-redesign.css">
+<link rel="stylesheet" href="src/ui/sg-design-system.css">
 </head>
 <body>
 <header>
@@ -39,6 +38,7 @@
 </nav>
 <div id="content" class="panel"><h2>Drop in a combat log</h2><p class="mut">Strikeglass will explain damage, power contribution, survival pressure and encounter performance in plain player language.</p></div>
 </main>
+<script src="src/core/sg-core.js"></script>
 <script src="parser.js"></script>
 <script src="app.js"></script>
 <script src="assets.js"></script>
@@ -51,10 +51,7 @@
 <script src="legend-layer.js"></script>
 <script src="guided-ux-layer.js"></script>
 <script src="class-detection-layer.js"></script>
-<script src="design-system-layer.js"></script>
-<script src="metric-detail-layer.js"></script>
 <script src="asset-codex-layer.js"></script>
-<script src="universal-help-layer.js"></script>
-<script src="no-radius-layer.js"></script>
+<script src="src/features/help-controller.js"></script>
 </body>
 </html>
