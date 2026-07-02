@@ -26,6 +26,10 @@ Strikeglass reads a combat log in the browser and turns it into player-friendly 
 - Raw hit inspection for verifying individual powers.
 - Timing, rotation, deaths, positioning, and formula reference screens.
 
+## Interface direction
+
+The current interface uses a light command-center layout with a dark analysis rail, warm paper surfaces, readable tables, and larger player summary cards. It is deliberately not a visual clone of NW-Hub.
+
 ## Metric notes
 
 | Metric | Meaning |
@@ -68,7 +72,9 @@ Combat logs stay on the user's machine. Parsing happens locally in the browser r
 ```text
 index.html              App shell and product framing
 styles.css              Base interface styles
-theme.css               Strikeglass visual theme layer
+theme.css               Legacy theme layer kept for compatibility
+ui-redesign.css         Strikeglass v3 interface system
+ui-redesign.js          Strikeglass v3 layout bootstrap
 app.js                  UI rendering and dashboard screens
 parser.js               Combat-log parsing engine
 assets.js               NW-Hub asset URL resolver
