@@ -6,6 +6,7 @@
   const slug=s=>norm(s).replace(/\s+/g,'-');
   function classUrl(name){return CLASS[name]||CLASS[Object.keys(CLASS).find(k=>norm(k)===norm(name))]||''}
   function powerUrl(name,cat){const s=slug(name);if(cat==='Mount')return DIR.mountPowers+s+'.webp';if(cat==='Artifact')return DIR.artifacts+s+'.webp';if(cat==='Pet / Companion')return DIR.companions+s+'.webp';if(cat==='Item / Enchant')return DIR.enchantments+s+'.webp';return DIR.powers+s+'.webp'}
-  function html(kind,name,alt,cls,opt){const u=kind==='class'?classUrl(name):powerUrl(name,opt&&opt.category);return u?'<img class="assetIcon '+(cls||'')+'" src="'+u+'" alt="'+String(alt||name||'')+'" loading="lazy">':'<span class="nwIcon '+(cls||'')+'">?</span>'}
+  function icon(u,cls,label){return u?'<span class="assetIcon '+(cls||'')+'" title="'+String(label||'')+'" style="background-image:url('+u+')">?</span>':'<span class="nwIcon '+(cls||'')+'">?</span>'}
+  function html(kind,name,alt,cls,opt){const u=kind==='class'?classUrl(name):powerUrl(name,opt&&opt.category);return icon(u,cls,alt||name)}
   window.NWAssets={ROOT,DIR,CLASS,norm,slug,classUrl,powerUrl,html,powerHtml:(name,cat,cls)=>html('power',name,name,cls||'powerIcon',{category:cat})};
 })();
