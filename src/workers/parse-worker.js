@@ -2,6 +2,7 @@ self.window = self;
 importScripts('../engine/combat-engine.js');
 try { importScripts('../../class-power-map.js', '../features/category-clarity-layer.js'); } catch (_) {}
 importScripts('../engine/summary-engine.js');
+importScripts('../engine/artifact-window-engine.js');
 
 self.onmessage = async function(event){
   const message = event.data || {};
@@ -16,10 +17,21 @@ self.onmessage = async function(event){
     });
     const meta = rows.meta || {};
     self.postMessage({ type:'progress', progress: { phase:'building summary', rows: rows.length, lines: meta.lines || rows.length, bytes: meta.bytes || 0, total: meta.totalBytes || file.size || 0 } });
+    let report = null;
     if(self.SGSummaryEngine){
-      const report = self.SGSummaryEngine.buildReport(rows, { includeCompanions: true });
+      report = self.SGSummaryEngine.buildReport(rows, { includeCompanions: true });
       report.parseMs = Date.now() - startedAt;
-      self.postMessage({ type:'summary', report });
+    }
+    if(self.SGArtifactWindow){
+      self.postMessage({ type:'progress', progress: { phase:'building arti calls', rows: rows.length, lines: meta.lines || rows.length, bytes: meta.bytes || 0, total: meta.totalBytes || file.size || 0 } });
+      const players = report && report.players ? report.players : self.NWParser.detectPlayers(rows);
+      const artiCall = self.SGArtifactWindow.analyze(rows, players);
+      if(report) report.artiCall = artiCall;
+    }
+    if(report) self.postMessage({ type:'summary', report });
+    if(message.summaryOnly){
+      self.postMessage({ type:'done', rows: [], meta: Object.assign({}, meta, { summaryOnly: true, rowCount: rows.length }) });
+      return;
     }
     self.postMessage({ type:'progress', progress: { phase:'hydrating details', rows: rows.length, lines: meta.lines || rows.length, bytes: meta.bytes || 0, total: meta.totalBytes || file.size || 0 } });
     const plainRows = Array.from(rows);
