@@ -1,4 +1,5 @@
 (function(){
+  const DETAIL_LIMIT_BYTES = 25 * 1024 * 1024;
   function txt(p){
     const phase = p.phase || 'parsing';
     const rows = Number(p.rows || 0).toLocaleString();
@@ -15,22 +16,24 @@
   function powerRow(power){
     return '<tr><td><b>'+esc(power.power)+'</b></td><td>'+esc(power.category||'Unknown')+'</td><td>'+num(power.damage)+'</td><td>'+Number(power.share||0).toFixed(1)+'%</td><td>'+Number(power.hits||0).toLocaleString()+'</td></tr>';
   }
-  function renderSummary(report,file){
+  function renderSummary(report,file,summaryOnly){
     const content = document.querySelector('#content');
     if(!content || !report) return;
     const top = report.preview && report.preview.topPlayer;
     const powers = top && top.powers ? top.powers.slice(0,10) : [];
     const encounters = report.preview && report.preview.visibleEncounters ? report.preview.visibleEncounters : [];
-    content.innerHTML = '<section class="panel sg-fast-summary"><div class="sg-fast-head"><div><span class="eyebrow">Fast preview ready</span><h2>Summary is ready. Full detail is still hydrating.</h2><p class="mut">The worker already parsed the log and built the first report. Strikeglass is now sending raw detail rows to the page only so deep tabs, drill-downs and old views keep working.</p></div><div class="sg-fast-stat"><b>'+Number(report.rowCount||0).toLocaleString()+'</b><span>parsed rows</span></div></div><div class="cards">'+
-      '<div class="card"><b>'+Number((report.players||[]).length).toLocaleString()+'</b><span>Players found</span></div>'+
-      '<div class="card"><b>'+Number((report.encounters||[]).length).toLocaleString()+'</b><span>Fight windows</span></div>'+
-      '<div class="card"><b>'+esc(top?top.name:'-')+'</b><span>Top damage preview</span></div>'+
-      '<div class="card"><b>'+num(top?top.damage:0)+'</b><span>Top total damage</span></div>'+
-      '<div class="card"><b>'+num(top?top.combatDps:0)+'</b><span>Top combat DPS</span></div>'+
-      '<div class="card"><b>'+time(top?top.combatTime:0)+'</b><span>Top fighting time</span></div>'+
+    const modeText = summaryOnly ? 'This log is very large, so Strikeglass is staying in fast report mode instead of loading every raw row into the page.' : 'Full detail is still hydrating. The first report is ready now.';
+    content.innerHTML = '<section class="panel sg-fast-summary"><div class="sg-fast-head"><div><span class="eyebrow">Fast preview ready</span><h2>Summary is ready.</h2><p class="mut">'+modeText+'</p></div><div class="sg-fast-stat"><b>'+Number(report.rowCount||0).toLocaleString()+'</b><span>parsed rows</span></div></div><div class="cards">'+
+      '<div class="card"><b>'+Number((report.players||[]).length).toLocaleString()+'</b><span>Players found</span></div>'+ 
+      '<div class="card"><b>'+Number((report.encounters||[]).length).toLocaleString()+'</b><span>Fight windows</span></div>'+ 
+      '<div class="card"><b>'+esc(top?top.name:'-')+'</b><span>Top damage preview</span></div>'+ 
+      '<div class="card"><b>'+num(top?top.damage:0)+'</b><span>Top total damage</span></div>'+ 
+      '<div class="card"><b>'+num(top?top.combatDps:0)+'</b><span>Top combat DPS</span></div>'+ 
+      '<div class="card"><b>'+time(top?top.combatTime:0)+'</b><span>Top fighting time</span></div>'+ 
+      '<div class="card"><b>'+Number(report.artiCall&&report.artiCall.callCount||0).toLocaleString()+'</b><span>Arti calls found</span></div>'+ 
       '</div><div class="grid2"><div><h3>Party preview</h3><div class="table"><table><thead><tr><th>#</th><th>Player</th><th>Damage</th><th>Combat DPS</th><th>Hits</th><th>Crit</th><th>Combat Adv.</th></tr></thead><tbody>'+(report.party||[]).slice(0,10).map(row).join('')+'</tbody></table></div></div><div><h3>Top powers preview</h3><div class="table"><table><thead><tr><th>Power</th><th>Type</th><th>Damage</th><th>Share</th><th>Hits</th></tr></thead><tbody>'+powers.map(powerRow).join('')+'</tbody></table></div></div></div><h3>Boss windows found</h3><div class="sg-enc-preview">'+(encounters.length?encounters.map(enc=>'<span><b>'+esc(enc.label)+'</b><small>'+time(enc.duration)+'</small></span>').join(''):'<p class="mut">No visible boss windows found yet.</p>')+'</div><p class="mut">File: '+esc(file && file.name ? file.name : 'combat log')+'</p></section>';
   }
-  function parseWorker(file,onProgress,onSummary){
+  function parseWorker(file,onProgress,onSummary,summaryOnly){
     return new Promise(function(resolve,reject){
       if(!window.Worker)return reject(new Error('Worker not supported'));
       var worker=new Worker('src/workers/parse-worker.js');
@@ -53,20 +56,25 @@
         }
       };
       worker.onerror=function(event){if(!finished){worker.terminate();reject(new Error(event.message||'Worker parse failed'));}};
-      worker.postMessage({type:'parse',file:file});
+      worker.postMessage({type:'parse',file:file,summaryOnly:!!summaryOnly});
     });
   }
-  async function parseSmart(file,onProgress,onSummary){
+  async function parseSmart(file,onProgress,onSummary,summaryOnly){
     if(file&&file.size>2097152&&window.Worker){
-      try{return await parseWorker(file,onProgress,onSummary);}catch(e){console.warn('worker parse fallback',e);}
+      try{return await parseWorker(file,onProgress,onSummary,summaryOnly);}catch(e){console.warn('worker parse fallback',e);}
     }
     const rows = await NWParser.parseFile(file,{onProgress:onProgress});
-    if(window.SGSummaryEngine && onSummary) onSummary(window.SGSummaryEngine.buildReport(rows,{includeCompanions:true}));
+    if(window.SGSummaryEngine && onSummary){
+      const report = window.SGSummaryEngine.buildReport(rows,{includeCompanions:true});
+      if(window.SGArtifactWindow) report.artiCall = window.SGArtifactWindow.analyze(rows, report.players || []);
+      onSummary(report);
+    }
     return rows;
   }
   async function load(file){
     var status=document.querySelector('#status');
     var content=document.querySelector('#content');
+    var summaryOnly = !!(file && file.size > DETAIL_LIMIT_BYTES);
     try{
       if(!file)return;
       status.textContent='Opening '+file.name+'...';
@@ -77,12 +85,22 @@
       state.encounterId='all';
       state.rawPower=null;
       state.fastReport=null;
-      content.innerHTML='<section class="panel"><h2>Parsing combat log</h2><p class="mut">Large files parse in a worker first. You should see a fast preview before full details finish loading.</p></section>';
+      state.artiReport=null;
+      state.summaryOnly=false;
+      content.innerHTML='<section class="panel"><h2>Parsing combat log</h2><p class="mut">Large files parse in a worker first. Huge files stay in fast report mode so the browser does not freeze.</p></section>';
       state.rows=await parseSmart(file,function(p){status.textContent=txt(p);},function(report){
         state.fastReport=report;
-        status.textContent='Fast summary ready · hydrating full details...';
-        renderSummary(report,file);
-      });
+        state.artiReport=report && report.artiCall ? report.artiCall : null;
+        status.textContent=summaryOnly?'Fast report ready · raw rows skipped for speed.':'Fast summary ready · hydrating full details...';
+        renderSummary(report,file,summaryOnly);
+      },summaryOnly);
+      if(state.rows.meta && state.rows.meta.summaryOnly){
+        state.summaryOnly=true;
+        state.players=(state.fastReport&&state.fastReport.players)||[];
+        state.playerId=state.fastReport&&state.fastReport.defaultPlayerId;
+        status.textContent='Fast report mode: parsed '+Number(state.rows.meta.rowCount||state.fastReport?.rowCount||0).toLocaleString()+' rows without loading raw rows into the page.';
+        return;
+      }
       if(!state.rows.length)throw new Error('No valid combat rows found.');
       state.fastReport=null;
       state.players=NWParser.detectPlayers(state.rows);
