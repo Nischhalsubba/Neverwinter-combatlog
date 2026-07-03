@@ -9,7 +9,9 @@ const requiredOrder = [
   'src/core/sg-core.js',
   'src/core/sg-help-primitives.js',
   'src/engine/combat-engine.js',
+  'src/engine/summary-engine.js',
   'app.js',
+  'src/features/worker-parse-controller.js',
   'src/features/help-controller.js',
   'src/features/upload-flow.js'
 ];
@@ -44,10 +46,25 @@ for (const exportName of ['window.SGEngine', 'window.NWParser', 'parseFile', 'bu
   if (!engine.includes(exportName)) failures.push(`Missing engine export or capability: ${exportName}`);
 }
 
+const summary = await readFile('src/engine/summary-engine.js', 'utf8');
+for (const exportName of ['window.SGSummaryEngine', 'buildReport', 'playerMetricSummary', 'enrichPlayer']) {
+  if (!summary.includes(exportName)) failures.push(`Missing summary-first capability: ${exportName}`);
+}
+
+const worker = await readFile('src/workers/parse-worker.js', 'utf8');
+for (const required of ['summary-engine.js', "type:'summary'", "type:'done'"]) {
+  if (!worker.includes(required)) failures.push(`Missing worker summary pipeline marker: ${required}`);
+}
+
+const workerController = await readFile('src/features/worker-parse-controller.js', 'utf8');
+for (const required of ['Fast preview ready', 'hydrating full details', 'parseWorker(file,onProgress,onSummary)']) {
+  if (!workerController.includes(required)) failures.push(`Missing worker controller UX marker: ${required}`);
+}
+
 if (failures.length) {
   console.error('Smoke test failed:');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log(`Smoke test passed. Checked ${referencedFiles.length} referenced files and runtime load order.`);
+console.log(`Smoke test passed. Checked ${referencedFiles.length} referenced files, runtime order, and summary-first worker pipeline.`);
