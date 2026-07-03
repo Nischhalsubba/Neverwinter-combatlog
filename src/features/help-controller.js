@@ -3,37 +3,37 @@
   if(!SG) return;
 
   var glossary = {
-    'damage': ['Damage', 'Amount credited to a player, power, category, source, or row group.', 'Damage = sum(amount) for matching valid damage rows.', 'Use scope and companion toggle to understand what is included.'],
-    'total damage': ['Total Damage', 'All valid outgoing damage by the selected player in the selected scope.', 'Total Damage = sum(amount) where ownerId is selected player and row is valid outgoing damage.', 'Good for total contribution. Compare with Combat DPS for cleaner endgame read.'],
-    'dps': ['DPS', 'Damage per second over the full elapsed duration.', 'DPS = Total Damage / Duration.', 'Downtime, travel, deaths and mechanics lower this number.'],
-    'combat dps': ['Combat DPS', 'Damage per second during active combat windows.', 'Combat DPS = Total Damage / In-Combat Time.', 'Usually the cleaner performance comparison for boss windows.'],
-    'hits': ['Hits', 'Count of matching combat-log rows.', 'Hits = count(matching rows).', 'Multi-hit powers can inflate this. It is not the same as button presses.'],
-    'total hits': ['Total Hits', 'All valid outgoing hit rows for the selected player and scope.', 'Total Hits = count(valid outgoing damage rows).', 'Used as denominator for crit rate and flank rate.'],
-    'duration': ['Duration', 'Elapsed time covered by the selected player or encounter scope.', 'Duration = last timestamp - first timestamp.', 'Long duration with low activity lowers DPS.'],
-    'in-combat time': ['In-Combat Time', 'Estimated time where the player was actively contributing.', 'In-Combat Time = sum(merged active combat windows).', 'Combat DPS uses this instead of full duration.'],
-    'crit rate': ['Crit Rate', 'Percent of valid hits flagged as Critical.', 'Crit Rate = Critical Hits / Total Hits x 100.', 'Use with power share. Crit rate alone does not prove output.'],
-    'crit%': ['Crit%', 'Critical rate for a table row or power group.', 'Crit% = critical hits in group / hits in group x 100.', 'Good for checking burst powers and proc behavior.'],
-    'flank rate': ['Flank Rate', 'Percent of hits with flank or combat advantage flag.', 'Flank Rate = Flank Hits / Total Hits x 100.', 'Endgame damage depends heavily on combat advantage uptime.'],
-    'max hit': ['Max Hit', 'Largest single hit in the current scope or group.', 'Max Hit = max(amount).', 'Useful for burst checks, not full performance by itself.'],
-    'avg': ['Average', 'Average value per hit or row.', 'Average = Total / Count.', 'Interpret with hits and share. Low hits can make this noisy.'],
-    'average': ['Average', 'Average value per hit or row.', 'Average = Total / Count.', 'Interpret with hits and share. Low hits can make this noisy.'],
-    'share': ['Share', 'Contribution of a row or group to the current total.', 'Share = Group Damage / Total Damage x 100.', 'This shows what carried the fight.'],
-    '%': ['Percent Share', 'Contribution percentage inside the active table.', 'Percent = Row Value / Table Total x 100.', 'Denominator depends on the tab and filters.'],
-    'power': ['Power', 'Combat-log power name grouped by the parser.', 'Power contribution = sum(amount) for rows with this power name.', 'Can be class power, feat, mount, artifact, enchant, companion, or proc.'],
-    'category': ['Category', 'Parser classification for a power or effect.', 'Category = rule-based classification from power/source patterns.', 'Useful for separating true class output from pets, mounts, items and procs.'],
-    'healing done': ['Healing Done', 'Outgoing healing credited to the selected player.', 'Healing Done = sum(abs(amount)) for owned healing rows.', 'Best read with damage taken, shielding and deaths.'],
-    'damage taken': ['Damage Taken', 'Incoming damage against the selected player.', 'Damage Taken = sum(amount) where target is selected player.', 'High values can mean tanking, mistakes, or heavy mechanics.'],
-    'shielded': ['Shielded', 'Shield absorption credited in the log.', 'Shielded = sum(abs(amount)) for shield absorption rows.', 'Useful for support and mitigation review.'],
-    'encounters': ['Encounters', 'Number of encounter windows in the current scope.', 'Encounters = count(active encounter windows).', 'All encounters includes more windows than a single boss scope.'],
-    'player': ['Player', 'Selected character used for detailed analysis.', 'Selected Player = ownerId filter for rows.', 'Changing player recalculates every detail view.'],
-    'class': ['Class', 'Detected or manually corrected class.', 'Class = best score from class-specific owned powers.', 'If the log lacks evidence, use class correction.'],
-    'party overview': ['Party Overview', 'Party ranking under the selected encounter scope.', 'Each row is metrics(playerId, activeEncounterRows).', 'Click a player to inspect them below.'],
-    'encounter filters': ['Encounter Filters', 'Controls the fight window used by the app.', 'Scope rows = rows inside the selected encounter start and end timestamps.', 'Every analysis view should follow this filter.'],
-    'snapshot': ['Snapshot', 'Main summary of selected player and scope.', 'Cards are aggregates from matching rows.', 'Start here before looking at rotation or raw details.'],
-    'rotation': ['Rotation', 'Timing view of powers in the selected fight.', 'Activation position = (row time - start) / duration.', 'Use this for opener, burst and cooldown timing.'],
-    'power damage': ['Power Damage', 'Power-by-power damage breakdown.', 'Group by powerName, then sum damage and count hits.', 'Shows which powers are carrying output.'],
-    'compare players': ['Compare Players', 'Multi-player comparison in the same scope.', 'Each selected player is recalculated with the same filters.', 'Use for fair boss-window comparison.'],
-    'asset codex': ['Asset Codex', 'Audit of power names and matched icon filenames.', 'Exact match first, then fallback candidates.', 'Use this when an icon is wrong or missing.']
+    'damage': ['Damage', 'How much harm was done.', 'The app adds up the damage numbers from the combat log for the current player and fight.', 'Bigger is better, but compare it with time spent fighting.'],
+    'total damage': ['Total Damage', 'All damage done by the selected player in the current fight view.', 'Add every valid damage hit from this player.', 'Use this to see total contribution. Use Combat DPS to compare speed.'],
+    'dps': ['DPS', 'Damage per second for the whole selected time.', 'Total Damage divided by full duration.', 'If the player was running, waiting, dead, or doing mechanics, this number drops.'],
+    'combat dps': ['Combat DPS', 'Damage per second while actually fighting.', 'Total Damage divided by active fighting time.', 'This is usually the fairer number for comparing boss damage.'],
+    'hits': ['Hits', 'How many damage entries the log recorded.', 'Count the matching hit rows.', 'Some powers hit many times, so this is not the same as pressing a button.'],
+    'total hits': ['Total Hits', 'All valid hit rows for the selected player and fight.', 'Count this player’s valid damage hits.', 'This is used to calculate crit rate and flank rate.'],
+    'duration': ['Duration', 'How long the selected fight or player window lasted.', 'Last hit time minus first hit time.', 'Long pauses can make DPS look lower.'],
+    'in-combat time': ['In-Combat Time', 'Time where the player was actively doing damage.', 'The app joins together active combat windows.', 'Combat DPS uses this so downtime hurts less.'],
+    'crit rate': ['Crit Rate', 'How often hits were critical hits.', 'Critical hits divided by total hits.', 'High crit is good, but damage share still matters more.'],
+    'crit%': ['Crit%', 'How often this power crit.', 'Critical hits from this power divided by all hits from this power.', 'Good for checking burst powers.'],
+    'flank rate': ['Flank Rate', 'How often the player hit with combat advantage.', 'Combat-advantage hits divided by total hits.', 'In Neverwinter, this can make a big difference to damage.'],
+    'max hit': ['Max Hit', 'The biggest single hit in this view.', 'Find the highest damage number.', 'Fun to see, but one big hit does not prove overall performance.'],
+    'avg': ['Average', 'Average value per hit.', 'Total divided by hit count.', 'Read this together with hits. A few hits can make this noisy.'],
+    'average': ['Average', 'Average value per hit.', 'Total divided by hit count.', 'Read this together with hits. A few hits can make this noisy.'],
+    'share': ['Share', 'How much this row contributed to the total.', 'This row’s damage divided by the table total.', 'This shows what carried the fight.'],
+    '%': ['Percent Share', 'How much of the total this row represents.', 'Row value divided by the total for this table.', 'Higher means this power or category mattered more.'],
+    'power': ['Power', 'The skill, proc, item, pet, or effect that caused the hit.', 'Rows with the same power name are grouped together.', 'Use this to see what actually did the damage.'],
+    'category': ['Category', 'The kind of thing that caused the damage.', 'The app checks the power name against known class powers, mounts, pets, items, feats, and enchants.', 'This helps you separate your real class buttons from pets, mounts, artifacts, and random procs.'],
+    'healing done': ['Healing Done', 'Healing credited to the selected player.', 'Add healing numbers owned by this player.', 'Useful for support players, but read it with deaths and damage taken.'],
+    'damage taken': ['Damage Taken', 'Damage received by the selected player.', 'Add damage rows where this player was the target.', 'High damage can mean tanking, mistakes, or unavoidable mechanics.'],
+    'shielded': ['Shielded', 'Damage blocked or absorbed by shields.', 'Add shield absorption rows for this player.', 'Useful for tanks and support effects.'],
+    'encounters': ['Encounters', 'How many fight windows are included.', 'The app splits the log into fight sections.', 'All encounters includes more than one boss or mob pull.'],
+    'player': ['Player', 'The character being inspected.', 'The app filters rows to this player.', 'Changing player recalculates the details below.'],
+    'class': ['Class', 'The class detected from the player’s powers.', 'The app looks for class-specific powers in the log.', 'If it is wrong, use the class correction dropdown.'],
+    'party overview': ['Party Overview', 'A quick ranking of the party for the selected fight.', 'Each player is calculated with the same fight filter.', 'Click a player row to inspect that player below.'],
+    'encounter filters': ['Encounter Filters', 'Fight buttons that choose what part of the log to analyze.', 'Selecting a fight keeps only rows from that time window.', 'Use this before comparing players.'],
+    'snapshot': ['Snapshot', 'The main summary page.', 'Shows the most important totals for the selected player.', 'Start here, then check rotation or power damage.'],
+    'rotation': ['Rotation', 'Shows when powers were used during the fight.', 'Each activation is placed on the fight timeline.', 'Use it to check opener, burst, and downtime.'],
+    'power damage': ['Power Damage', 'Damage split by power name.', 'Group hits by power, then add their damage.', 'This shows which powers carried the output.'],
+    'compare players': ['Compare Players', 'Compare selected players in the same fight.', 'Every selected player uses the same filters.', 'Good for fair boss-window comparison.'],
+    'icon mapper': ['Icon Mapper', 'Checks which image file is matched to each power.', 'Exact filename match first, then fallback match.', 'Use this when an icon is missing or wrong.']
   };
 
   var activeTarget = null;
@@ -47,7 +47,7 @@
     for(var i=0;i<keys.length;i++){
       if(key.indexOf(keys[i]) !== -1 || keys[i].indexOf(key) !== -1) return glossary[keys[i]];
     }
-    return [label || 'UI element', 'This item is generated from the uploaded combat log or app state.', 'Value = aggregate of matching rows under current player, encounter and toggles.', 'If this is a power, inspect Asset Codex and Power Damage for more detail.'];
+    return [label || 'Item', 'This comes from the uploaded combat log or the current screen.', 'The app only uses rows inside the selected player and fight filters.', 'Use it as a clue, then check the detailed table for context.'];
   }
 
   function selectedSummary(){
@@ -62,15 +62,8 @@
     } catch(e){ return null; }
   }
 
-  function formatValue(value){
-    try { return window.fmt ? window.fmt(value) : String(value); }
-    catch(e){ return String(value); }
-  }
-
-  function formatDuration(value){
-    try { return window.dur ? window.dur(value) : String(value) + 's'; }
-    catch(e){ return String(value); }
-  }
+  function formatValue(value){ try { return window.fmt ? window.fmt(value) : String(value); } catch(e){ return String(value); } }
+  function formatDuration(value){ try { return window.dur ? window.dur(value) : String(value) + 's'; } catch(e){ return String(value); } }
 
   function headerForCell(cell){
     var table = cell.closest('table');
@@ -80,29 +73,23 @@
     return header ? header.textContent.trim() : '';
   }
 
+  function isMenuOrControl(el){ return !!(el && el.closest('button,a,label,input,select,textarea,#tabs,.chips,.sg-no-help,[data-no-help]')); }
+
   function targetFromElement(el){
-    if(!el || el.closest('#sg-help-drawer,#sg-tooltip,#sg-log-guide-modal,.sg-no-help')) return null;
-    if(el.closest('input,select,textarea,[data-no-help]')) return null;
-    var tab = el.closest('#tabs button'); if(tab) return { node:tab, label:tab.textContent.trim(), source:'Analysis tab' };
-    var enc = el.closest('.encounterCell,.chip'); if(enc) return { node:enc, label:enc.classList.contains('boss')?'Boss':enc.classList.contains('mob')?'Mob':enc.textContent.trim(), source:'Encounter filter' };
-    var th = el.closest('th'); if(th) return { node:th, label:th.textContent.trim(), source:'Table column' };
+    if(!el || el.closest('#sg-help-drawer,#sg-tooltip,#sg-log-guide-modal')) return null;
+    if(isMenuOrControl(el)) return null;
     var card = el.closest('.card'); if(card) return { node:card, label:(card.querySelector('span')||card).textContent.trim(), value:(card.querySelector('b')||card).textContent.trim(), source:'Summary card', numeric:true };
-    var td = el.closest('td'); if(td) return { node:td, label:headerForCell(td) || td.textContent.trim(), value:td.textContent.trim(), source:'Table cell', numeric:/[0-9]/.test(td.textContent) };
     var power = el.closest('.barrow,.powerRow,.actRow,.miniLine'); if(power) return { node:power, label:(power.querySelector('b,span')||power).textContent.trim(), source:'Power row', power:true };
-    var heading = el.closest('h1,h2,h3'); if(heading) return { node:heading, label:heading.textContent.trim(), source:'Section title' };
+    var td = el.closest('td'); if(td) return { node:td, label:headerForCell(td) || td.textContent.trim(), value:td.textContent.trim(), source:'Table cell', numeric:/[0-9]/.test(td.textContent) };
+    var th = el.closest('th'); if(th) return { node:th, label:th.textContent.trim(), source:'Table column', headerOnly:true };
+    var heading = el.closest('h1,h2,h3'); if(heading) return { node:heading, label:heading.textContent.trim(), source:'Section title', headerOnly:true };
     var cls = el.closest('.classPill'); if(cls) return { node:cls, label:'Class', source:cls.textContent.trim() };
     var img = el.closest('.assetIcon,.nwIcon'); if(img) return { node:img, label:img.getAttribute('alt') || img.getAttribute('title') || 'Icon', source:'Icon' };
     return null;
   }
 
   function sameTarget(a,b){ return !!(a && b && a.node === b.node); }
-
-  function hideHelpTooltip(){
-    activeTarget = null;
-    if(raf) cancelAnimationFrame(raf);
-    raf = 0;
-    SG.hideTooltip();
-  }
+  function hideHelpTooltip(){ activeTarget = null; if(raf) cancelAnimationFrame(raf); raf = 0; SG.hideTooltip(); }
 
   function scheduleTooltipMove(){
     if(raf) return;
@@ -121,19 +108,19 @@
     if(sameTarget(activeTarget, target)) return;
     activeTarget = target;
     var info = findInfo(target.label);
-    SG.showTooltip(event, info[0], target.power ? 'Power/effect row. Click for source, formula and scope context.' : info[1]);
+    SG.showTooltip(event, info[0], target.power ? 'This row is one power or effect. Click it for a plain breakdown.' : info[1]);
   }
 
   function drawerHtml(target){
     var info = findInfo(target.label);
     var s = selectedSummary();
     var value = target.value ? '<p class="sg-drawer-value">' + SG.escape(target.value) + '</p>' : '';
-    return '<span class="eyebrow">Strikeglass explanation</span><h2>'+SG.escape(info[0])+'</h2>'+value+
-      '<section><h3>What this is</h3><p>'+SG.escape(target.power ? 'Power or effect found in the combat log. It may be a class power, feat, mount, artifact, enchant, companion, or proc.' : info[1])+'</p></section>'+ 
-      '<section><h3>Formula / rule</h3><code>'+SG.escape(target.power ? 'Power contribution = sum(amount) for rows with this power name in the active scope.' : info[2])+'</code></section>'+ 
-      '<section><h3>How to read it</h3><p>'+SG.escape(target.power ? 'Use category and source columns to decide whether this is true player damage or external/proc damage. The icon is matched through Asset Codex.' : info[3])+'</p></section>'+ 
-      '<section><h3>Current scope</h3><dl><dt>Clicked from</dt><dd>'+SG.escape(target.source||'-')+'</dd><dt>Player</dt><dd>'+SG.escape(s?s.player:'-')+'</dd><dt>Rows in scope</dt><dd>'+SG.escape(s?String(s.rows):'-')+'</dd><dt>Valid player rows</dt><dd>'+SG.escape(s?String(s.valid):'-')+'</dd><dt>Encounter windows</dt><dd>'+SG.escape(s?String(s.encs):'-')+'</dd><dt>Companions</dt><dd>'+SG.escape((typeof state !== 'undefined' && state.includeCompanions === false)?'Excluded':'Included')+'</dd></dl></section>'+ 
-      '<section><h3>Selected player totals</h3><dl><dt>Total damage</dt><dd>'+SG.escape(s?formatValue(s.total):'-')+'</dd><dt>DPS</dt><dd>'+SG.escape(s?formatValue(s.dps):'-')+'</dd><dt>Combat DPS</dt><dd>'+SG.escape(s?formatValue(s.combatDps):'-')+'</dd><dt>Duration</dt><dd>'+SG.escape(s?formatDuration(s.duration):'-')+'</dd><dt>In-combat time</dt><dd>'+SG.escape(s?formatDuration(s.combatTime):'-')+'</dd><dt>Hits</dt><dd>'+SG.escape(s?String(s.hits):'-')+'</dd></dl></section>';
+    return '<span class="eyebrow">Strikeglass help</span><h2>'+SG.escape(info[0])+'</h2>'+value+
+      '<section><h3>Meaning</h3><p>'+SG.escape(target.power ? 'This is one power or effect found in the log. It might be your class skill, a feat, a mount, a pet, an artifact, an enchant, or a proc.' : info[1])+'</p></section>'+ 
+      '<section><h3>How it is counted</h3><p>'+SG.escape(target.power ? 'The app finds every hit with this same power name in the selected fight, then adds the damage together.' : info[2])+'</p></section>'+ 
+      '<section><h3>How to use it</h3><p>'+SG.escape(target.power ? 'Check the category to see where the damage came from. Class Power means your own skill. Mount, Pet, Item, or Enchant means extra sources helped.' : info[3])+'</p></section>'+ 
+      '<section><h3>Current view</h3><dl><dt>Clicked from</dt><dd>'+SG.escape(target.source||'-')+'</dd><dt>Player</dt><dd>'+SG.escape(s?s.player:'-')+'</dd><dt>Rows in this view</dt><dd>'+SG.escape(s?String(s.rows):'-')+'</dd><dt>Player hit rows</dt><dd>'+SG.escape(s?String(s.valid):'-')+'</dd><dt>Fight windows</dt><dd>'+SG.escape(s?String(s.encs):'-')+'</dd><dt>Companion damage</dt><dd>'+SG.escape((typeof state !== 'undefined' && state.includeCompanions === false)?'Hidden':'Included')+'</dd></dl></section>'+ 
+      '<section><h3>Selected player totals</h3><dl><dt>Total damage</dt><dd>'+SG.escape(s?formatValue(s.total):'-')+'</dd><dt>DPS</dt><dd>'+SG.escape(s?formatValue(s.dps):'-')+'</dd><dt>Combat DPS</dt><dd>'+SG.escape(s?formatValue(s.combatDps):'-')+'</dd><dt>Duration</dt><dd>'+SG.escape(s?formatDuration(s.duration):'-')+'</dd><dt>Fighting time</dt><dd>'+SG.escape(s?formatDuration(s.combatTime):'-')+'</dd><dt>Hits</dt><dd>'+SG.escape(s?String(s.hits):'-')+'</dd></dl></section>';
   }
 
   document.addEventListener('pointerover', function(event){
@@ -144,24 +131,16 @@
     showForEvent(event, target);
   }, true);
 
-  document.addEventListener('pointermove', function(event){
-    lastPointer.x = event.clientX;
-    lastPointer.y = event.clientY;
-    if(activeTarget) scheduleTooltipMove();
-  }, true);
-
-  document.addEventListener('pointerout', function(event){
-    if(!activeTarget) return;
-    var to = event.relatedTarget;
-    if(!to || !sameTarget(activeTarget, targetFromElement(to))) hideHelpTooltip();
-  }, true);
+  document.addEventListener('pointermove', function(event){ lastPointer.x = event.clientX; lastPointer.y = event.clientY; if(activeTarget) scheduleTooltipMove(); }, true);
+  document.addEventListener('pointerout', function(event){ if(!activeTarget) return; var to = event.relatedTarget; if(!to || !sameTarget(activeTarget, targetFromElement(to))) hideHelpTooltip(); }, true);
 
   document.addEventListener('click', function(event){
     var target = targetFromElement(event.target);
     hideHelpTooltip();
     if(!target) return;
-    if(event.target.closest('button,label,a') && !event.target.closest('#tabs,.encounterCell,.chip,.barrow,.powerRow,.actRow,.miniLine,.card,td,th,h1,h2,h3,.classPill,.assetIcon,.nwIcon')) return;
-    SG.openDrawer('sg-help-drawer', 'Strikeglass explanation', drawerHtml(target));
+    if(target.headerOnly) return;
+    if(!(target.numeric || target.power || target.source === 'Summary card')) return;
+    SG.openDrawer('sg-help-drawer', 'Strikeglass help', drawerHtml(target));
   }, true);
 
   document.addEventListener('scroll', hideHelpTooltip, true);
