@@ -3,6 +3,7 @@
   if(!SG) return;
 
   var guideKey = 'strikeglass.logGuide.seen.v1';
+  var activeGuideModal = null;
 
   function hasRows(){
     try { return typeof state !== 'undefined' && state.rows && state.rows.length > 0; }
@@ -13,6 +14,16 @@
     var loaded = hasRows();
     document.body.classList.toggle('sg-empty-state', !loaded);
     document.body.classList.toggle('sg-has-log', loaded);
+    if(loaded) closeGuide();
+  }
+
+  function closeGuide(){
+    var modal = activeGuideModal || document.getElementById('sg-log-guide-modal');
+    if(!modal) return;
+    try { localStorage.setItem(guideKey, '1'); } catch(e) {}
+    modal.remove();
+    activeGuideModal = null;
+    document.body.classList.remove('sg-modal-open');
   }
 
   function uploadStage(){
@@ -27,8 +38,8 @@
       '<h2>Start with your GameClient.log</h2>',
       '<p>Choose a Neverwinter combat log. Strikeglass parses it locally, then changes into a focused analysis workspace.</p>',
       '<div class="sg-upload-actions">',
-      '<label class="sg-upload-button" for="file">Choose combat log</label>',
-      '<button id="sg-open-log-guide" type="button">How to find the log</button>',
+      '<label class="sg-upload-button sg-no-help" for="file">Choose combat log</label>',
+      '<button id="sg-open-log-guide" class="sg-no-help" type="button">How to find the log</button>',
       '</div>',
       '</div>',
       '<div class="sg-upload-checklist">',
@@ -42,18 +53,21 @@
       '</div>'
     ].join('');
     main.insertBefore(section, main.firstElementChild);
-    document.getElementById('sg-open-log-guide').onclick = function(){ openGuide(false); };
+    document.getElementById('sg-open-log-guide').addEventListener('click', function(event){
+      event.preventDefault();
+      event.stopPropagation();
+      openGuide(false);
+    });
   }
 
   function openGuide(firstRun){
-    var existing = document.getElementById('sg-log-guide-modal');
-    if(existing) existing.remove();
+    closeGuide();
     var modal = document.createElement('div');
     modal.id = 'sg-log-guide-modal';
-    modal.className = 'sg-log-guide-modal';
+    modal.className = 'sg-log-guide-modal sg-no-help';
     modal.innerHTML = [
-      '<div class="sg-log-guide-card" role="dialog" aria-modal="true" aria-label="How to find your Neverwinter combat log">',
-      '<button class="sg-log-guide-close" type="button">Close</button>',
+      '<div class="sg-log-guide-card sg-no-help" role="dialog" aria-modal="true" aria-label="How to find your Neverwinter combat log" tabindex="-1">',
+      '<button class="sg-log-guide-close sg-no-help" type="button" aria-label="Close log guide">Close</button>',
       '<span class="sg-kicker">First time setup</span>',
       '<h2>How to create and find your combat log</h2>',
       '<p>Do this once before uploading. Yes, the game hides the file like it is guarding state secrets.</p>',
@@ -64,26 +78,37 @@
       '<article><b>4</b><h3>Upload file</h3><p>Find <code>Neverwinter\\Live\\logs\\GameClient.log</code>. Common path: <code>C:\\Users\\Public\\Games\\Cryptic Studios\\Neverwinter\\Live\\logs\\GameClient.log</code>.</p></article>',
       '</div>',
       '<div class="sg-log-guide-actions">',
-      '<label for="file" class="sg-upload-button">Choose combat log</label>',
-      '<button class="sg-guide-done" type="button">Got it</button>',
+      '<label for="file" class="sg-upload-button sg-no-help">Choose combat log</label>',
+      '<button class="sg-guide-done sg-no-help" type="button">Got it</button>',
       '</div>',
       '</div>'
     ].join('');
+    activeGuideModal = modal;
     document.body.appendChild(modal);
-    function close(){
-      localStorage.setItem(guideKey, '1');
-      modal.remove();
-    }
-    modal.querySelector('.sg-log-guide-close').onclick = close;
-    modal.querySelector('.sg-guide-done').onclick = close;
-    modal.querySelector('.sg-upload-button').onclick = function(){ setTimeout(close, 150); };
-    if(firstRun) localStorage.setItem(guideKey, '1');
+    document.body.classList.add('sg-modal-open');
+
+    var card = modal.querySelector('.sg-log-guide-card');
+    var closeButton = modal.querySelector('.sg-log-guide-close');
+    var doneButton = modal.querySelector('.sg-guide-done');
+    var uploadButton = modal.querySelector('.sg-upload-button');
+
+    modal.addEventListener('click', function(event){
+      if(event.target === modal) closeGuide();
+    });
+    card.addEventListener('click', function(event){ event.stopPropagation(); });
+    closeButton.addEventListener('click', function(event){ event.preventDefault(); event.stopPropagation(); closeGuide(); });
+    doneButton.addEventListener('click', function(event){ event.preventDefault(); event.stopPropagation(); closeGuide(); });
+    uploadButton.addEventListener('click', function(){ setTimeout(closeGuide, 120); });
+
+    setTimeout(function(){ try { card.focus(); } catch(e) {} }, 0);
+    if(firstRun){ try { localStorage.setItem(guideKey, '1'); } catch(e) {} }
   }
 
   function wireFileState(){
     var file = document.getElementById('file');
     if(file){
       file.addEventListener('change', function(){
+        closeGuide();
         document.body.classList.add('sg-loading-log');
         setTimeout(applyLayoutState, 800);
         setTimeout(applyLayoutState, 2200);
@@ -103,6 +128,9 @@
         applyLayoutState();
       };
     }
+    document.addEventListener('keydown', function(event){
+      if(event.key === 'Escape') closeGuide();
+    });
   }
 
   SG.ready(function(){
