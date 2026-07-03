@@ -2,6 +2,7 @@
   const NW = window.NWParser;
   if(!NW) return;
 
+  function now(){ return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now(); }
   function fmtSafe(value){ return Number.isFinite(value) ? value : 0; }
   function plainEncounter(encounter, index){
     return {
@@ -54,13 +55,8 @@
       share: total ? damage / total * 100 : 0
     })).sort((a,b) => b.damage - a.damage);
   }
-  function playerSnapshot(rows, player, encounters, options){
+  function playerMetricSummary(rows, player, encounters, options){
     const metrics = NW.metrics(rows, player.id, encounters, options || {});
-    const powers = NW.powers(rows, player.id, options || {}).slice(0, 24).map(noRowsPower);
-    const healing = NW.healing(rows, player.id);
-    const taken = NW.taken(rows, player.id);
-    const shielded = NW.shielded(rows, player.id);
-    const companionDamage = NW.companionDamage ? NW.companionDamage(rows, player.id) : 0;
     return {
       id: player.id,
       name: player.name,
@@ -72,7 +68,16 @@
       combatTime: fmtSafe(metrics.combatTime),
       crit: fmtSafe(metrics.crit),
       flank: fmtSafe(metrics.flank),
-      max: metrics.max ? { amount: metrics.max.amount, powerName: metrics.max.powerName, time: metrics.max.time } : null,
+      max: metrics.max ? { amount: metrics.max.amount, powerName: metrics.max.powerName, time: metrics.max.time } : null
+    };
+  }
+  function enrichPlayer(rows, summary, options){
+    const powers = NW.powers(rows, summary.id, options || {}).slice(0, 24).map(noRowsPower);
+    const healing = NW.healing(rows, summary.id);
+    const taken = NW.taken(rows, summary.id);
+    const shielded = NW.shielded(rows, summary.id);
+    const companionDamage = NW.companionDamage ? NW.companionDamage(rows, summary.id) : 0;
+    return Object.assign({}, summary, {
       healingDone: fmtSafe(healing.done),
       healingReceived: fmtSafe(healing.received),
       damageTaken: fmtSafe(taken),
@@ -80,19 +85,24 @@
       companionDamage: fmtSafe(companionDamage),
       powers,
       categories: categories(powers)
-    };
+    });
   }
   function buildReport(rows, options = {}){
-    const startedAt = performance && performance.now ? performance.now() : Date.now();
+    const startedAt = now();
+    const includeCompanions = options.includeCompanions !== false;
     const players = NW.detectPlayers(rows);
     const primary = players[0] || null;
     const playerId = options.playerId || (primary && primary.id) || '';
     const encountersRaw = playerId ? NW.buildEncounters(rows, playerId, options.mode || 'player') : [];
     const encounters = encountersRaw.map(plainEncounter);
-    const party = players.slice(0, 80).map(player => playerSnapshot(rows, player, encountersRaw, { includeCompanions: options.includeCompanions !== false }))
+    const metricParty = players.slice(0, 80).map(player => playerMetricSummary(rows, player, encountersRaw, { includeCompanions }))
       .sort((a,b) => b.damage - a.damage);
-    const previewPlayers = party.slice(0, 8);
-    const endedAt = performance && performance.now ? performance.now() : Date.now();
+    const previewPlayers = metricParty.slice(0, 8).map(player => enrichPlayer(rows, player, { includeCompanions }));
+    const party = metricParty.map(player => {
+      const detailed = previewPlayers.find(item => item.id === player.id);
+      return detailed || player;
+    });
+    const endedAt = now();
     return {
       version: 1,
       mode: 'summary-first',
@@ -111,5 +121,5 @@
     };
   }
 
-  window.SGSummaryEngine = { buildReport, playerSnapshot, scopeRows };
+  window.SGSummaryEngine = { buildReport, playerMetricSummary, enrichPlayer, scopeRows };
 })();
