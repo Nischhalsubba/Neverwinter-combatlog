@@ -36,6 +36,10 @@
     'asset codex': ['Asset Codex', 'Audit of power names and matched icon filenames.', 'Exact match first, then fallback candidates.', 'Use this when an icon is wrong or missing.']
   };
 
+  var activeTarget = null;
+  var lastPointer = { x: 0, y: 0 };
+  var raf = 0;
+
   function findInfo(label){
     var key = SG.normalize(label);
     if(glossary[key]) return glossary[key];
@@ -79,18 +83,45 @@
   function targetFromElement(el){
     if(!el || el.closest('#sg-help-drawer,#sg-tooltip,#sg-log-guide-modal,.sg-no-help')) return null;
     if(el.closest('input,select,textarea,[data-no-help]')) return null;
-    var tab = el.closest('#tabs button'); if(tab) return { label:tab.textContent.trim(), source:'Analysis tab' };
-    var enc = el.closest('.encounterCell,.chip'); if(enc) return { label:enc.classList.contains('boss')?'Boss':enc.classList.contains('mob')?'Mob':enc.textContent.trim(), source:'Encounter filter' };
-    var th = el.closest('th'); if(th) return { label:th.textContent.trim(), source:'Table column' };
-    var card = el.closest('.card'); if(card) return { label:(card.querySelector('span')||card).textContent.trim(), value:(card.querySelector('b')||card).textContent.trim(), source:'Summary card', numeric:true };
-    var td = el.closest('td'); if(td) return { label:headerForCell(td) || td.textContent.trim(), value:td.textContent.trim(), source:'Table cell', numeric:/[0-9]/.test(td.textContent) };
-    var power = el.closest('.barrow,.powerRow,.actRow,.miniLine'); if(power) return { label:(power.querySelector('b,span')||power).textContent.trim(), source:'Power row', power:true };
-    var heading = el.closest('h1,h2,h3'); if(heading) return { label:heading.textContent.trim(), source:'Section title' };
-    var cls = el.closest('.classPill'); if(cls) return { label:'Class', source:cls.textContent.trim() };
-    var img = el.closest('.assetIcon,.nwIcon'); if(img) return { label:img.getAttribute('alt') || img.getAttribute('title') || 'Icon', source:'Icon' };
-    var label = el.closest('label'); if(label) return { label:label.textContent.trim(), source:'Control label' };
-    var button = el.closest('button'); if(button) return { label:button.textContent.trim(), source:'Button' };
+    var tab = el.closest('#tabs button'); if(tab) return { node:tab, label:tab.textContent.trim(), source:'Analysis tab' };
+    var enc = el.closest('.encounterCell,.chip'); if(enc) return { node:enc, label:enc.classList.contains('boss')?'Boss':enc.classList.contains('mob')?'Mob':enc.textContent.trim(), source:'Encounter filter' };
+    var th = el.closest('th'); if(th) return { node:th, label:th.textContent.trim(), source:'Table column' };
+    var card = el.closest('.card'); if(card) return { node:card, label:(card.querySelector('span')||card).textContent.trim(), value:(card.querySelector('b')||card).textContent.trim(), source:'Summary card', numeric:true };
+    var td = el.closest('td'); if(td) return { node:td, label:headerForCell(td) || td.textContent.trim(), value:td.textContent.trim(), source:'Table cell', numeric:/[0-9]/.test(td.textContent) };
+    var power = el.closest('.barrow,.powerRow,.actRow,.miniLine'); if(power) return { node:power, label:(power.querySelector('b,span')||power).textContent.trim(), source:'Power row', power:true };
+    var heading = el.closest('h1,h2,h3'); if(heading) return { node:heading, label:heading.textContent.trim(), source:'Section title' };
+    var cls = el.closest('.classPill'); if(cls) return { node:cls, label:'Class', source:cls.textContent.trim() };
+    var img = el.closest('.assetIcon,.nwIcon'); if(img) return { node:img, label:img.getAttribute('alt') || img.getAttribute('title') || 'Icon', source:'Icon' };
     return null;
+  }
+
+  function sameTarget(a,b){ return !!(a && b && a.node === b.node); }
+
+  function hideHelpTooltip(){
+    activeTarget = null;
+    if(raf) cancelAnimationFrame(raf);
+    raf = 0;
+    SG.hideTooltip();
+  }
+
+  function scheduleTooltipMove(){
+    if(raf) return;
+    raf = requestAnimationFrame(function(){
+      raf = 0;
+      var tip = document.getElementById('sg-tooltip');
+      if(!tip || !tip.classList.contains('is-visible')) return;
+      tip.style.left = Math.min(lastPointer.x + 14, window.innerWidth - 360) + 'px';
+      tip.style.top = Math.min(lastPointer.y + 14, window.innerHeight - 150) + 'px';
+      var underPointer = document.elementFromPoint(lastPointer.x, lastPointer.y);
+      if(!sameTarget(activeTarget, targetFromElement(underPointer))) hideHelpTooltip();
+    });
+  }
+
+  function showForEvent(event, target){
+    if(sameTarget(activeTarget, target)) return;
+    activeTarget = target;
+    var info = findInfo(target.label);
+    SG.showTooltip(event, info[0], target.power ? 'Power/effect row. Click for source, formula and scope context.' : info[1]);
   }
 
   function drawerHtml(target){
@@ -105,29 +136,36 @@
       '<section><h3>Selected player totals</h3><dl><dt>Total damage</dt><dd>'+SG.escape(s?formatValue(s.total):'-')+'</dd><dt>DPS</dt><dd>'+SG.escape(s?formatValue(s.dps):'-')+'</dd><dt>Combat DPS</dt><dd>'+SG.escape(s?formatValue(s.combatDps):'-')+'</dd><dt>Duration</dt><dd>'+SG.escape(s?formatDuration(s.duration):'-')+'</dd><dt>In-combat time</dt><dd>'+SG.escape(s?formatDuration(s.combatTime):'-')+'</dd><dt>Hits</dt><dd>'+SG.escape(s?String(s.hits):'-')+'</dd></dl></section>';
   }
 
-  document.addEventListener('mouseover', function(event){
+  document.addEventListener('pointerover', function(event){
     var target = targetFromElement(event.target);
     if(!target) return;
-    var info = findInfo(target.label);
-    SG.showTooltip(event, info[0], target.power ? 'Power/effect row. Click for source, formula and scope context.' : info[1]);
+    lastPointer.x = event.clientX;
+    lastPointer.y = event.clientY;
+    showForEvent(event, target);
   }, true);
 
-  document.addEventListener('mousemove', function(event){
-    var tip = document.getElementById('sg-tooltip');
-    if(tip && tip.classList.contains('is-visible')){
-      tip.style.left = Math.min(event.clientX + 14, window.innerWidth - 360) + 'px';
-      tip.style.top = Math.min(event.clientY + 14, window.innerHeight - 150) + 'px';
-    }
+  document.addEventListener('pointermove', function(event){
+    lastPointer.x = event.clientX;
+    lastPointer.y = event.clientY;
+    if(activeTarget) scheduleTooltipMove();
   }, true);
 
-  document.addEventListener('mouseout', function(event){
-    if(targetFromElement(event.target)) SG.hideTooltip();
+  document.addEventListener('pointerout', function(event){
+    if(!activeTarget) return;
+    var to = event.relatedTarget;
+    if(!to || !sameTarget(activeTarget, targetFromElement(to))) hideHelpTooltip();
   }, true);
 
   document.addEventListener('click', function(event){
     var target = targetFromElement(event.target);
+    hideHelpTooltip();
     if(!target) return;
     if(event.target.closest('button,label,a') && !event.target.closest('#tabs,.encounterCell,.chip,.barrow,.powerRow,.actRow,.miniLine,.card,td,th,h1,h2,h3,.classPill,.assetIcon,.nwIcon')) return;
     SG.openDrawer('sg-help-drawer', 'Strikeglass explanation', drawerHtml(target));
   }, true);
+
+  document.addEventListener('scroll', hideHelpTooltip, true);
+  document.addEventListener('keydown', function(event){ if(event.key === 'Escape') hideHelpTooltip(); }, true);
+  window.addEventListener('blur', hideHelpTooltip);
+  document.addEventListener('visibilitychange', function(){ if(document.hidden) hideHelpTooltip(); });
 })();
