@@ -10,6 +10,7 @@ const requiredOrder = [
   'src/core/sg-help-primitives.js',
   'src/engine/combat-engine.js',
   'src/engine/summary-engine.js',
+  'src/engine/artifact-window-engine.js',
   'app.js',
   'src/features/worker-parse-controller.js',
   'src/features/artifact-window-layer.js',
@@ -52,13 +53,18 @@ for (const exportName of ['window.SGSummaryEngine', 'buildReport', 'playerMetric
   if (!summary.includes(exportName)) failures.push(`Missing summary-first capability: ${exportName}`);
 }
 
+const artifactEngine = await readFile('src/engine/artifact-window-engine.js', 'utf8');
+for (const required of ['window.SGArtifactWindow', 'analyze', 'artifactScore', 'windowSeconds']) {
+  if (!artifactEngine.includes(required)) failures.push(`Missing artifact engine marker: ${required}`);
+}
+
 const worker = await readFile('src/workers/parse-worker.js', 'utf8');
-for (const required of ['summary-engine.js', "type:'summary'", "type:'done'"]) {
+for (const required of ['artifact-window-engine.js', 'report.artiCall', 'summaryOnly', "type:'summary'", "type:'done'"]) {
   if (!worker.includes(required)) failures.push(`Missing worker summary pipeline marker: ${required}`);
 }
 
 const workerController = await readFile('src/features/worker-parse-controller.js', 'utf8');
-for (const required of ['Fast preview ready', 'hydrating full details', 'parseWorker(file,onProgress,onSummary)']) {
+for (const required of ['Fast preview ready', 'raw rows skipped for speed', 'state.artiReport', 'summaryOnly']) {
   if (!workerController.includes(required)) failures.push(`Missing worker controller UX marker: ${required}`);
 }
 
@@ -66,7 +72,7 @@ const artifactAlias = await readFile('src/features/artifact-window-layer.js', 'u
 if (!artifactAlias.includes('arti-call-layer.js')) failures.push('Missing artifact window alias target.');
 
 const artifactLayer = await readFile('src/features/arti-call-layer.js', 'utf8');
-for (const required of ['Arti Call', 'WINDOW_SECONDS = 15', 'StrikeglassArtiCall', 'artifactScore']) {
+for (const required of ['Arti Call', 'reportForCurrentView', 'state.artiReport', 'SGArtifactWindow']) {
   if (!artifactLayer.includes(required)) failures.push(`Missing Arti Call marker: ${required}`);
 }
 
@@ -76,4 +82,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Smoke test passed. Checked ${referencedFiles.length} referenced files, runtime order, summary-first worker pipeline, and artifact call analysis.`);
+console.log(`Smoke test passed. Checked ${referencedFiles.length} referenced files, runtime order, fast report mode, and artifact call analysis.`);
