@@ -77,8 +77,8 @@
   }
 
   function targetFromElement(el){
-    if(!el || el.closest('#sg-help-drawer,#sg-tooltip')) return null;
-    if(el.closest('input,select,textarea')) return null;
+    if(!el || el.closest('#sg-help-drawer,#sg-tooltip,#sg-log-guide-modal,.sg-no-help')) return null;
+    if(el.closest('input,select,textarea,[data-no-help]')) return null;
     var tab = el.closest('#tabs button'); if(tab) return { label:tab.textContent.trim(), source:'Analysis tab' };
     var enc = el.closest('.encounterCell,.chip'); if(enc) return { label:enc.classList.contains('boss')?'Boss':enc.classList.contains('mob')?'Mob':enc.textContent.trim(), source:'Encounter filter' };
     var th = el.closest('th'); if(th) return { label:th.textContent.trim(), source:'Table column' };
@@ -98,10 +98,10 @@
     var s = selectedSummary();
     var value = target.value ? '<p class="sg-drawer-value">' + SG.escape(target.value) + '</p>' : '';
     return '<span class="eyebrow">Strikeglass explanation</span><h2>'+SG.escape(info[0])+'</h2>'+value+
-      '<section><h3>What this is</h3><p>'+SG.escape(target.power ? 'Power or effect found in the combat log. It may be a class power, feat, mount, artifact, enchant, companion, or proc.' : info[1])+'</p></section>'+
-      '<section><h3>Formula / rule</h3><code>'+SG.escape(target.power ? 'Power contribution = sum(amount) for rows with this power name in the active scope.' : info[2])+'</code></section>'+
-      '<section><h3>How to read it</h3><p>'+SG.escape(target.power ? 'Use category and source columns to decide whether this is true player damage or external/proc damage. The icon is matched through Asset Codex.' : info[3])+'</p></section>'+
-      '<section><h3>Current scope</h3><dl><dt>Clicked from</dt><dd>'+SG.escape(target.source||'-')+'</dd><dt>Player</dt><dd>'+SG.escape(s?s.player:'-')+'</dd><dt>Rows in scope</dt><dd>'+SG.escape(s?String(s.rows):'-')+'</dd><dt>Valid player rows</dt><dd>'+SG.escape(s?String(s.valid):'-')+'</dd><dt>Encounter windows</dt><dd>'+SG.escape(s?String(s.encs):'-')+'</dd><dt>Companions</dt><dd>'+SG.escape((typeof state !== 'undefined' && state.includeCompanions === false)?'Excluded':'Included')+'</dd></dl></section>'+
+      '<section><h3>What this is</h3><p>'+SG.escape(target.power ? 'Power or effect found in the combat log. It may be a class power, feat, mount, artifact, enchant, companion, or proc.' : info[1])+'</p></section>'+ 
+      '<section><h3>Formula / rule</h3><code>'+SG.escape(target.power ? 'Power contribution = sum(amount) for rows with this power name in the active scope.' : info[2])+'</code></section>'+ 
+      '<section><h3>How to read it</h3><p>'+SG.escape(target.power ? 'Use category and source columns to decide whether this is true player damage or external/proc damage. The icon is matched through Asset Codex.' : info[3])+'</p></section>'+ 
+      '<section><h3>Current scope</h3><dl><dt>Clicked from</dt><dd>'+SG.escape(target.source||'-')+'</dd><dt>Player</dt><dd>'+SG.escape(s?s.player:'-')+'</dd><dt>Rows in scope</dt><dd>'+SG.escape(s?String(s.rows):'-')+'</dd><dt>Valid player rows</dt><dd>'+SG.escape(s?String(s.valid):'-')+'</dd><dt>Encounter windows</dt><dd>'+SG.escape(s?String(s.encs):'-')+'</dd><dt>Companions</dt><dd>'+SG.escape((typeof state !== 'undefined' && state.includeCompanions === false)?'Excluded':'Included')+'</dd></dl></section>'+ 
       '<section><h3>Selected player totals</h3><dl><dt>Total damage</dt><dd>'+SG.escape(s?formatValue(s.total):'-')+'</dd><dt>DPS</dt><dd>'+SG.escape(s?formatValue(s.dps):'-')+'</dd><dt>Combat DPS</dt><dd>'+SG.escape(s?formatValue(s.combatDps):'-')+'</dd><dt>Duration</dt><dd>'+SG.escape(s?formatDuration(s.duration):'-')+'</dd><dt>In-combat time</dt><dd>'+SG.escape(s?formatDuration(s.combatTime):'-')+'</dd><dt>Hits</dt><dd>'+SG.escape(s?String(s.hits):'-')+'</dd></dl></section>';
   }
 
@@ -127,7 +127,7 @@
   document.addEventListener('click', function(event){
     var target = targetFromElement(event.target);
     if(!target) return;
-    event.stopPropagation();
+    if(event.target.closest('button,label,a') && !event.target.closest('#tabs,.encounterCell,.chip,.barrow,.powerRow,.actRow,.miniLine,.card,td,th,h1,h2,h3,.classPill,.assetIcon,.nwIcon')) return;
     SG.openDrawer('sg-help-drawer', 'Strikeglass explanation', drawerHtml(target));
   }, true);
 })();
