@@ -12,6 +12,7 @@ const requiredOrder = [
   'src/engine/summary-engine.js',
   'app.js',
   'src/features/worker-parse-controller.js',
+  'src/features/artifact-window-layer.js',
   'src/features/help-controller.js',
   'src/features/upload-flow.js'
 ];
@@ -61,10 +62,18 @@ for (const required of ['Fast preview ready', 'hydrating full details', 'parseWo
   if (!workerController.includes(required)) failures.push(`Missing worker controller UX marker: ${required}`);
 }
 
+const artifactAlias = await readFile('src/features/artifact-window-layer.js', 'utf8');
+if (!artifactAlias.includes('arti-call-layer.js')) failures.push('Missing artifact window alias target.');
+
+const artifactLayer = await readFile('src/features/arti-call-layer.js', 'utf8');
+for (const required of ['Arti Call', 'WINDOW_SECONDS = 15', 'StrikeglassArtiCall', 'artifactScore']) {
+  if (!artifactLayer.includes(required)) failures.push(`Missing Arti Call marker: ${required}`);
+}
+
 if (failures.length) {
   console.error('Smoke test failed:');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log(`Smoke test passed. Checked ${referencedFiles.length} referenced files, runtime order, and summary-first worker pipeline.`);
+console.log(`Smoke test passed. Checked ${referencedFiles.length} referenced files, runtime order, summary-first worker pipeline, and artifact call analysis.`);
