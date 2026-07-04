@@ -32,9 +32,9 @@
   function cell(value, key){
     if(value == null) return '-';
     if(['partyDamage','partyDps','callerDamage','callerDps','windowDamage','avgWindowDamage','avgPartyDamage','avgCallerDamage','directDamage','directAvg','directMax','bestCall','bestWindow','followUpDamage','topPlayerDamage','topParticipantDamage','topPowerDamage','dps','damage','avgDamage'].includes(key)) return fmt(value);
-    if(['time','windowEnd'].includes(key)) return sec(value);
+    if(['time','windowEnd','firstUse','lastUse','minGap','avgGap','windowSeconds','knownCooldownSeconds'].includes(key)) return Number(value) ? sec(value) : '-';
     if(['directCrit','share'].includes(key)) return pct(value);
-    if(['calls','users','artifacts','directHits','hits','id','callId','windows'].includes(key)) return num(value);
+    if(['calls','users','artifacts','directHits','hits','id','callId','windows','callCount','artifactUseCount','artifactCount'].includes(key)) return num(value);
     if(key === 'artifact') return icon(value) + ' <b>' + esc(value) + '</b>';
     return esc(value);
   }
@@ -67,7 +67,7 @@
   function participantTable(rows){
     rows = rows || [];
     if(!selectedParticipantKey && rows[0]) selectedParticipantKey = rows[0].participantKey;
-    return '<div class="table arti-table participant-table"><table><thead><tr><th>Type</th><th>Player / companion</th><th>Owner</th><th>Windows</th><th>Damage in windows</th><th>Avg per window</th><th>Hits</th><th>Best window</th><th>Best artifact window</th><th>Top power</th></tr></thead><tbody>'+
+    return '<div class="table arti-table participant-table"><table><thead><tr><th>Type</th><th>Player / companion</th><th>Owner</th><th>Windows</th><th>Damage in windows</th><th>Avg per window</th><th>Hits</th><th>Best window</th><th>Best arti window</th><th>Top power</th></tr></thead><tbody>'+ 
       (rows.length ? rows.map(row => '<tr class="arti-participant-row '+(row.participantKey===selectedParticipantKey?'is-selected':'')+'" data-participant-key="'+attr(row.participantKey)+'"><td><span class="source-pill '+(row.sourceType==='Companion'?'companion':'player')+'">'+esc(row.sourceType)+'</span></td><td><b>'+esc(row.participant)+'</b></td><td>'+esc(row.owner || '-')+'</td><td>'+cell(row.windows,'windows')+'</td><td>'+cell(row.damage,'damage')+'</td><td>'+cell(row.avgWindowDamage,'avgWindowDamage')+'</td><td>'+cell(row.hits,'hits')+'</td><td>'+cell(row.bestWindow,'bestWindow')+'</td><td>'+esc(row.bestArtifact || '-')+'</td><td>'+esc(row.topPower || '-')+' <small>'+cell(row.topPowerDamage,'topPowerDamage')+'</small></td></tr>').join('') : '<tr><td class="empty" colspan="10">No player or companion damage found in artifact windows.</td></tr>')+
       '</tbody></table></div>';
   }
@@ -80,8 +80,8 @@
     const selected = participants.find(row => row.participantKey === selectedParticipantKey) || participants[0] || null;
     if(!selected) return '<h3>Breakdown</h3><div class="empty">Click a player or companion row to see details.</div>';
     const rows = (result.perCallParticipants || []).filter(row => row.participantKey === selected.participantKey).sort((a,b) => b.damage - a.damage);
-    return '<section class="arti-detail"><div class="arti-detail-head"><div><span class="eyebrow">Selected breakdown</span><h3>'+esc(selected.participant)+'</h3><p class="mut">These are the artifact windows where this '+esc(selected.sourceType.toLowerCase())+' did damage. Click another row above to switch the breakdown.</p></div><div><b>'+fmt(selected.damage)+'</b><span>Total window damage</span></div></div>'+ 
-      '<div class="grid2"><div><h3>Windows for this character</h3>'+table(rows,[['callId','Call #'],['artifact','Artifact / effect'],['caller','Caller'],['time','Used at'],['damage','Damage'],['dps','Window DPS'],['hits','Hits'],['share','Window share'],['topPower','Top power'],['topPowerDamage','Top power damage']],300)+'</div><div><h3>Power breakdown</h3>'+table(selected.topPowers || [], [['power','Power'],['damage','Damage'],['hits','Hits']],40)+'</div></div></section>';
+    return '<section class="arti-detail"><div class="arti-detail-head"><div><span class="eyebrow">Selected breakdown</span><h3>'+esc(selected.participant)+'</h3><p class="mut">These are the Arti Call windows where this '+esc(selected.sourceType.toLowerCase())+' did damage. Click another row above to switch the breakdown.</p></div><div><b>'+fmt(selected.damage)+'</b><span>Total window damage</span></div></div>'+ 
+      '<div class="grid2"><div><h3>Windows for this character</h3>'+table(rows,[['callId','Window #'],['artifact','Artifacts used'],['caller','Callers'],['time','Started at'],['damage','Damage'],['dps','Window DPS'],['hits','Hits'],['share','Window share'],['topPower','Top power'],['topPowerDamage','Top power damage']],300)+'</div><div><h3>Power breakdown</h3>'+table(selected.topPowers || [], [['power','Power'],['damage','Damage'],['hits','Hits']],40)+'</div></div></section>';
   }
 
   function renderFromReport(result){
@@ -90,25 +90,27 @@
     if(!content) return;
     const windows = result && result.windows ? result.windows : [];
     const participants = result && result.byParticipant ? result.byParticipant : [];
+    const timers = result && result.artifactTimers ? result.artifactTimers : [];
     const bestParticipant = participants[0] || null;
     const totalParty = windows.reduce((total,row) => total + (row.partyDamage || row.windowDamage || 0), 0);
     const totalDirect = windows.reduce((total,row) => total + (row.directDamage || 0), 0);
     const playerHead = (!state.summaryOnly && typeof playerHeader === 'function') ? playerHeader() : '';
     const modeNote = state.summaryOnly ? 'This uses the worker report, so changing the window does not load the huge raw log into the page.' : 'This uses the selected fight filter.';
-    content.innerHTML = playerHead + '<section class="panel arti-call-panel"><div class="arti-hero"><div><span class="eyebrow">Arti Call</span><h2>'+esc(result.windowSeconds || options.windowSeconds)+'-second damage after artifact use</h2><p class="mut">Instead of dumping every call first, this view starts with the useful answer: how much each player and companion did inside artifact call windows. '+esc(modeNote)+'</p></div><div class="arti-window">'+esc(result.windowSeconds || options.windowSeconds)+'s<br><small>after use</small></div></div>'+controls()+
+    content.innerHTML = playerHead + '<section class="panel arti-call-panel"><div class="arti-hero"><div><span class="eyebrow">Arti Call</span><h2>'+esc(result.windowSeconds || options.windowSeconds)+'-second burst after the first artifact</h2><p class="mut">When the first artifact is detected, Strikeglass starts one timer. Any other artifact used before that timer ends belongs to the same Arti Call window. '+esc(modeNote)+'</p></div><div class="arti-window">'+esc(result.windowSeconds || options.windowSeconds)+'s<br><small>after first arti</small></div></div>'+controls()+
       '<div class="cards">'+
-      '<div class="card"><b>'+num(windows.length)+'</b><span>Artifact calls found</span></div>'+ 
+      '<div class="card"><b>'+num(windows.length)+'</b><span>Arti windows found</span></div>'+ 
+      '<div class="card"><b>'+num(result.artifactUseCount || windows.reduce((sum,row)=>sum+(row.callCount||1),0))+'</b><span>Artifact uses detected</span></div>'+ 
       '<div class="card"><b>'+fmt(totalParty)+'</b><span>Total party damage in windows</span></div>'+ 
       '<div class="card"><b>'+fmt(totalDirect)+'</b><span>Direct artifact damage</span></div>'+ 
-      '<div class="card"><b>'+num(participants.filter(row => row.sourceType === 'Player').length)+'</b><span>Players with window damage</span></div>'+ 
       '<div class="card"><b>'+num(participants.filter(row => row.sourceType === 'Companion').length)+'</b><span>Companions with window damage</span></div>'+ 
       '<div class="card"><b>'+esc(bestParticipant ? bestParticipant.participant : '-')+'</b><span>Top player / companion</span></div>'+ 
       '</div>'+ 
-      '<h3>Damage by player and companion</h3><p class="mut">This is the main Arti Call view. It adds each player and companion damage across all artifact windows in the selected fight. Click a row to see the call-by-call breakdown.</p>'+participantTable(participants)+
+      '<h3>Damage by player and companion</h3><p class="mut">This is the main Arti Call view. It adds each player and companion damage across all timed artifact windows in the selected fight. Click a row to see the window-by-window breakdown.</p>'+participantTable(participants)+
       selectedDetails(result)+
-      '<h3>By artifact</h3><p class="mut">This shows which artifact-like effects created the biggest party burst windows.</p>'+table(result.byArtifact,[['artifact','Artifact / effect'],['calls','Calls'],['users','Users'],['partyDamage','Party window damage'],['avgPartyDamage','Avg party damage'],['callerDamage','Caller damage'],['directDamage','Direct damage'],['directHits','Direct hits'],['bestUser','Best user'],['bestCall','Best party call']])+
-      '<h3>By caller</h3><p class="mut">This only counts damage by the player who used the artifact, not the whole party.</p>'+table(result.byCaller || [], [['player','Caller'],['calls','Calls'],['artifacts','Different artifacts'],['callerDamage','Caller window damage'],['avgCallerDamage','Avg caller damage'],['directDamage','Direct artifact damage'],['bestCall','Best caller window'],['bestArtifact','Best artifact']])+
-      '<details class="arti-raw"><summary>Show raw call windows</summary><p class="mut">This is hidden by default because hundreds of call rows are noisy and slow to read. Humanity survives one sensible default.</p>'+table(windows,[['id','#'],['player','Caller'],['artifact','Artifact / effect'],['time','Used at'],['partyDamage','Party damage'],['partyDps','Party DPS'],['callerDamage','Caller damage'],['topParticipant','Top player / companion'],['topParticipantDamage','Top damage'],['directDamage','Direct artifact damage'],['confidence','Match']],300)+'</details>'+ 
+      '<h3>Artifact timers found in this log</h3><p class="mut">Uses and gaps are observed from this uploaded log. Shortest gap and average gap help you see how often each artifact-like effect appeared. Known cooldown stays blank until we add a verified external artifact database, because making up timers would be peak clown engineering.</p>'+table(timers,[['artifact','Artifact / effect'],['uses','Uses'],['users','Users'],['firstUse','First use'],['lastUse','Last use'],['minGap','Shortest gap'],['avgGap','Average gap'],['windowSeconds','Current damage window'],['knownCooldownSeconds','Known cooldown']])+
+      '<h3>By artifact</h3><p class="mut">This shows windows where each artifact appeared. If several artifacts are used in the same timer, they share that same party burst window.</p>'+table(result.byArtifact,[['artifact','Artifact / effect'],['windows','Windows'],['calls','Uses'],['users','Users'],['partyDamage','Party window damage'],['avgPartyDamage','Avg party damage'],['callerDamage','Caller damage'],['directDamage','Direct damage'],['bestUser','Best caller'],['bestCall','Best party window']])+
+      '<h3>By caller</h3><p class="mut">This only counts damage by players who actually used artifacts in those windows, not the whole party.</p>'+table(result.byCaller || [], [['player','Caller'],['windows','Windows'],['calls','Uses'],['artifacts','Different artifacts'],['callerDamage','Caller window damage'],['avgCallerDamage','Avg caller damage'],['directDamage','Direct artifact damage'],['bestCall','Best caller window'],['bestArtifact','Best arti window']])+
+      '<details class="arti-raw"><summary>Show timed call windows</summary><p class="mut">Each row is one timer started by the first artifact use. Later artifacts inside the timer are grouped into the same row.</p>'+table(windows,[['id','Window #'],['callCount','Artifact uses'],['callers','Callers'],['artifacts','Artifacts used'],['time','Started at'],['windowEnd','Ends at'],['partyDamage','Party damage'],['partyDps','Party DPS'],['topParticipant','Top player / companion'],['topParticipantDamage','Top damage'],['directDamage','Direct artifact damage'],['confidence','Match']],300)+'</details>'+ 
       '<p class="mut">Rows marked Review may need more mapping later. The app is careful here because combat logs are weird little paperwork monsters.</p></section>';
     bindControls();
     bindParticipantRows();
