@@ -1,5 +1,5 @@
 (function(){
-  const WINDOW_SECONDS = 15;
+  const DEFAULT_WINDOW_SECONDS = 15;
   const SAME_CALL_GAP_SECONDS = 10;
   const NW = window.NWParser;
   if(!NW) return;
@@ -10,6 +10,10 @@
   ]);
   const artifactWords = ['artifact','sigil','journal','emblem','lantern','horn','skull','crystal','mythallar','scepter','wheel','heart','book','serpent','giant slayer','figurine','vortex','tentacle','blood lust','raven','conflagrate'];
 
+  function clampWindow(value){
+    const n = Number(value || DEFAULT_WINDOW_SECONDS);
+    return Math.max(3, Math.min(60, Number.isFinite(n) ? n : DEFAULT_WINDOW_SECONDS));
+  }
   function isPlayer(id){ return String(id || '').startsWith('P['); }
   function categoryOf(power){ try { return NW.category ? NW.category(power) : 'Other / Unknown'; } catch (_) { return 'Other / Unknown'; } }
   function confidenceLabel(score){ if(score >= 80) return 'High'; if(score >= 50) return 'Medium'; return 'Review'; }
@@ -46,19 +50,29 @@
     }
     return calls;
   }
+  function lowerBound(rows, start){
+    let lo = 0, hi = rows.length;
+    while(lo < hi){
+      const mid = (lo + hi) >> 1;
+      if(rows[mid].time < start) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  }
   function rowsInWindow(sortedRows, start, end){
     const out = [];
-    for(const row of sortedRows || []){
-      if(row.time < start) continue;
+    const rows = sortedRows || [];
+    for(let i = lowerBound(rows, start); i < rows.length; i++){
+      const row = rows[i];
       if(row.time > end) break;
       out.push(row);
     }
     return out;
   }
-  function indexDamageRows(rows, players){
+  function indexDamageRows(rows, players, includeCompanions){
     const map = new Map();
     for(const player of players){
-      const list = NW.validForPlayer ? NW.validForPlayer(rows, player.id, { includeCompanions: true }) : rows.filter(row => row.ownerId === player.id && NW.isDamage(row));
+      const list = NW.validForPlayer ? NW.validForPlayer(rows, player.id, { includeCompanions }) : rows.filter(row => row.ownerId === player.id && NW.isDamage(row));
       map.set(player.id, list.sort((a,b) => a.time - b.time || a.lineNo - b.lineNo));
     }
     return map;
@@ -73,53 +87,84 @@
   function aggregateByPlayer(windows){
     const map = new Map();
     for(const row of windows){
-      if(!map.has(row.player)) map.set(row.player, { player: row.player, calls: 0, windowDamage: 0, directDamage: 0, bestCall: 0, bestArtifact: '-', uniqueArtifacts: new Set() });
+      for(const playerRow of row.players || []){
+        if(!map.has(playerRow.player)) map.set(playerRow.player, { player: playerRow.player, calls: 0, windowDamage: 0, bestCall: 0, bestArtifact: '-', uniqueArtifacts: new Set() });
+        const item = map.get(playerRow.player);
+        item.calls++;
+        item.windowDamage += playerRow.damage;
+        item.uniqueArtifacts.add(row.artifact);
+        if(playerRow.damage > item.bestCall){ item.bestCall = playerRow.damage; item.bestArtifact = row.artifact; }
+      }
+    }
+    return Array.from(map.values()).map(item => ({ player:item.player, calls:item.calls, artifacts:item.uniqueArtifacts.size, windowDamage:item.windowDamage, avgWindowDamage:item.calls ? item.windowDamage / item.calls : 0, bestCall:item.bestCall, bestArtifact:item.bestArtifact })).sort((a,b) => b.windowDamage - a.windowDamage);
+  }
+  function aggregateByCaller(windows){
+    const map = new Map();
+    for(const row of windows){
+      if(!map.has(row.player)) map.set(row.player, { player: row.player, calls: 0, callerDamage: 0, directDamage: 0, bestCall: 0, bestArtifact: '-', uniqueArtifacts: new Set() });
       const item = map.get(row.player);
       item.calls++;
-      item.windowDamage += row.windowDamage;
+      item.callerDamage += row.callerDamage;
       item.directDamage += row.directDamage;
       item.uniqueArtifacts.add(row.artifact);
-      if(row.windowDamage > item.bestCall){ item.bestCall = row.windowDamage; item.bestArtifact = row.artifact; }
+      if(row.callerDamage > item.bestCall){ item.bestCall = row.callerDamage; item.bestArtifact = row.artifact; }
     }
-    return Array.from(map.values()).map(item => ({ player:item.player, calls:item.calls, artifacts:item.uniqueArtifacts.size, windowDamage:item.windowDamage, avgWindowDamage:item.calls ? item.windowDamage / item.calls : 0, directDamage:item.directDamage, bestCall:item.bestCall, bestArtifact:item.bestArtifact })).sort((a,b) => b.windowDamage - a.windowDamage);
+    return Array.from(map.values()).map(item => ({ player:item.player, calls:item.calls, artifacts:item.uniqueArtifacts.size, callerDamage:item.callerDamage, avgCallerDamage:item.calls ? item.callerDamage / item.calls : 0, directDamage:item.directDamage, bestCall:item.bestCall, bestArtifact:item.bestArtifact })).sort((a,b) => b.callerDamage - a.callerDamage);
   }
   function aggregateByArtifact(windows){
     const map = new Map();
     for(const row of windows){
-      if(!map.has(row.artifact)) map.set(row.artifact, { artifact: row.artifact, calls: 0, users: new Set(), windowDamage: 0, directDamage: 0, directHits: 0, bestUser: '-', bestCall: 0, confidence: row.confidence });
+      if(!map.has(row.artifact)) map.set(row.artifact, { artifact: row.artifact, calls: 0, users: new Set(), partyDamage: 0, callerDamage: 0, directDamage: 0, directHits: 0, bestUser: '-', bestCall: 0, confidence: row.confidence });
       const item = map.get(row.artifact);
       item.calls++;
       item.users.add(row.player);
-      item.windowDamage += row.windowDamage;
+      item.partyDamage += row.partyDamage;
+      item.callerDamage += row.callerDamage;
       item.directDamage += row.directDamage;
       item.directHits += row.directHits;
-      if(row.windowDamage > item.bestCall){ item.bestCall = row.windowDamage; item.bestUser = row.player; }
+      if(row.partyDamage > item.bestCall){ item.bestCall = row.partyDamage; item.bestUser = row.player; }
     }
-    return Array.from(map.values()).map(item => ({ artifact:item.artifact, calls:item.calls, users:item.users.size, windowDamage:item.windowDamage, avgWindowDamage:item.calls ? item.windowDamage / item.calls : 0, directDamage:item.directDamage, directHits:item.directHits, bestUser:item.bestUser, bestCall:item.bestCall, confidence:item.confidence })).sort((a,b) => b.windowDamage - a.windowDamage);
+    return Array.from(map.values()).map(item => ({ artifact:item.artifact, calls:item.calls, users:item.users.size, partyDamage:item.partyDamage, avgPartyDamage:item.calls ? item.partyDamage / item.calls : 0, callerDamage:item.callerDamage, directDamage:item.directDamage, directHits:item.directHits, bestUser:item.bestUser, bestCall:item.bestCall, confidence:item.confidence })).sort((a,b) => b.partyDamage - a.partyDamage);
   }
   function aggregateDirect(windows){
     return windows.filter(row => row.directDamage > 0).map(row => ({ player:row.player, artifact:row.artifact, directDamage:row.directDamage, directHits:row.directHits, directAvg:row.directAvg, directMax:row.directMax, directCrit:row.directCrit, time:row.time, confidence:row.confidence })).sort((a,b) => b.directDamage - a.directDamage);
   }
-  function analyze(rows, players){
+  function analyze(rows, players, options = {}){
     rows = rows || [];
     players = players && players.length ? players : NW.detectPlayers(rows);
+    const windowSeconds = clampWindow(options.windowSeconds);
+    const includeCompanions = options.includeCompanions !== false;
     const playerMap = new Map(players.map(player => [player.id, player]));
-    const damageByPlayer = indexDamageRows(rows, players);
+    const damageByPlayer = indexDamageRows(rows, players, includeCompanions);
     const calls = dedupeCalls(rows);
     const windows = calls.map((call, index) => {
-      const player = playerMap.get(call.ownerId) || { id: call.ownerId, name: call.ownerName || 'Unknown' };
+      const caller = playerMap.get(call.ownerId) || { id: call.ownerId, name: call.ownerName || 'Unknown' };
       const start = call.time;
-      const end = call.time + WINDOW_SECONDS;
-      const playerDamageRows = rowsInWindow(damageByPlayer.get(call.ownerId) || [], start, end);
-      const directRows = playerDamageRows.filter(row => norm(row.powerName) === norm(call.powerName));
-      const damage = playerDamageRows.reduce((total,row) => total + row.amount, 0);
+      const end = call.time + windowSeconds;
+      const playerBreakdown = [];
+      let partyDamage = 0;
+      for(const player of players){
+        const windowRows = rowsInWindow(damageByPlayer.get(player.id) || [], start, end);
+        const damage = windowRows.reduce((total,row) => total + row.amount, 0);
+        if(damage > 0){
+          partyDamage += damage;
+          playerBreakdown.push({ playerId: player.id, player: player.name, damage, dps: damage / windowSeconds, hits: windowRows.length });
+        }
+      }
+      playerBreakdown.sort((a,b) => b.damage - a.damage);
+      playerBreakdown.forEach(row => { row.share = partyDamage ? row.damage / partyDamage * 100 : 0; });
+      const callerRows = rowsInWindow(damageByPlayer.get(call.ownerId) || [], start, end);
+      const directRows = callerRows.filter(row => norm(row.powerName) === norm(call.powerName));
+      const callerDamage = callerRows.reduce((total,row) => total + row.amount, 0);
       const directDamage = directRows.reduce((total,row) => total + row.amount, 0);
-      const top = topPower(playerDamageRows);
+      const top = topPower(callerRows);
+      const topPlayer = playerBreakdown[0] || { player:'-', damage:0 };
       const crits = directRows.filter(row => row.flags && row.flags.has && row.flags.has('Critical')).length;
       const score = artifactScore(call);
-      return { id:index + 1, playerId:player.id, player:player.name, artifact:call.powerName, category:categoryOf(call.powerName), time:start, windowEnd:end, windowDamage:damage, windowDps:damage / WINDOW_SECONDS, directDamage, directHits:directRows.length, directAvg:directRows.length ? directDamage / directRows.length : 0, directMax:directRows.length ? Math.max(...directRows.map(row => row.amount)) : 0, directCrit:directRows.length ? crits / directRows.length * 100 : 0, followUpPower:top.power, followUpDamage:top.damage, score, confidence:confidenceLabel(score) };
+      return { id:index + 1, playerId:caller.id, player:caller.name, artifact:call.powerName, category:categoryOf(call.powerName), time:start, windowEnd:end, windowSeconds, includeCompanions, partyDamage, partyDps:partyDamage / windowSeconds, callerDamage, callerDps:callerDamage / windowSeconds, directDamage, directHits:directRows.length, directAvg:directRows.length ? directDamage / directRows.length : 0, directMax:directRows.length ? Math.max(...directRows.map(row => row.amount)) : 0, directCrit:directRows.length ? crits / directRows.length * 100 : 0, topPlayer:topPlayer.player, topPlayerDamage:topPlayer.damage, followUpPower:top.power, followUpDamage:top.damage, players:playerBreakdown, score, confidence:confidenceLabel(score) };
     });
-    return { version:1, windowSeconds:WINDOW_SECONDS, rowCount:rows.length, callCount:windows.length, windows, byPlayer:aggregateByPlayer(windows), byArtifact:aggregateByArtifact(windows), direct:aggregateDirect(windows) };
+    const perCallPlayers = windows.flatMap(row => (row.players || []).map(player => ({ callId: row.id, artifact: row.artifact, caller: row.player, time: row.time, player: player.player, damage: player.damage, dps: player.dps, hits: player.hits, share: player.share })));
+    return { version:2, windowSeconds, includeCompanions, rowCount:rows.length, callCount:windows.length, windows, byPlayer:aggregateByPlayer(windows), byCaller:aggregateByCaller(windows), byArtifact:aggregateByArtifact(windows), direct:aggregateDirect(windows), perCallPlayers };
   }
-  window.SGArtifactWindow = { analyze, artifactScore, windowSeconds: WINDOW_SECONDS };
+  window.SGArtifactWindow = { analyze, artifactScore, windowSeconds: DEFAULT_WINDOW_SECONDS };
 })();
