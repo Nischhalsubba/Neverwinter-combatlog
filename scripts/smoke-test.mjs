@@ -56,7 +56,7 @@ for (const exportName of ['window.SGSummaryEngine', 'buildReport', 'playerMetric
 }
 
 const artifactEngine = await readFile('src/engine/artifact-window-engine.js', 'utf8');
-for (const required of ['window.SGArtifactWindow', 'analyze', 'artifactScore', 'windowSeconds', 'includeCompanions', 'perCallPlayers', 'perCallParticipants', 'byParticipant', 'buildBurstWindows', 'artifactTimers', 'artifactUseCount', 'artifactCatalog']) {
+for (const required of ['window.SGArtifactWindow', 'analyze', 'artifactScore', 'windowSeconds', 'includeCompanions', 'perCallPlayers', 'perCallParticipants', 'byParticipant', 'buildBurstWindows', 'artifactTimers', 'artifactUseCount', 'artifactCatalog', 'avgDamage', 'maxHit', 'crit', 'flank', 'artifactUsed']) {
   if (!artifactEngine.includes(required)) failures.push(`Missing artifact engine marker: ${required}`);
 }
 
@@ -74,7 +74,7 @@ const artifactAlias = await readFile('src/features/artifact-window-layer.js', 'u
 if (!artifactAlias.includes('arti-call-layer.js')) failures.push('Missing artifact window alias target.');
 
 const artifactLayer = await readFile('src/features/arti-call-layer.js', 'utf8');
-for (const required of ['Arti Call', 'reportForCurrentView', 'state.artiReport', 'StrikeglassRequestArtiCall', 'artiWindowSeconds', 'artiIncludeCompanions', 'participantTable', 'selectedDetails', 'Damage by player and companion', 'Artifact timers found in this log', 'Show timed call windows']) {
+for (const required of ['Arti Call', 'reportForCurrentView', 'state.artiReport', 'StrikeglassRequestArtiCall', 'artiWindowSeconds', 'artiIncludeCompanions', 'participantTable', 'selectedDetails', 'Damage by player and companion', 'Player / companion', 'Artifact used', 'Damage / sec', 'Avg damage', 'Crit rate', 'Flank rate', 'Highest hit']) {
   if (!artifactLayer.includes(required)) failures.push(`Missing Arti Call marker: ${required}`);
 }
 
@@ -84,4 +84,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Smoke test passed. Checked ${referencedFiles.length} referenced files, runtime order, grouped artifact windows, observed timers, and participant-first artifact call analysis.`);
+console.log(`Smoke test passed. Checked requested Arti Call combat stat columns, grouped windows, observed timers, and worker pipeline.`);
