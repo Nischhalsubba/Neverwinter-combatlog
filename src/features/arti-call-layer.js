@@ -3,12 +3,15 @@
   const q = s => document.querySelector(s);
   const qa = s => Array.from(document.querySelectorAll(s));
   const esc = value => SG.escape ? SG.escape(value) : String(value ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const attr = value => esc(value).replace(/`/g,'&#96;');
   const fmt = value => { try { return window.fmt ? window.fmt(value) : Math.round(value || 0).toLocaleString(); } catch (_) { return String(value || 0); } };
   const num = value => Math.round(Number(value) || 0).toLocaleString();
   const pct = value => (Number(value) || 0).toFixed(1) + '%';
   const sec = value => (Number(value) || 0).toFixed(1) + 's';
   const storeKey = 'strikeglass.arti.options.v1';
   let options = { windowSeconds: 15, includeCompanions: true };
+  let currentResult = null;
+  let selectedParticipantKey = '';
   try { options = Object.assign(options, JSON.parse(localStorage.getItem(storeKey) || '{}')); } catch (_) {}
   function saveOptions(){ try { localStorage.setItem(storeKey, JSON.stringify(options)); } catch (_) {} }
   function icon(name){ return window.NWAssets && NWAssets.powerHtml ? NWAssets.powerHtml(name, 'Artifact', 'artiIcon') : ''; }
@@ -28,10 +31,10 @@
 
   function cell(value, key){
     if(value == null) return '-';
-    if(['partyDamage','partyDps','callerDamage','callerDps','windowDamage','avgWindowDamage','avgPartyDamage','avgCallerDamage','directDamage','directAvg','directMax','bestCall','followUpDamage','topPlayerDamage','dps','damage'].includes(key)) return fmt(value);
+    if(['partyDamage','partyDps','callerDamage','callerDps','windowDamage','avgWindowDamage','avgPartyDamage','avgCallerDamage','directDamage','directAvg','directMax','bestCall','bestWindow','followUpDamage','topPlayerDamage','topParticipantDamage','topPowerDamage','dps','damage','avgDamage'].includes(key)) return fmt(value);
     if(['time','windowEnd'].includes(key)) return sec(value);
     if(['directCrit','share'].includes(key)) return pct(value);
-    if(['calls','users','artifacts','directHits','hits','id','callId'].includes(key)) return num(value);
+    if(['calls','users','artifacts','directHits','hits','id','callId','windows'].includes(key)) return num(value);
     if(key === 'artifact') return icon(value) + ' <b>' + esc(value) + '</b>';
     return esc(value);
   }
@@ -40,7 +43,7 @@
     const shown = limit ? rows.slice(0, limit) : rows;
     const note = limit && rows.length > limit ? '<p class="mut">Showing first '+num(limit)+' rows out of '+num(rows.length)+' to keep the page fast.</p>' : '';
     return note + '<div class="table arti-table"><table><thead><tr>' + cols.map(col => '<th>' + esc(col[1]) + '</th>').join('') + '</tr></thead><tbody>' +
-      (shown.length ? shown.map(row => '<tr>' + cols.map(col => '<td>' + cell(row[col[0]], col[0]) + '</td>').join('') + '</tr>').join('') : '<tr><td class="empty" colspan="' + cols.length + '">No artifact calls found in this view.</td></tr>') +
+      (shown.length ? shown.map(row => '<tr>' + cols.map(col => '<td>' + cell(row[col[0]], col[0]) + '</td>').join('') + '</tr>').join('') : '<tr><td class="empty" colspan="' + cols.length + '">No data found in this view.</td></tr>') +
       '</tbody></table></div>';
   }
   function controls(){
@@ -53,6 +56,7 @@
     const update = function(){
       options.windowSeconds = Math.max(3, Math.min(60, Number(seconds && seconds.value || 15)));
       options.includeCompanions = !!(companions && companions.checked);
+      selectedParticipantKey = '';
       saveOptions();
       renderArtiCall();
     };
@@ -60,35 +64,54 @@
     if(seconds) seconds.onkeydown = function(event){ if(event.key === 'Enter') update(); };
     if(companions) companions.onchange = update;
   }
+  function participantTable(rows){
+    rows = rows || [];
+    if(!selectedParticipantKey && rows[0]) selectedParticipantKey = rows[0].participantKey;
+    return '<div class="table arti-table participant-table"><table><thead><tr><th>Type</th><th>Player / companion</th><th>Owner</th><th>Windows</th><th>Damage in windows</th><th>Avg per window</th><th>Hits</th><th>Best window</th><th>Best artifact window</th><th>Top power</th></tr></thead><tbody>'+
+      (rows.length ? rows.map(row => '<tr class="arti-participant-row '+(row.participantKey===selectedParticipantKey?'is-selected':'')+'" data-participant-key="'+attr(row.participantKey)+'"><td><span class="source-pill '+(row.sourceType==='Companion'?'companion':'player')+'">'+esc(row.sourceType)+'</span></td><td><b>'+esc(row.participant)+'</b></td><td>'+esc(row.owner || '-')+'</td><td>'+cell(row.windows,'windows')+'</td><td>'+cell(row.damage,'damage')+'</td><td>'+cell(row.avgWindowDamage,'avgWindowDamage')+'</td><td>'+cell(row.hits,'hits')+'</td><td>'+cell(row.bestWindow,'bestWindow')+'</td><td>'+esc(row.bestArtifact || '-')+'</td><td>'+esc(row.topPower || '-')+' <small>'+cell(row.topPowerDamage,'topPowerDamage')+'</small></td></tr>').join('') : '<tr><td class="empty" colspan="10">No player or companion damage found in artifact windows.</td></tr>')+
+      '</tbody></table></div>';
+  }
+  function bindParticipantRows(){
+    qa('.arti-participant-row').forEach(row => row.onclick = function(){ selectedParticipantKey = row.dataset.participantKey || ''; renderFromReport(currentResult); });
+  }
+  function selectedDetails(result){
+    const participants = result.byParticipant || [];
+    if(!selectedParticipantKey && participants[0]) selectedParticipantKey = participants[0].participantKey;
+    const selected = participants.find(row => row.participantKey === selectedParticipantKey) || participants[0] || null;
+    if(!selected) return '<h3>Breakdown</h3><div class="empty">Click a player or companion row to see details.</div>';
+    const rows = (result.perCallParticipants || []).filter(row => row.participantKey === selected.participantKey).sort((a,b) => b.damage - a.damage);
+    return '<section class="arti-detail"><div class="arti-detail-head"><div><span class="eyebrow">Selected breakdown</span><h3>'+esc(selected.participant)+'</h3><p class="mut">These are the artifact windows where this '+esc(selected.sourceType.toLowerCase())+' did damage. Click another row above to switch the breakdown.</p></div><div><b>'+fmt(selected.damage)+'</b><span>Total window damage</span></div></div>'+ 
+      '<div class="grid2"><div><h3>Windows for this character</h3>'+table(rows,[['callId','Call #'],['artifact','Artifact / effect'],['caller','Caller'],['time','Used at'],['damage','Damage'],['dps','Window DPS'],['hits','Hits'],['share','Window share'],['topPower','Top power'],['topPowerDamage','Top power damage']],300)+'</div><div><h3>Power breakdown</h3>'+table(selected.topPowers || [], [['power','Power'],['damage','Damage'],['hits','Hits']],40)+'</div></div></section>';
+  }
 
   function renderFromReport(result){
+    currentResult = result;
     const content = q('#content');
     if(!content) return;
     const windows = result && result.windows ? result.windows : [];
-    const perCallPlayers = result && result.perCallPlayers ? result.perCallPlayers : [];
-    const best = windows[0] || null;
+    const participants = result && result.byParticipant ? result.byParticipant : [];
+    const bestParticipant = participants[0] || null;
     const totalParty = windows.reduce((total,row) => total + (row.partyDamage || row.windowDamage || 0), 0);
-    const totalCaller = windows.reduce((total,row) => total + (row.callerDamage || row.windowDamage || 0), 0);
     const totalDirect = windows.reduce((total,row) => total + (row.directDamage || 0), 0);
     const playerHead = (!state.summaryOnly && typeof playerHeader === 'function') ? playerHeader() : '';
     const modeNote = state.summaryOnly ? 'This uses the worker report, so changing the window does not load the huge raw log into the page.' : 'This uses the selected fight filter.';
-    content.innerHTML = playerHead + '<section class="panel arti-call-panel"><div class="arti-hero"><div><span class="eyebrow">Arti Call</span><h2>'+esc(result.windowSeconds || options.windowSeconds)+'-second damage after artifact use</h2><p class="mut">When an artifact-like effect is used, Strikeglass checks how much damage the whole party and each player did after that call. '+esc(modeNote)+'</p></div><div class="arti-window">'+esc(result.windowSeconds || options.windowSeconds)+'s<br><small>after use</small></div></div>'+controls()+
+    content.innerHTML = playerHead + '<section class="panel arti-call-panel"><div class="arti-hero"><div><span class="eyebrow">Arti Call</span><h2>'+esc(result.windowSeconds || options.windowSeconds)+'-second damage after artifact use</h2><p class="mut">Instead of dumping every call first, this view starts with the useful answer: how much each player and companion did inside artifact call windows. '+esc(modeNote)+'</p></div><div class="arti-window">'+esc(result.windowSeconds || options.windowSeconds)+'s<br><small>after use</small></div></div>'+controls()+
       '<div class="cards">'+
       '<div class="card"><b>'+num(windows.length)+'</b><span>Artifact calls found</span></div>'+ 
-      '<div class="card"><b>'+fmt(totalParty)+'</b><span>Party damage in call windows</span></div>'+ 
-      '<div class="card"><b>'+fmt(totalCaller)+'</b><span>Caller damage in windows</span></div>'+ 
+      '<div class="card"><b>'+fmt(totalParty)+'</b><span>Total party damage in windows</span></div>'+ 
       '<div class="card"><b>'+fmt(totalDirect)+'</b><span>Direct artifact damage</span></div>'+ 
-      '<div class="card"><b>'+esc(best ? best.topPlayer : '-')+'</b><span>Best player inside a call</span></div>'+ 
-      '<div class="card"><b>'+fmt(best ? (best.partyDamage || best.windowDamage || 0) : 0)+'</b><span>Best party call damage</span></div>'+ 
+      '<div class="card"><b>'+num(participants.filter(row => row.sourceType === 'Player').length)+'</b><span>Players with window damage</span></div>'+ 
+      '<div class="card"><b>'+num(participants.filter(row => row.sourceType === 'Companion').length)+'</b><span>Companions with window damage</span></div>'+ 
+      '<div class="card"><b>'+esc(bestParticipant ? bestParticipant.participant : '-')+'</b><span>Top player / companion</span></div>'+ 
       '</div>'+ 
-      '<h3>Call windows</h3><p class="mut">Each row is one artifact call. Party damage is everyone’s damage in that window. Caller damage is only the player who used the artifact.</p>'+table(windows,[['id','#'],['player','Caller'],['artifact','Artifact / effect'],['time','Used at'],['partyDamage','Party damage'],['partyDps','Party DPS'],['callerDamage','Caller damage'],['callerDps','Caller DPS'],['topPlayer','Top player'],['topPlayerDamage','Top player damage'],['directDamage','Direct artifact damage'],['confidence','Match']],300)+
-      '<h3>Player damage inside each call</h3><p class="mut">This answers: after this artifact was called, how much did each player actually do?</p>'+table(perCallPlayers,[['callId','Call #'],['artifact','Artifact / effect'],['caller','Caller'],['time','Used at'],['player','Player'],['damage','Damage in window'],['dps','Window DPS'],['hits','Hits'],['share','Share']],500)+
-      '<h3>By player</h3><p class="mut">This adds each player’s damage across all artifact call windows.</p>'+table(result.byPlayer,[['player','Player'],['calls','Call windows'],['artifacts','Different artifacts'],['windowDamage','Total window damage'],['avgWindowDamage','Avg per window'],['bestCall','Best window'],['bestArtifact','Best artifact window']])+
-      '<h3>By caller</h3><p class="mut">This only counts damage by the player who used the artifact.</p>'+table(result.byCaller || [], [['player','Caller'],['calls','Calls'],['artifacts','Different artifacts'],['callerDamage','Caller window damage'],['avgCallerDamage','Avg caller damage'],['directDamage','Direct artifact damage'],['bestCall','Best caller window'],['bestArtifact','Best artifact']])+
-      '<h3>By artifact</h3>'+table(result.byArtifact,[['artifact','Artifact / effect'],['calls','Calls'],['users','Users'],['partyDamage','Party window damage'],['avgPartyDamage','Avg party damage'],['callerDamage','Caller damage'],['directDamage','Direct damage'],['directHits','Direct hits'],['bestUser','Best user'],['bestCall','Best party call']])+
-      '<h3>Direct artifact damage rows</h3>'+table(result.direct,[['player','Player'],['artifact','Artifact / effect'],['directDamage','Damage'],['directHits','Hits'],['directAvg','Avg hit'],['directMax','Max hit'],['directCrit','Crit%'],['time','First call'],['confidence','Match']])+
+      '<h3>Damage by player and companion</h3><p class="mut">This is the main Arti Call view. It adds each player and companion damage across all artifact windows in the selected fight. Click a row to see the call-by-call breakdown.</p>'+participantTable(participants)+
+      selectedDetails(result)+
+      '<h3>By artifact</h3><p class="mut">This shows which artifact-like effects created the biggest party burst windows.</p>'+table(result.byArtifact,[['artifact','Artifact / effect'],['calls','Calls'],['users','Users'],['partyDamage','Party window damage'],['avgPartyDamage','Avg party damage'],['callerDamage','Caller damage'],['directDamage','Direct damage'],['directHits','Direct hits'],['bestUser','Best user'],['bestCall','Best party call']])+
+      '<h3>By caller</h3><p class="mut">This only counts damage by the player who used the artifact, not the whole party.</p>'+table(result.byCaller || [], [['player','Caller'],['calls','Calls'],['artifacts','Different artifacts'],['callerDamage','Caller window damage'],['avgCallerDamage','Avg caller damage'],['directDamage','Direct artifact damage'],['bestCall','Best caller window'],['bestArtifact','Best artifact']])+
+      '<details class="arti-raw"><summary>Show raw call windows</summary><p class="mut">This is hidden by default because hundreds of call rows are noisy and slow to read. Humanity survives one sensible default.</p>'+table(windows,[['id','#'],['player','Caller'],['artifact','Artifact / effect'],['time','Used at'],['partyDamage','Party damage'],['partyDps','Party DPS'],['callerDamage','Caller damage'],['topParticipant','Top player / companion'],['topParticipantDamage','Top damage'],['directDamage','Direct artifact damage'],['confidence','Match']],300)+'</details>'+ 
       '<p class="mut">Rows marked Review may need more mapping later. The app is careful here because combat logs are weird little paperwork monsters.</p></section>';
     bindControls();
+    bindParticipantRows();
   }
 
   function renderArtiCall(){
@@ -136,7 +159,7 @@
     ensureTab();
   };
 
-  const css = '.arti-call-panel,.arti-call-panel *{border-radius:0!important}.arti-hero{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:18px;align-items:start;border:1px solid #d8e2ec;background:#fff;padding:14px;margin-bottom:16px}.arti-hero h2{margin:4px 0}.arti-window{border:1px solid #0e1b27;background:#0e1b27;color:#fff;text-align:center;font-size:32px;font-weight:1000;line-height:1;padding:18px 8px}.arti-window small{display:block;margin-top:6px;color:#9fead8;font-size:11px;text-transform:uppercase;letter-spacing:.08em}.arti-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border:1px solid #d8e2ec;background:#f7fafc;padding:12px;margin:0 0 16px}.arti-controls label{display:flex;align-items:center;gap:8px;font-weight:900;color:#23344a}.arti-controls input[type=number]{width:84px;background:#fff;color:#101923;border:1px solid #b8c5d3;padding:8px}.arti-controls button{background:#0e1b27!important;color:#fff!important;border:1px solid #0e1b27!important;padding:9px 14px!important;font-weight:1000}.arti-check input{width:16px;height:16px}.arti-table td:first-child,.arti-table th:first-child{width:52px}.artiIcon{width:24px!important;height:24px!important;vertical-align:middle;margin-right:8px;border:1px solid #cbd8e5}.arti-call-panel h3{margin-top:22px!important}.arti-call-panel .mut{max-width:980px}@media(max-width:800px){.arti-hero{grid-template-columns:1fr}.arti-window{font-size:24px}}';
+  const css = '.arti-call-panel,.arti-call-panel *{border-radius:0!important}.arti-hero{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:18px;align-items:start;border:1px solid #d8e2ec;background:#fff;padding:14px;margin-bottom:16px}.arti-hero h2{margin:4px 0}.arti-window{border:1px solid #0e1b27;background:#0e1b27;color:#fff;text-align:center;font-size:32px;font-weight:1000;line-height:1;padding:18px 8px}.arti-window small{display:block;margin-top:6px;color:#9fead8;font-size:11px;text-transform:uppercase;letter-spacing:.08em}.arti-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border:1px solid #d8e2ec;background:#f7fafc;padding:12px;margin:0 0 16px}.arti-controls label{display:flex;align-items:center;gap:8px;font-weight:900;color:#23344a}.arti-controls input[type=number]{width:84px;background:#fff;color:#101923;border:1px solid #b8c5d3;padding:8px}.arti-controls button{background:#0e1b27!important;color:#fff!important;border:1px solid #0e1b27!important;padding:9px 14px!important;font-weight:1000}.arti-check input{width:16px;height:16px}.arti-table td:first-child,.arti-table th:first-child{width:52px}.artiIcon{width:24px!important;height:24px!important;vertical-align:middle;margin-right:8px;border:1px solid #cbd8e5}.arti-call-panel h3{margin-top:22px!important}.arti-call-panel .mut{max-width:980px}.source-pill{display:inline-block;border:1px solid #b8c5d3;background:#eef4fa;padding:3px 7px;font-size:11px;font-weight:1000;text-transform:uppercase;letter-spacing:.05em}.source-pill.companion{background:#fff3e8;border-color:#e5a15b}.participant-table tr{cursor:pointer}.participant-table tr.is-selected{background:#eafaf6!important;outline:2px solid #32b999}.participant-table tr:hover{background:#f4f8fb}.arti-detail{border:1px solid #d8e2ec;background:#fff;margin-top:18px;padding:14px}.arti-detail-head{display:grid;grid-template-columns:minmax(0,1fr) 180px;gap:16px;align-items:start}.arti-detail-head b{display:block;font-size:24px}.arti-detail-head span{font-size:11px;text-transform:uppercase;font-weight:900;color:#526174}.arti-raw{border:1px solid #d8e2ec;margin-top:18px;padding:12px;background:#fbfdff}.arti-raw summary{font-weight:1000;cursor:pointer}@media(max-width:800px){.arti-hero,.arti-detail-head{grid-template-columns:1fr}.arti-window{font-size:24px}}';
   const style = document.createElement('style');
   style.textContent = css;
   document.head.appendChild(style);
