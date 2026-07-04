@@ -1,5 +1,9 @@
 (function(){
   const DETAIL_LIMIT_BYTES = 25 * 1024 * 1024;
+  let activeWorker = null;
+  let requestSeq = 0;
+  const pendingArtifact = new Map();
+
   function txt(p){
     const phase = p.phase || 'parsing';
     const rows = Number(p.rows || 0).toLocaleString();
@@ -15,6 +19,11 @@
   }
   function powerRow(power){
     return '<tr><td><b>'+esc(power.power)+'</b></td><td>'+esc(power.category||'Unknown')+'</td><td>'+num(power.damage)+'</td><td>'+Number(power.share||0).toFixed(1)+'%</td><td>'+Number(power.hits||0).toLocaleString()+'</td></tr>';
+  }
+  function disposeWorker(){
+    if(activeWorker){ try { activeWorker.postMessage({type:'dispose'}); } catch (_) { try { activeWorker.terminate(); } catch (__) {} } }
+    activeWorker = null;
+    pendingArtifact.clear();
   }
   function renderSummary(report,file,summaryOnly){
     const content = document.querySelector('#content');
@@ -33,32 +42,49 @@
       '<div class="card"><b>'+Number(report.artiCall&&report.artiCall.callCount||0).toLocaleString()+'</b><span>Arti calls found</span></div>'+ 
       '</div><div class="grid2"><div><h3>Party preview</h3><div class="table"><table><thead><tr><th>#</th><th>Player</th><th>Damage</th><th>Combat DPS</th><th>Hits</th><th>Crit</th><th>Combat Adv.</th></tr></thead><tbody>'+(report.party||[]).slice(0,10).map(row).join('')+'</tbody></table></div></div><div><h3>Top powers preview</h3><div class="table"><table><thead><tr><th>Power</th><th>Type</th><th>Damage</th><th>Share</th><th>Hits</th></tr></thead><tbody>'+powers.map(powerRow).join('')+'</tbody></table></div></div></div><h3>Boss windows found</h3><div class="sg-enc-preview">'+(encounters.length?encounters.map(enc=>'<span><b>'+esc(enc.label)+'</b><small>'+time(enc.duration)+'</small></span>').join(''):'<p class="mut">No visible boss windows found yet.</p>')+'</div><p class="mut">File: '+esc(file && file.name ? file.name : 'combat log')+'</p></section>';
   }
+  function handleWorkerMessage(worker,event,onProgress,onSummary,resolve,reject,summaryOnly){
+    var msg=event.data||{};
+    if(msg.type==='progress'&&onProgress)onProgress(msg.progress||{});
+    if(msg.type==='summary'&&onSummary)onSummary(msg.report||null);
+    if(msg.type==='artifact'){
+      const pending = pendingArtifact.get(msg.requestId);
+      if(pending){ pending.resolve(msg.report); pendingArtifact.delete(msg.requestId); }
+    }
+    if(msg.type==='artifact-error'){
+      const pending = pendingArtifact.get(msg.requestId);
+      if(pending){ pending.reject(new Error(msg.message || 'Artifact recompute failed')); pendingArtifact.delete(msg.requestId); }
+    }
+    if(msg.type==='done'){
+      var rows=msg.rows||[];
+      rows.meta=msg.meta||{};
+      if(summaryOnly){ activeWorker = worker; }
+      else { try { worker.terminate(); } catch (_) {} if(activeWorker===worker) activeWorker=null; }
+      resolve(rows);
+    }
+    if(msg.type==='error'){
+      try { worker.terminate(); } catch (_) {}
+      if(activeWorker===worker) activeWorker=null;
+      reject(new Error(msg.message||'Worker parse failed'));
+    }
+  }
   function parseWorker(file,onProgress,onSummary,summaryOnly){
     return new Promise(function(resolve,reject){
       if(!window.Worker)return reject(new Error('Worker not supported'));
+      if(activeWorker) disposeWorker();
       var worker=new Worker('src/workers/parse-worker.js');
-      var finished=false;
-      worker.onmessage=function(event){
-        var msg=event.data||{};
-        if(msg.type==='progress'&&onProgress)onProgress(msg.progress||{});
-        if(msg.type==='summary'&&onSummary)onSummary(msg.report||null);
-        if(msg.type==='done'){
-          finished=true;
-          worker.terminate();
-          var rows=msg.rows||[];
-          rows.meta=msg.meta||{};
-          resolve(rows);
-        }
-        if(msg.type==='error'){
-          finished=true;
-          worker.terminate();
-          reject(new Error(msg.message||'Worker parse failed'));
-        }
-      };
-      worker.onerror=function(event){if(!finished){worker.terminate();reject(new Error(event.message||'Worker parse failed'));}};
+      worker.onmessage=function(event){ handleWorkerMessage(worker,event,onProgress,onSummary,resolve,reject,summaryOnly); };
+      worker.onerror=function(event){ try { worker.terminate(); } catch (_) {} reject(new Error(event.message||'Worker parse failed')); };
       worker.postMessage({type:'parse',file:file,summaryOnly:!!summaryOnly});
     });
   }
+  window.StrikeglassRequestArtiCall = function(options){
+    return new Promise(function(resolve,reject){
+      if(!activeWorker) return reject(new Error('No active worker report.'));
+      const id = ++requestSeq;
+      pendingArtifact.set(id,{resolve,reject});
+      activeWorker.postMessage({type:'artifact', requestId:id, options:options || {}});
+    });
+  };
   async function parseSmart(file,onProgress,onSummary,summaryOnly){
     if(file&&file.size>2097152&&window.Worker){
       try{return await parseWorker(file,onProgress,onSummary,summaryOnly);}catch(e){console.warn('worker parse fallback',e);}
@@ -66,7 +92,7 @@
     const rows = await NWParser.parseFile(file,{onProgress:onProgress});
     if(window.SGSummaryEngine && onSummary){
       const report = window.SGSummaryEngine.buildReport(rows,{includeCompanions:true});
-      if(window.SGArtifactWindow) report.artiCall = window.SGArtifactWindow.analyze(rows, report.players || []);
+      if(window.SGArtifactWindow) report.artiCall = window.SGArtifactWindow.analyze(rows, report.players || [], { windowSeconds: 15, includeCompanions: true });
       onSummary(report);
     }
     return rows;
@@ -77,6 +103,7 @@
     var summaryOnly = !!(file && file.size > DETAIL_LIMIT_BYTES);
     try{
       if(!file)return;
+      disposeWorker();
       status.textContent='Opening '+file.name+'...';
       state.rows=[];
       state.players=[];
