@@ -67,12 +67,12 @@ for (const required of ['window.SGArtifactWindow', 'analyze', 'artifactScore', '
 }
 
 const worker = await readFile('src/workers/parse-worker.js', 'utf8');
-for (const required of ['artifact-catalog.js', 'artifact-window-engine.js', 'report.artiCall', 'summaryOnly', "type:'artifact'", "type:'summary'", "type:'done'"]) {
+for (const required of ['artifact-catalog.js', 'artifact-window-engine.js', 'buildPlayerReport', 'player-report', 'summaryOnly', "type:'artifact'", "type:'summary'", "type:'done'", 'workerResident']) {
   if (!worker.includes(required)) failures.push(`Missing worker summary pipeline marker: ${required}`);
 }
 
 const workerController = await readFile('src/features/worker-parse-controller.js', 'utf8');
-for (const required of ['Fast preview ready', 'raw rows skipped for speed', 'state.artiReport', 'StrikeglassRequestArtiCall', 'summaryOnly']) {
+for (const required of ['Fast preview ready', 'Building a fast report first', 'sg-progress', 'sg-skel-box', 'raw rows are not loaded into the page', 'raw rows in worker', 'StrikeglassRequestArtiCall', 'StrikeglassRequestPlayerReport', 'renderFastTab', 'summaryOnly']) {
   if (!workerController.includes(required)) failures.push(`Missing worker controller UX marker: ${required}`);
 }
 
@@ -90,4 +90,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Smoke test passed. Checked artifact catalog loading, grouped player/companion Arti Call table, worker pipeline, and runtime order.`);
+console.log(`Smoke test passed. Checked artifact catalog loading, grouped Arti Call table, summary-first worker loading, progress UI, and runtime order.`);
