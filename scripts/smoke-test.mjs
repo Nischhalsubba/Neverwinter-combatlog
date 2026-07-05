@@ -80,7 +80,7 @@ const artifactAlias = await readFile('src/features/artifact-window-layer.js', 'u
 if (!artifactAlias.includes('arti-call-layer.js')) failures.push('Missing artifact window alias target.');
 
 const artifactLayer = await readFile('src/features/arti-call-layer.js', 'utf8');
-for (const required of ['Arti Call', 'reportForCurrentView', 'state.artiReport', 'StrikeglassRequestArtiCall', 'artiWindowSeconds', 'artiIncludeCompanions', 'artiMainTable', 'selectedDetails', 'Artifact windows', 'Player', 'Artifact used', 'Damage / sec', 'Avg damage', 'Crit rate', 'Flank rate', 'Highest hit', 'Each artifact activation starts its own timer', 'Anything before or after is ignored']) {
+for (const required of ['Arti Call', 'reportForCurrentView', 'state.artiReport', 'StrikeglassRequestArtiCall', 'artiWindowSeconds', 'artiIncludeCompanions', 'artiMainTable', 'entityRows', 'selectedDetails', 'Player and companion totals', 'Player / companion', 'Artifact used', 'Damage / sec', 'Avg damage', 'Crit rate', 'Flank rate', 'Highest hit', 'one row per player or companion', 'Click a player or companion name']) {
   if (!artifactLayer.includes(required)) failures.push(`Missing Arti Call marker: ${required}`);
 }
 
@@ -90,4 +90,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Smoke test passed. Checked artifact catalog loading, one-row-per-artifact Arti Call table, worker pipeline, and runtime order.`);
+console.log(`Smoke test passed. Checked artifact catalog loading, grouped player/companion Arti Call table, worker pipeline, and runtime order.`);
