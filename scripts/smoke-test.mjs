@@ -13,6 +13,7 @@ const requiredOrder = [
   'app.js',
   'class-power-map.js',
   'src/features/category-clarity-layer.js',
+  'src/data/artifact-catalog.js',
   'src/engine/artifact-window-engine.js',
   'src/features/worker-parse-controller.js',
   'src/features/artifact-window-layer.js',
@@ -55,13 +56,18 @@ for (const exportName of ['window.SGSummaryEngine', 'buildReport', 'playerMetric
   if (!summary.includes(exportName)) failures.push(`Missing summary-first capability: ${exportName}`);
 }
 
+const catalog = await readFile('src/data/artifact-catalog.js', 'utf8');
+for (const required of ['SGArtifactCatalog', 'matchArtifact', 'Blood Crystal Raven Skull', 'Mythallar Fragment', 'Sigil of the Bard', 'https://nw-hub.com/assets/artifacts/']) {
+  if (!catalog.includes(required)) failures.push(`Missing artifact catalog marker: ${required}`);
+}
+
 const artifactEngine = await readFile('src/engine/artifact-window-engine.js', 'utf8');
 for (const required of ['window.SGArtifactWindow', 'analyze', 'artifactScore', 'windowSeconds', 'includeCompanions', 'perCallPlayers', 'perCallParticipants', 'byParticipant', 'buildBurstWindows', 'artifactTimers', 'artifactUseCount', 'artifactCatalog', 'avgDamage', 'maxHit', 'crit', 'flank', 'artifactUsed', 'call.time + windowSeconds', 'rowsInWindow(damageByPlayer.get(first.ownerId)']) {
   if (!artifactEngine.includes(required)) failures.push(`Missing artifact engine marker: ${required}`);
 }
 
 const worker = await readFile('src/workers/parse-worker.js', 'utf8');
-for (const required of ['artifact-window-engine.js', 'report.artiCall', 'summaryOnly', "type:'artifact'", "type:'summary'", "type:'done'"]) {
+for (const required of ['artifact-catalog.js', 'artifact-window-engine.js', 'report.artiCall', 'summaryOnly', "type:'artifact'", "type:'summary'", "type:'done'"]) {
   if (!worker.includes(required)) failures.push(`Missing worker summary pipeline marker: ${required}`);
 }
 
@@ -84,4 +90,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Smoke test passed. Checked one-row-per-artifact Arti Call table, per-player timers, worker pipeline, and runtime order.`);
+console.log(`Smoke test passed. Checked artifact catalog loading, one-row-per-artifact Arti Call table, worker pipeline, and runtime order.`);
