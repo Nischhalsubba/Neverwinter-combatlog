@@ -1,6 +1,7 @@
 self.window = self;
 importScripts('../engine/combat-engine.js');
 try { importScripts('../../class-power-map.js', '../features/category-clarity-layer.js'); } catch (_) {}
+try { importScripts('../data/artifact-catalog.js'); } catch (_) {}
 importScripts('../engine/summary-engine.js');
 importScripts('../engine/artifact-window-engine.js');
 
