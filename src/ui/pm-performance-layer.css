@@ -1,0 +1,60 @@
+/* PM performance layer: virtualized tables, cache feedback, and snappy UI hints. */
+.sg-virtual-note {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  margin: .5rem 0;
+  padding: .45rem .65rem;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  font-size: .78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.table.sg-virtualized {
+  max-height: 70vh;
+  contain: layout paint style;
+  will-change: scroll-position;
+}
+
+.table.sg-virtualized tbody tr {
+  contain: content;
+}
+
+.sg-virtual-spacer td {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.sg-cache-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 99999;
+  border: 1px solid #0f766e;
+  background: #ecfdf5;
+  color: #064e3b;
+  padding: .75rem .95rem;
+  box-shadow: 0 16px 45px rgba(15, 23, 42, .16);
+  font-weight: 900;
+  max-width: min(360px, calc(100vw - 32px));
+}
+
+.classFix .sg-class-reset {
+  border: 1px solid #b8c7d9;
+  background: #fff;
+  color: #0f1d2b;
+  padding: .45rem .6rem;
+  font-weight: 900;
+  cursor: pointer;
+  margin-top: .25rem;
+}
+
+.classFix .sg-class-save-note {
+  color: #86efac;
+  font-weight: 900;
+}
