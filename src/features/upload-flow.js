@@ -133,10 +133,25 @@
     });
   }
 
+  function loadPmSprintFixes(){
+    if(!document.querySelector('link[href="src/ui/pm-sprint-fixes.css"]')){
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'src/ui/pm-sprint-fixes.css';
+      document.head.appendChild(link);
+    }
+    if(!document.querySelector('script[src="src/features/pm-sprint-fixes.js"]')){
+      var script = document.createElement('script');
+      script.src = 'src/features/pm-sprint-fixes.js';
+      document.body.appendChild(script);
+    }
+  }
+
   SG.ready(function(){
     uploadStage();
     wireFileState();
     applyLayoutState();
+    loadPmSprintFixes();
     if(!localStorage.getItem(guideKey) && !hasRows()){
       setTimeout(function(){ openGuide(true); }, 600);
     }
