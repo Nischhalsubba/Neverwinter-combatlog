@@ -2,7 +2,7 @@
   'use strict';
 
   var SG = window.SG || {};
-  var allowedExtensions = ['log','txt','csv'];
+  var allowedExtensions = ['log','txt','csv','zip'];
   var tableSortState = new WeakMap();
   var perf = window.StrikeglassPerf = window.StrikeglassPerf || { marks:{}, measures:[] };
 
@@ -68,7 +68,7 @@
     if(!input || input.dataset.sgPmEnhanced) return;
     input.dataset.sgPmEnhanced = '1';
     input.setAttribute('aria-label','Upload Neverwinter combat log file');
-    input.setAttribute('accept','.log,.txt,.csv');
+    input.setAttribute('accept','.log,.txt,.csv,.zip');
 
     input.addEventListener('change', function(event){
       var file = input.files && input.files[0];
@@ -80,7 +80,7 @@
         input.value = '';
         var status = document.getElementById('status');
         if(status){
-          status.innerHTML = '<strong>Unsupported file.</strong> Upload a .log, .txt, or .csv combat log. Zip support needs a separate decompression task.';
+          status.innerHTML = '<strong>Unsupported file.</strong> Upload a .log, .txt, .csv, or .zip combat log.';
         }
         return false;
       }
@@ -92,7 +92,7 @@
     if(status){
       new MutationObserver(function(){
         var text = getText(status).toLowerCase();
-        if(text.indexOf('parsed') !== -1){
+        if(text.indexOf('parsed') !== -1 || text.indexOf('fast mode') !== -1 || text.indexOf('party overview ready') !== -1){
           measure('upload to parsed status', 'parse:start');
           document.body.classList.remove('sg-loading-log');
         }
@@ -166,7 +166,10 @@
     Array.from(table.querySelectorAll('thead th')).forEach(function(th,index){
       th.setAttribute('tabindex','0');
       th.setAttribute('aria-sort','none');
-      th.addEventListener('click', function(){ sortTable(table,index,th); });
+      th.addEventListener('click', function(event){
+        if(event.target && event.target.closest('input,button,a,select,label')) return;
+        sortTable(table,index,th);
+      });
       th.addEventListener('keydown', function(event){
         if(event.key === 'Enter' || event.key === ' '){
           event.preventDefault();
