@@ -52,7 +52,7 @@ for (const exportName of ['window.SGEngine', 'window.NWParser', 'parseFile', 'bu
 }
 
 const summary = await readFile('src/engine/summary-engine.js', 'utf8');
-for (const exportName of ['window.SGSummaryEngine', 'buildReport', 'playerMetricSummary', 'enrichPlayer']) {
+for (const exportName of ['window.SGSummaryEngine', 'buildReport', 'playerMetricSummary', 'enrichPlayer', 'quickPartyOverview', 'party-overview-first']) {
   if (!summary.includes(exportName)) failures.push(`Missing summary-first capability: ${exportName}`);
 }
 
@@ -72,7 +72,7 @@ for (const required of ['artifact-catalog.js', 'artifact-window-engine.js', 'bui
 }
 
 const workerController = await readFile('src/features/worker-parse-controller.js', 'utf8');
-for (const required of ['Fast preview ready', 'Building a fast report first', 'sg-progress', 'sg-skel-box', 'raw rows are not loaded into the page', 'raw rows in worker', 'StrikeglassRequestArtiCall', 'StrikeglassRequestPlayerReport', 'renderFastTab', 'summaryOnly']) {
+for (const required of ['Party Overview ready', 'Loading Party Overview first', 'details load when clicked', 'sg-progress', 'sg-skel-box', 'state.lazyIntro', 'StrikeglassRequestArtiCall', 'StrikeglassRequestPlayerReport', 'renderFastTab', 'summaryOnly', 'Only this screen is being requested from the worker']) {
   if (!workerController.includes(required)) failures.push(`Missing worker controller UX marker: ${required}`);
 }
 
@@ -90,4 +90,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Smoke test passed. Checked artifact catalog loading, grouped Arti Call table, summary-first worker loading, progress UI, and runtime order.`);
+console.log(`Smoke test passed. Checked party-overview-first loading, lazy detail reports, artifact catalog, grouped Arti Call table, and runtime order.`);
