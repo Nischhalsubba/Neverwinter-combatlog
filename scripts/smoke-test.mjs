@@ -21,9 +21,18 @@ const requiredOrder = [
   'src/features/upload-flow.js'
 ];
 
+const dynamicSprintFiles = [
+  'src/ui/pm-sprint-fixes.css',
+  'src/features/pm-sprint-fixes.js',
+  'src/ui/pm-sprint-2.css',
+  'src/features/pm-sprint-2.js',
+  'src/ui/pm-performance-layer.css',
+  'src/features/pm-performance-layer.js'
+];
+
 const failures = [];
 
-for (const file of referencedFiles) {
+for (const file of [...referencedFiles, ...dynamicSprintFiles]) {
   try {
     await access(file);
   } catch (_) {
@@ -76,6 +85,26 @@ for (const required of ['Party Overview ready', 'Loading Party Overview first', 
   if (!workerController.includes(required)) failures.push(`Missing worker controller UX marker: ${required}`);
 }
 
+const sprintFixes = await readFile('src/features/pm-sprint-fixes.js', 'utf8');
+for (const required of ['scheduleEnhance', 'pm-performance-layer.js', "allowedExtensions=['log','txt','csv','zip']", 'sg-sort-active', 'sg-table-search']) {
+  if (!sprintFixes.includes(required)) failures.push(`Missing sprint one/two fix marker: ${required}`);
+}
+
+const sprintTwo = await readFile('src/features/pm-sprint-2.js', 'utf8');
+for (const required of ['extractLogFromZip', 'DecompressionStream', 'Compare selected', 'renderSelectedComparison', 'strikeglass-player-comparison.csv']) {
+  if (!sprintTwo.includes(required)) failures.push(`Missing sprint two capability marker: ${required}`);
+}
+
+const performanceLayer = await readFile('src/features/pm-performance-layer.js', 'utf8');
+for (const required of ['TABLE_THRESHOLD', 'installReportCache', 'PerformanceObserver', 'installVirtualTables', 'renderVirtualWindow', 'sg-class-reset']) {
+  if (!performanceLayer.includes(required)) failures.push(`Missing performance layer marker: ${required}`);
+}
+
+const performanceCss = await readFile('src/ui/pm-performance-layer.css', 'utf8');
+for (const required of ['sg-virtual-note', 'sg-virtualized', 'sg-cache-toast']) {
+  if (!performanceCss.includes(required)) failures.push(`Missing performance CSS marker: ${required}`);
+}
+
 const artifactAlias = await readFile('src/features/artifact-window-layer.js', 'utf8');
 if (!artifactAlias.includes('arti-call-layer.js')) failures.push('Missing artifact window alias target.');
 
@@ -90,4 +119,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Smoke test passed. Checked party-overview-first loading, lazy detail reports, artifact catalog, grouped Arti Call table, and runtime order.`);
+console.log('Smoke test passed. Checked lazy loading, sprint two ZIP and compare workflow, and performance virtualization markers.');
