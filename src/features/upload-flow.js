@@ -133,18 +133,28 @@
     });
   }
 
-  function loadPmSprintFixes(){
-    if(!document.querySelector('link[href="src/ui/pm-sprint-fixes.css"]')){
+  function loadStyle(path){
+    if(!document.querySelector('link[href="'+path+'"]')){
       var link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'src/ui/pm-sprint-fixes.css';
+      link.href = path;
       document.head.appendChild(link);
     }
-    if(!document.querySelector('script[src="src/features/pm-sprint-fixes.js"]')){
+  }
+
+  function loadScript(path){
+    if(!document.querySelector('script[src="'+path+'"]')){
       var script = document.createElement('script');
-      script.src = 'src/features/pm-sprint-fixes.js';
+      script.src = path;
       document.body.appendChild(script);
     }
+  }
+
+  function loadPmSprintFixes(){
+    loadStyle('src/ui/pm-sprint-fixes.css');
+    loadStyle('src/ui/pm-sprint-2.css');
+    loadScript('src/features/pm-sprint-fixes.js');
+    loadScript('src/features/pm-sprint-2.js');
   }
 
   SG.ready(function(){
