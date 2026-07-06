@@ -1,0 +1,126 @@
+/* PM sprint 2: compare workflow, zip upload state, and review exports. */
+.sg-compare-tools {
+  display: flex;
+  gap: .6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sg-compare-tools button,
+.sg-compare-export {
+  border: 1px solid #0f1d2b;
+  background: #0f1d2b;
+  color: #fff;
+  padding: .62rem .85rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.sg-compare-tools button[disabled] {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.sg-compare-tools .ghost {
+  background: #fff;
+  color: #0f1d2b;
+}
+
+.sg-compare-check-cell {
+  width: 54px;
+  text-align: center;
+}
+
+.sg-compare-check {
+  width: 18px;
+  height: 18px;
+  accent-color: #0f766e;
+  cursor: pointer;
+}
+
+tr.sg-compare-selected {
+  background: #e8fbf6 !important;
+  box-shadow: inset 4px 0 0 #0f766e;
+}
+
+.sg-compare-panel .sg-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.sg-compare-card {
+  border: 1px solid #d4dfeb;
+  background: #fff;
+  padding: 1rem;
+}
+
+.sg-compare-card h3 {
+  margin: 0 0 .75rem;
+}
+
+.sg-compare-card dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: .4rem .8rem;
+  margin: 0;
+}
+
+.sg-compare-card dt {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.sg-compare-card dd {
+  margin: 0;
+  font-weight: 1000;
+}
+
+.sg-compare-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.sg-compare-note,
+.sg-zip-note {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.sg-zip-working {
+  border: 1px solid #d4dfeb;
+  background: #f8fbfd;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.sg-zip-working strong {
+  display: block;
+  margin-bottom: .4rem;
+}
+
+.sg-zip-progress {
+  height: 12px;
+  border: 1px solid #cad7e5;
+  background: #edf3f8;
+  overflow: hidden;
+  margin-top: .75rem;
+}
+
+.sg-zip-progress i {
+  display: block;
+  width: 35%;
+  height: 100%;
+  background: linear-gradient(90deg, #3f73d8, #35b99e);
+  animation: sgzip 1.1s linear infinite;
+}
+
+@keyframes sgzip {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(320%); }
+}
