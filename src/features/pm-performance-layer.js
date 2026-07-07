@@ -7,7 +7,10 @@
   var scheduled = false;
   var toastTimer = 0;
 
-  window.StrikeglassPerf = window.StrikeglassPerf || { marks:{}, measures:[], longTasks:[] };
+  window.StrikeglassPerf = window.StrikeglassPerf || {};
+  window.StrikeglassPerf.marks = window.StrikeglassPerf.marks || {};
+  window.StrikeglassPerf.measures = Array.isArray(window.StrikeglassPerf.measures) ? window.StrikeglassPerf.measures : [];
+  window.StrikeglassPerf.longTasks = Array.isArray(window.StrikeglassPerf.longTasks) ? window.StrikeglassPerf.longTasks : [];
 
   function ready(fn){
     if(window.SG && SG.ready) SG.ready(fn);
@@ -85,8 +88,10 @@
   function installLongTaskObserver(){
     if(window.StrikeglassPerf.__longTaskObserverInstalled) return;
     window.StrikeglassPerf.__longTaskObserverInstalled = true;
+    if(!Array.isArray(window.StrikeglassPerf.longTasks)) window.StrikeglassPerf.longTasks = [];
     try{
       var observer = new PerformanceObserver(function(list){
+        if(!Array.isArray(window.StrikeglassPerf.longTasks)) window.StrikeglassPerf.longTasks = [];
         list.getEntries().forEach(function(entry){
           window.StrikeglassPerf.longTasks.push({ duration: Math.round(entry.duration), start: Math.round(entry.startTime) });
           if(localStorage.getItem('strikeglass.debugPerf') === '1') console.warn('[Strikeglass long task]', Math.round(entry.duration)+'ms');
@@ -180,7 +185,7 @@
     var note = document.createElement('div');
     note.className = 'sg-virtual-note sg-no-help';
     note.textContent = 'Virtualized '+rows.length.toLocaleString()+' rows for faster scrolling';
-    if(container.parentNode && !container.previousElementSibling?.classList?.contains('sg-virtual-note')){
+    if(container.parentNode && !(container.previousElementSibling && container.previousElementSibling.classList && container.previousElementSibling.classList.contains('sg-virtual-note'))){
       container.parentNode.insertBefore(note, container);
     }
     var firstRow = table.tBodies[0] && table.tBodies[0].rows[0];
