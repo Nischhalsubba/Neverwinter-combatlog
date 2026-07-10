@@ -1,47 +1,68 @@
 # Strikeglass
 
-A local-first Neverwinter combat review tool for players who want clear answers, not spreadsheet archaeology.
+A local-first combat log analyzer for **Neverwinter** players who want clear, verifiable performance insights without uploading their logs to a server.
 
-Strikeglass reads a combat log in the browser and turns it into player-friendly insight: what dealt damage, what wasted time, what hurt survivability, and which powers carried the run.
+Strikeglass parses combat logs in the browser and turns raw events into useful answers: what dealt damage, which powers carried a run, where combat time was lost, what pressured survivability, and how party members compared within a selected encounter.
 
-## Product principles
+> **Project status:** Active development. Core parsing, encounter filtering, player comparison, companion analysis, class detection, and metric explanations are implemented. Results should still be verified against raw hits when testing new log formats or edge cases.
 
-- **Local-first:** logs are parsed in the browser. There is no upload server by default.
-- **Plain language:** every major number, label, table header and power row can explain itself on hover or click.
-- **Decision focused:** highlight rotation, power contribution, survival pressure, encounter windows, and player comparison.
-- **Source transparent:** every metric should be traceable back to parsed combat-log rows.
-- **Distinct interface:** the layout and visual system are intentionally separate from NW-Hub. The behavior may feel familiar, but the product design is its own.
+## Why Strikeglass
 
-## What it analyzes
+Most combat logs are technically rich and practically exhausting. Strikeglass is designed around five principles:
+
+- **Local-first privacy:** combat logs stay on the user's device by default.
+- **Plain-language metrics:** important labels, numbers, rows, and controls explain themselves.
+- **Decision-focused analysis:** the interface emphasizes rotation, contribution, downtime, positioning, and survival pressure.
+- **Traceable results:** major metrics can be checked against parsed combat-log events.
+- **Independent product design:** the workflow may feel familiar to experienced parser users, but the interface and visual system are original.
+
+## Current capabilities
+
+### Party and encounter analysis
 
 - Party overview with class detection and high-level contribution.
-- Encounter-scoped party ranking, so boss or mob filters update the whole party table.
-- Clickable party rows for switching the detailed player view without losing the current encounter filter.
-- Player comparison for damage, combat DPS, crit rate, flank rate, and companion contribution.
-- Companion damage toggle for reviewing player-only output versus pet/companion-inclusive output.
-- Companion damage ranking for identifying which pets, summons, or companion powers contributed most.
-- Player summary cards for damage, DPS, combat DPS, hits, crit rate, flank rate, healing, damage taken, and shielding.
-- Power breakdowns with NW-Hub asset icons where a matching file exists.
-- Asset Codex for auditing class power names against matched image filenames.
-- Raw hit inspection for verifying individual powers.
-- Timing, rotation, deaths, positioning, and formula reference screens.
+- Encounter-scoped rankings for boss, mob, or selected combat windows.
+- Clickable party rows that preserve the active encounter filter.
+- Player comparison across damage, DPS, combat DPS, critical rate, flank rate, and companion contribution.
 
-## Interface direction
+### Player analysis
 
-Strikeglass uses a zero-radius analytical interface: warm canvas, white data surfaces, navy analysis rail, green action accent, blue data accent, amber boss accent and restrained motion. The UI is tuned for endgame log review while staying readable for players who do not know combat-parser terminology.
+- Summary cards for damage, DPS, combat DPS, hits, critical rate, flank rate, healing, damage taken, and shielding.
+- Power breakdowns with matched Neverwinter asset icons where available.
+- Raw-hit inspection for validating individual powers and parser output.
+- Timing, rotation, deaths, positioning, and formula-reference views.
 
-## Metric notes
+### Companion and asset tools
 
-| Metric | Meaning |
+- Toggle between player-only and companion-inclusive damage.
+- Companion damage ranking for pets, summons, and companion powers.
+- Asset Codex for auditing class power names against available icon filenames.
+- Fallback handling for powers without matched assets.
+
+## Metric definitions
+
+| Metric | Definition |
 |---|---|
-| Total Damage | All valid physical damage done by the selected player in the selected scope. |
-| DPS | Total damage divided by the full first-to-last damage duration. Downtime lowers this. |
-| Combat DPS | Total damage divided by active encounter combat time. Better for real performance comparison. |
-| Crit Rate | Critical hits divided by total valid hits. |
+| Total Damage | All valid physical damage attributed to the selected player in the active scope. |
+| DPS | Total damage divided by the full duration from the first to the last damage event. Downtime lowers this value. |
+| Combat DPS | Total damage divided by active encounter combat time. This is usually more useful for performance comparison. |
+| Critical Rate | Critical hits divided by total valid hits. |
 | Flank Rate | Combat-advantage hits divided by total valid hits. |
 | Damage Taken | Physical damage received by the selected player. |
-| Shielded | Shield absorption events credited in the log. |
-| Companion Damage | Damage from powers or sources classified as companion, pet, summon, or appointment-style entities. |
+| Shielded | Shield-absorption events credited to the selected player in the log. |
+| Companion Damage | Damage from sources classified as companions, pets, summons, or appointment-style entities. |
+
+## Privacy model
+
+Combat-log parsing happens locally in the browser. Strikeglass does not require logs to be uploaded to a backend.
+
+The repository contains an optional Supabase scaffold for future online features such as saved reports, shared links, accounts, or guild dashboards. Any future feature that sends combat data off-device should make that behavior explicit before transmission.
+
+## Requirements
+
+- Node.js for build and smoke-test scripts.
+- pnpm 9.x, as declared in `package.json`.
+- Python 3 for the included local static server command.
 
 ## Run locally
 
@@ -51,23 +72,101 @@ pnpm build
 pnpm start
 ```
 
-Then open:
+Open:
 
 ```text
 http://localhost:5173
 ```
 
-The static files can also be opened directly from `index.html` during quick inspection.
+For quick visual inspection, the static app shell can also be opened directly from `index.html`, although running the local server is more representative of the deployed environment.
+
+## Verify a change
+
+Run the repository smoke test:
+
+```bash
+pnpm test
+```
+
+Run a production-style static build:
+
+```bash
+pnpm build
+```
+
+When changing parser logic or formulas, also verify the result in the raw-hit inspector against representative combat-log rows. Automated smoke tests cannot prove that every Neverwinter log variation is classified correctly.
 
 ## Deployment
 
-The Cloudflare Worker serves the static app from `public/`. The build script copies the app shell, runtime compatibility files, and the `src/` folder.
+The Cloudflare Worker serves the generated static application from `public/`.
 
-## Supabase
+The build script copies the application shell, runtime compatibility files, and the `src/` directory into the deployable output.
 
-The Supabase dashboard snippet for `page.tsx`, `next/headers`, and middleware is meant for a Next.js App Router project. Strikeglass is currently a static Cloudflare Worker/browser app, so those files are not part of the runtime.
+Relevant files:
 
-Current Supabase scaffold:
+```text
+worker.js
+wrangler.toml
+build-static.mjs
+```
+
+## Architecture
+
+Strikeglass is a static browser application with a layered runtime:
+
+1. Shared utilities initialize escaping, normalization, DOM helpers, tooltips, and drawers.
+2. The parser reads Neverwinter combat-log events.
+3. The base dashboard renders parsed results.
+4. Asset and class layers enrich powers and player data.
+5. Feature layers add encounter scope, comparison, companions, class detection, onboarding, and the Asset Codex.
+6. The shared help controller provides hover and click explanations.
+7. The design-system stylesheet controls tokens, layout, states, and motion.
+
+See [`docs/architecture.md`](docs/architecture.md) for the current loading order and DRY rules.
+
+## Repository map
+
+```text
+index.html                                  Application shell and script load order
+styles.css                                 Base compatibility styles
+src/core/sg-core.js                        Shared DOM, escaping, normalization, and style helpers
+src/core/sg-help-primitives.js             Shared tooltip and drawer primitives
+src/engine/combat-engine.js                Modular parser and metric engine
+src/ui/sg-design-system.css                Design tokens, layout, component states, and motion
+src/ui/upload-flow.css                     Upload-first and first-run styles
+src/features/help-controller.js            Shared tooltip and explanation-drawer behavior
+src/features/upload-flow.js                Upload journey and first-run guidance
+src/features/chart-controller.js           ApexCharts integration and chart controls
+src/integrations/supabase/browser-client.js Optional Supabase browser client
+parser.js                                  Current compatibility parser layer
+app.js                                     Base dashboard renderer
+assets.js                                  Neverwinter asset URL resolver
+asset-coverage-layer.js                    Missing-icon coverage and fallback candidates
+class-power-map.js                         Class and power lookup data
+feature-layer.js                           Encounter scope, comparison, and companion controls
+guided-ux-layer.js                         Onboarding, encounter filters, and class correction
+class-detection-layer.js                   Full-log class inference
+asset-codex-layer.js                       Power-to-image audit screen
+worker.js                                  Cloudflare Worker entry point
+wrangler.toml                              Cloudflare deployment configuration
+build-static.mjs                           Static build script
+scripts/smoke-test.mjs                     Build and runtime smoke checks
+docs/architecture.md                       Architecture and contribution rules
+```
+
+## Development rules
+
+- Put new shared behavior under `src/`.
+- Reuse helpers from `SG.escape`, `SG.normalize`, `SG.slug`, and the shared tooltip/drawer primitives.
+- Add visual tokens to `src/ui/sg-design-system.css` rather than scattering one-off values through injected styles.
+- Treat root-level feature files as compatibility layers.
+- Avoid introducing new root-level patch files unless compatibility genuinely requires one.
+- Keep reduced-motion behavior intact when adding animation.
+- Make new metrics traceable to parsed source events.
+
+## Supabase scaffold
+
+The optional browser integration currently lives in:
 
 ```text
 .env.example
@@ -75,51 +174,35 @@ src/integrations/supabase/browser-client.js
 src/integrations/supabase/README.md
 ```
 
-The browser helper exposes:
+The helper exposes:
 
 ```js
 const supabase = await window.StrikeglassSupabase.createClient()
 ```
 
-Use this only for features that are intentionally online, such as saved reports, shared links, accounts, or guild dashboards. Combat-log parsing remains local by default.
+This integration is not required for local combat-log parsing.
 
-## Privacy
+## Known limitations
 
-Combat logs stay on the user's machine by default. Parsing happens locally in the browser runtime. If a future Supabase feature uploads reports, the UI must make that explicit before sending anything.
+- Combat-log formats and entity naming can contain edge cases that require new classification rules.
+- Power icons depend on available filename mappings and external asset coverage.
+- Class detection is inferred from full-log evidence and may need correction for unusual or incomplete logs.
+- Parser results should be validated before being treated as authoritative for competitive comparisons.
+- Online report storage and sharing are scaffolded concepts, not part of the default local-first workflow.
 
-## Repository structure
+## Contributing
 
-```text
-index.html                                  App shell and load order
-styles.css                                  Base compatibility styles
-src/core/sg-core.js                         Shared DOM, escaping, normalization and style helpers
-src/core/sg-help-primitives.js              Shared tooltip and drawer primitives
-src/engine/combat-engine.js                 Modular parser and metric engine
-src/ui/sg-design-system.css                 Primary design system, tokens, layout and motion rules
-src/ui/upload-flow.css                      Upload-first layout and first-run guide styles
-src/features/help-controller.js             Unified hover tooltip and click explanation drawer
-src/features/upload-flow.js                 Upload-first journey and first-run log guide
-src/features/chart-controller.js            ApexCharts integration and chart type controller
-src/integrations/supabase/browser-client.js Lazy Supabase browser client helper
-docs/architecture.md                        DRY architecture and contribution rules
-parser.js                                   Legacy parser reference, not loaded by default
-app.js                                      Base dashboard renderer
-assets.js                                   NW-Hub asset URL resolver
-asset-coverage-layer.js                     Missing icon coverage and fallback candidates
-class-power-map.js                          Class power lookup data
-recovery.js                                 Compatibility renderer patch layer
-power-icon-fix.js                           Power-icon rendering integration
-feature-layer.js                            Encounter scope, comparison, and companion controls
-ui-redesign.js                              Minimal bootstrap for body class and hero affordances
-legend-layer.js                             Combat color legend
-guided-ux-layer.js                          Onboarding, encounter filter rendering, and class correction
-class-detection-layer.js                    Full-log class inference
-asset-codex-layer.js                        Power-to-image audit screen
-worker.js                                   Cloudflare Worker entry
-wrangler.toml                               Cloudflare deployment config
-build-static.mjs                            Static build copy script
-```
+Small, focused changes are safest.
 
-## Refactor rule
+Before submitting a change:
 
-New shared behavior should go under `src/`. Avoid adding new one-off root-level patch files unless they are compatibility shims for the existing static runtime.
+1. Run `pnpm test`.
+2. Run `pnpm build`.
+3. Test with at least one representative combat log.
+4. Compare changed metrics with raw events.
+5. Confirm the app remains usable with reduced motion enabled.
+6. Document any new formula, classifier, or external data dependency.
+
+## Disclaimer
+
+Strikeglass is an independent community project and is not affiliated with or endorsed by Cryptic Studios, Arc Games, Gearbox Publishing, or the Neverwinter rights holders. Game names, icons, and related assets belong to their respective owners.
