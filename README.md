@@ -1,5 +1,89 @@
 # Astral Combat
 
+<!-- interactive-readme-standard:start -->
+
+> [!NOTE]
+> **Branch-specific documentation:** this section is maintained for [`web-parser-rewrite`](https://github.com/Nischhalsubba/Neverwinter-combatlog/tree/web-parser-rewrite). It is generated from the files present on this branch and preserves the project-authored README below.
+
+<details open>
+<summary><strong>Interactive repository guide</strong></summary>
+
+## Branch overview
+
+| Item | Value |
+|---|---|
+| Repository | [`Nischhalsubba/Neverwinter-combatlog`](https://github.com/Nischhalsubba/Neverwinter-combatlog) |
+| Branch | [`web-parser-rewrite`](https://github.com/Nischhalsubba/Neverwinter-combatlog/tree/web-parser-rewrite) |
+| Detected stack | TypeScript, C#, Rust, HTML, JavaScript, CSS |
+| Detected manifests | package.json |
+| Documentation policy | Every maintained branch must explain purpose, setup, structure, architecture, flows, testing, delivery, security, and ownership. |
+
+## Repository structure
+
+```mermaid
+flowchart TD
+    ROOT["Neverwinter-combatlog / web-parser-rewrite"]
+    ROOT --> P0["apps/"]
+    ROOT --> P1["docs/"]
+    ROOT --> P2["scripts/"]
+    ROOT --> P3[".gitignore"]
+    ROOT --> P4["AGENT_MEMORY.md"]
+    ROOT --> P5["build-all.cmd"]
+    ROOT --> P6["DESIGN.md"]
+    ROOT --> P7["index.html"]
+    ROOT --> P8["NuGet.Config"]
+    ROOT --> P9["package.json"]
+    ROOT --> P10["pnpm-lock.yaml"]
+    ROOT --> P11["pnpm-workspace.yaml"]
+    ROOT --> P12["s0.js"]
+    ROOT --> P13["start-dev.cmd"]
+```
+
+The diagram is generated from the branch's actual top-level files and directories. Use the branch link above for complete source navigation.
+
+## Website or application structure
+
+```mermaid
+flowchart TD
+    APP["Neverwinter-combatlog"]
+    APP --> SOURCE["No conventional route directory detected"]
+    SOURCE --> VERIFY["Inspect the project-specific documentation below"]
+```
+
+## Application and responsibility flow
+
+```mermaid
+flowchart LR
+    ACTOR["User / contributor"]
+    ACTOR --> A0["Documentation: docs"]
+    A0 --> A1["Delivery: scripts"]
+```
+
+## Change-to-delivery flow
+
+```mermaid
+flowchart LR
+    CHANGE["Change on web-parser-rewrite"]
+    CHECK["Validate: npm run dev, npm run start, npm run build, npm run test"]
+    REVIEW["Review documentation and architecture impact"]
+    RELEASE["Merge, release, or deploy according to this branch"]
+    CHANGE --> CHECK --> REVIEW --> RELEASE
+```
+
+## README requirements for this branch
+
+- Explain what this branch contains and how it differs from the default branch.
+- Keep installation, configuration, usage, testing, deployment, security, support, and license information accurate.
+- Document repository, website or application, API, data, authentication, background-job, and deployment flows when they exist.
+- Prefer Mermaid diagrams and expandable `<details>` sections for visual navigation.
+- Link diagrams and modules to real source paths; never invent missing components.
+- Preserve project-specific documentation and update diagrams whenever architecture or major paths change.
+- Treat secrets, private infrastructure, customer data, and credentials as prohibited README content.
+
+</details>
+
+<!-- interactive-readme-standard:end -->
+
 Windows-first desktop combat log analyzer for Neverwinter. Astral Combat focuses on simple visual reads: live damage, replay review, companion attribution, player breakdowns, charts, and a compact widget.
 
 The finalized PRD, UI/UX specification, technical specification, and delivery backlog are the source of truth for this repository.
