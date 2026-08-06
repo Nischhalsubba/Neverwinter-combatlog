@@ -1,5 +1,96 @@
 # Strikeglass
 
+<!-- interactive-readme-standard:start -->
+
+> [!NOTE]
+> **Branch-specific documentation:** this section is maintained for [`main`](https://github.com/Nischhalsubba/Neverwinter-combatlog/tree/main). It is generated from the files present on this branch and preserves the project-authored README below.
+
+<details open>
+<summary><strong>Interactive repository guide</strong></summary>
+
+## Branch overview
+
+| Item | Value |
+|---|---|
+| Repository | [`Nischhalsubba/Neverwinter-combatlog`](https://github.com/Nischhalsubba/Neverwinter-combatlog) |
+| Branch | [`main`](https://github.com/Nischhalsubba/Neverwinter-combatlog/tree/main) |
+| Detected stack | TypeScript, JavaScript, C#, CSS, Rust, HTML |
+| Detected manifests | package.json |
+| Documentation policy | Every maintained branch must explain purpose, setup, structure, architecture, flows, testing, delivery, security, and ownership. |
+
+## Repository structure
+
+```mermaid
+flowchart TD
+    ROOT["Neverwinter-combatlog / main"]
+    ROOT --> P0[".github/"]
+    ROOT --> P1["apps/"]
+    ROOT --> P2["docs/"]
+    ROOT --> P3["scripts/"]
+    ROOT --> P4["src/"]
+    ROOT --> P5[".env.example"]
+    ROOT --> P6[".gitignore"]
+    ROOT --> P7[".nojekyll"]
+    ROOT --> P8["AGENT_MEMORY.md"]
+    ROOT --> P9["app.js"]
+    ROOT --> P10["asset-codex-layer.js"]
+    ROOT --> P11["asset-coverage-layer.js"]
+    ROOT --> P12["assets.js"]
+    ROOT --> P13["build-all.cmd"]
+    ROOT --> P14["build-static.mjs"]
+    ROOT --> P15["class-detection-layer.js"]
+    ROOT --> P16["class-power-map.js"]
+    ROOT --> P17["DESIGN.md"]
+    ROOT --> MORE["+ 17 more top-level entries"]
+```
+
+The diagram is generated from the branch's actual top-level files and directories. Use the branch link above for complete source navigation.
+
+## Website or application structure
+
+```mermaid
+flowchart TD
+    APP["Neverwinter-combatlog"]
+    APP --> SOURCE["No conventional route directory detected"]
+    SOURCE --> VERIFY["Inspect the project-specific documentation below"]
+```
+
+## Application and responsibility flow
+
+```mermaid
+flowchart LR
+    ACTOR["User / contributor"]
+    ACTOR --> A0["Interface: src"]
+    A0 --> A1["Documentation: docs"]
+    A1 --> A2["Delivery: .github, scripts"]
+    A2 --> DELIVERY["Delivery: wrangler.toml, GitHub Actions"]
+```
+
+## Change-to-delivery flow
+
+```mermaid
+flowchart LR
+    CHANGE["Change on main"]
+    CHECK["Validate: npm run dev, npm run start, npm run build, npm run test"]
+    REVIEW["Review documentation and architecture impact"]
+    RELEASE["Merge, release, or deploy according to this branch"]
+    CHANGE --> CHECK --> REVIEW --> RELEASE
+```
+
+## README requirements for this branch
+
+- Explain what this branch contains and how it differs from the default branch.
+- Keep installation, configuration, usage, testing, deployment, security, support, and license information accurate.
+- Document repository, website or application, API, data, authentication, background-job, and deployment flows when they exist.
+- Prefer Mermaid diagrams and expandable `<details>` sections for visual navigation.
+- Link diagrams and modules to real source paths; never invent missing components.
+- Preserve project-specific documentation and update diagrams whenever architecture or major paths change.
+- Treat secrets, private infrastructure, customer data, and credentials as prohibited README content.
+
+</details>
+
+<!-- interactive-readme-standard:end -->
+
 A local-first combat log analyzer for **Neverwinter** players who want clear, verifiable performance insights without uploading their logs to a server.
 
 Strikeglass parses combat logs in the browser and turns raw events into useful answers: what dealt damage, which powers carried a run, where combat time was lost, what pressured survivability, and how party members compared within a selected encounter.
