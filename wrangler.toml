@@ -1,0 +1,8 @@
+name = "neverwinter-combatlog"
+compatibility_date = "2026-07-01"
+main = "app/worker.js"
+
+[assets]
+directory = "./app/public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
