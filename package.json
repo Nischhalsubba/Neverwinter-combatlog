@@ -1,0 +1,17 @@
+{
+  "name": "neverwinter-combatlog",
+  "private": true,
+  "version": "0.4.0",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "pnpm --dir app run build",
+    "test": "pnpm --dir app run test",
+    "check": "pnpm --dir app run check",
+    "start": "pnpm --dir app run start",
+    "dev": "pnpm --dir app run dev"
+  }
+}
