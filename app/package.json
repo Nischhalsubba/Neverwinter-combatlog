@@ -1,8 +1,8 @@
 {
   "name": "strikeglass",
   "private": true,
-  "version": "0.3.3",
-  "description": "A local-first browser-based Neverwinter combat-log analyzer with parser smoke tests, encounter filtering, party overview, player comparison, companion damage, artifact-window analysis, class detection, raw-hit validation, Cloudflare Worker static deployment, and optional Supabase scaffolding.",
+  "version": "0.4.0",
+  "description": "A local-first, worker-first Neverwinter combat-log analyzer optimized for large logs, progressive summaries, traceable parser diagnostics, and a high-performance analytical UI.",
   "author": "Nischhal Raj Subba",
   "license": "UNLICENSED",
   "packageManager": "pnpm@9.15.0",
@@ -13,11 +13,12 @@
   "scripts": {
     "start": "python -m http.server 5173",
     "dev": "python -m http.server 5173",
-    "build": "node scripts/smoke-test.mjs && node build-static.mjs",
-    "test": "node scripts/smoke-test.mjs",
-    "check": "pnpm test && pnpm build"
+    "test": "node scripts/smoke-test.mjs && node scripts/parser-regression.mjs",
+    "build": "pnpm test && node build-static.mjs",
+    "check": "pnpm build"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
-  }
+  },
+  "type": "module"
 }

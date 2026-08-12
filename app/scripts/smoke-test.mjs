@@ -1,116 +1,55 @@
-import { readFile, access } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 
-const index = await readFile('index.html', 'utf8');
-const referencedFiles = Array.from(index.matchAll(/(?:src|href)="([^"]+)"/g))
-  .map(match => match[1])
-  .filter(path => !path.startsWith('http') && !path.startsWith('#'));
-
-const requiredOrder = [
-  'src/core/sg-core.js',
-  'src/core/sg-help-primitives.js',
-  'src/engine/combat-engine.js',
-  'src/engine/summary-engine.js',
-  'app.js',
-  'class-power-map.js',
-  'src/features/category-clarity-layer.js',
-  'src/data/artifact-catalog.js',
-  'src/engine/artifact-window-engine.js',
-  'src/features/worker-parse-controller.js',
-  'src/features/artifact-window-layer.js',
-  'src/features/help-controller.js',
-  'src/features/upload-flow.js'
-];
-
-const dynamicSprintFiles = [
-  'src/ui/pm-sprint-fixes.css',
-  'src/features/pm-sprint-fixes.js',
-  'src/ui/pm-sprint-2.css',
-  'src/features/pm-sprint-2.js',
-  'src/ui/pm-performance-layer.css',
-  'src/features/pm-performance-layer.js'
+const required = [
+  'index.html',
+  'src/v3/styles.css',
+  'src/v3/app.js',
+  'src/v3/motion.js',
+  'src/v3/ambient.js',
+  'src/engine/fast-parser-core.js',
+  'src/workers/fast-parse-worker.js'
 ];
 
 const failures = [];
-
-for (const file of [...referencedFiles, ...dynamicSprintFiles]) {
-  try {
-    await access(file);
-  } catch (_) {
-    failures.push(`Missing referenced file: ${file}`);
-  }
+for (const path of required) {
+  try { await access(path); }
+  catch { failures.push(`Missing required V3 file: ${path}`); }
 }
 
-for (let i = 0; i < requiredOrder.length - 1; i++) {
-  const current = index.indexOf(requiredOrder[i]);
-  const next = index.indexOf(requiredOrder[i + 1]);
-  if (current === -1) failures.push(`Missing required runtime file: ${requiredOrder[i]}`);
-  if (next === -1) failures.push(`Missing required runtime file: ${requiredOrder[i + 1]}`);
-  if (current !== -1 && next !== -1 && current > next) {
-    failures.push(`Incorrect load order: ${requiredOrder[i]} must load before ${requiredOrder[i + 1]}`);
-  }
+const index = await readFile('index.html', 'utf8');
+for (const marker of ['src/v3/styles.css', 'type="module" src="src/v3/app.js"', 'id="parse-state"', 'id="workspace"', 'id="drop-zone"']) {
+  if (!index.includes(marker)) failures.push(`index.html missing marker: ${marker}`);
+}
+if (index.includes('apexcharts')) failures.push('Legacy ApexCharts runtime is still loaded by index.html.');
+
+const app = await readFile('src/v3/app.js', 'utf8');
+for (const marker of ["new Worker(new URL('../workers/fast-parse-worker.js'", "type: 'module'", "requestWorker('player-report'", "requestWorker('raw-page'", 'drawTimeline', 'estimatedStoreBytes']) {
+  if (!app.includes(marker)) failures.push(`V3 app missing marker: ${marker}`);
 }
 
-const core = await readFile('src/core/sg-help-primitives.js', 'utf8');
-for (const primitive of ['SG.showTooltip', 'SG.hideTooltip', 'SG.openDrawer']) {
-  if (!core.includes(primitive)) failures.push(`Missing help primitive: ${primitive}`);
+const worker = await readFile('src/workers/fast-parse-worker.js', 'utf8');
+for (const marker of ["import { CombatAccumulator, parseLine }", 'class CompactRowStore', 'Float64Array', "type: 'partial-summary'", "message.type === 'raw-page'", 'FALLBACK_SLICE_BYTES']) {
+  if (!worker.includes(marker)) failures.push(`Worker missing marker: ${marker}`);
 }
 
-const engine = await readFile('src/engine/combat-engine.js', 'utf8');
-for (const exportName of ['window.SGEngine', 'window.NWParser', 'parseFile', 'buildEncounters', 'companionDamage']) {
-  if (!engine.includes(exportName)) failures.push(`Missing engine export or capability: ${exportName}`);
+const core = await readFile('src/engine/fast-parser-core.js', 'utf8');
+for (const marker of ["'arcane'", "'physical'", "'lightning'", 'recoverLegacyPayload', 'invalid_field_count', 'class CombatAccumulator', 'activeCombatTime']) {
+  if (!core.includes(marker)) failures.push(`Parser core missing marker: ${marker}`);
 }
 
-const summary = await readFile('src/engine/summary-engine.js', 'utf8');
-for (const exportName of ['window.SGSummaryEngine', 'buildReport', 'playerMetricSummary', 'enrichPlayer', 'quickPartyOverview', 'party-overview-first']) {
-  if (!summary.includes(exportName)) failures.push(`Missing summary-first capability: ${exportName}`);
+const styles = await readFile('src/v3/styles.css', 'utf8');
+for (const marker of ['prefers-reduced-motion', 'min-height: 44px', '--duration-micro', '@media (max-width: 760px)']) {
+  if (!styles.includes(marker)) failures.push(`V3 styles missing marker: ${marker}`);
 }
 
-const catalog = await readFile('src/data/artifact-catalog.js', 'utf8');
-for (const required of ['SGArtifactCatalog', 'matchArtifact', 'Blood Crystal Raven Skull', 'Mythallar Fragment', 'Sigil of the Bard', 'https://nw-hub.com/assets/artifacts/']) {
-  if (!catalog.includes(required)) failures.push(`Missing artifact catalog marker: ${required}`);
+const ambient = await readFile('src/v3/ambient.js', 'utf8');
+for (const marker of ['three@0.185.1', 'renderer.dispose()', 'deviceMemory', '33']) {
+  if (!ambient.includes(marker)) failures.push(`Ambient layer missing performance marker: ${marker}`);
 }
 
-const artifactEngine = await readFile('src/engine/artifact-window-engine.js', 'utf8');
-for (const required of ['window.SGArtifactWindow', 'analyze', 'artifactScore', 'windowSeconds', 'includeCompanions', 'perCallPlayers', 'perCallParticipants', 'byParticipant', 'buildBurstWindows', 'artifactTimers', 'artifactUseCount', 'artifactCatalog', 'avgDamage', 'maxHit', 'crit', 'flank', 'artifactUsed', 'call.time + windowSeconds', 'rowsInWindow(damageByPlayer.get(first.ownerId)']) {
-  if (!artifactEngine.includes(required)) failures.push(`Missing artifact engine marker: ${required}`);
-}
-
-const worker = await readFile('src/workers/parse-worker.js', 'utf8');
-for (const required of ['artifact-catalog.js', 'artifact-window-engine.js', 'buildPlayerReport', 'player-report', 'summaryOnly', "type:'artifact'", "type:'summary'", "type:'done'", 'workerResident']) {
-  if (!worker.includes(required)) failures.push(`Missing worker summary pipeline marker: ${required}`);
-}
-
-const workerController = await readFile('src/features/worker-parse-controller.js', 'utf8');
-for (const required of ['Party Overview ready', 'Loading Party Overview first', 'details load when clicked', 'sg-progress', 'sg-skel-box', 'state.lazyIntro', 'StrikeglassRequestArtiCall', 'StrikeglassRequestPlayerReport', 'renderFastTab', 'summaryOnly', 'Only this screen is being requested from the worker']) {
-  if (!workerController.includes(required)) failures.push(`Missing worker controller UX marker: ${required}`);
-}
-
-const sprintFixes = await readFile('src/features/pm-sprint-fixes.js', 'utf8');
-for (const required of ['scheduleEnhance', 'pm-performance-layer.js', "allowedExtensions=['log','txt','csv','zip']", 'sg-sort-active', 'sg-table-search']) {
-  if (!sprintFixes.includes(required)) failures.push(`Missing sprint one/two fix marker: ${required}`);
-}
-
-const sprintTwo = await readFile('src/features/pm-sprint-2.js', 'utf8');
-for (const required of ['extractLogFromZip', 'DecompressionStream', 'Compare selected', 'renderSelectedComparison', 'strikeglass-player-comparison.csv']) {
-  if (!sprintTwo.includes(required)) failures.push(`Missing sprint two capability marker: ${required}`);
-}
-
-const performanceLayer = await readFile('src/features/pm-performance-layer.js', 'utf8');
-for (const required of ['TABLE_THRESHOLD', 'installReportCache', 'PerformanceObserver', 'installVirtualTables', 'renderVirtualWindow', 'sg-class-reset']) {
-  if (!performanceLayer.includes(required)) failures.push(`Missing performance layer marker: ${required}`);
-}
-
-const performanceCss = await readFile('src/ui/pm-performance-layer.css', 'utf8');
-for (const required of ['sg-virtual-note', 'sg-virtualized', 'sg-cache-toast']) {
-  if (!performanceCss.includes(required)) failures.push(`Missing performance CSS marker: ${required}`);
-}
-
-const artifactAlias = await readFile('src/features/artifact-window-layer.js', 'utf8');
-if (!artifactAlias.includes('arti-call-layer.js')) failures.push('Missing artifact window alias target.');
-
-const artifactLayer = await readFile('src/features/arti-call-layer.js', 'utf8');
-for (const required of ['Arti Call', 'reportForCurrentView', 'state.artiReport', 'StrikeglassRequestArtiCall', 'artiWindowSeconds', 'artiIncludeCompanions', 'artiMainTable', 'entityRows', 'selectedDetails', 'Player and companion totals', 'Player / companion', 'Artifact used', 'Damage / sec', 'Avg damage', 'Crit rate', 'Flank rate', 'Highest hit', 'one row per player or companion', 'Click a player or companion name']) {
-  if (!artifactLayer.includes(required)) failures.push(`Missing Arti Call marker: ${required}`);
+const motion = await readFile('src/v3/motion.js', 'utf8');
+for (const marker of ['gsap@3.15.0', 'prefers-reduced-motion', 'duration: 0.28', "ease: 'power2.out'"]) {
+  if (!motion.includes(marker)) failures.push(`Motion layer missing marker: ${marker}`);
 }
 
 if (failures.length) {
@@ -119,4 +58,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Smoke test passed. Checked lazy loading, sprint two ZIP and compare workflow, and performance virtualization markers.');
+console.log('Smoke test passed. V3 worker architecture, parser diagnostics, responsive UI, Three.js budget, and GSAP motion contracts are present.');
