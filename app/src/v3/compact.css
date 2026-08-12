@@ -1,0 +1,59 @@
+/* Data-first density pass: keep the first useful combat data above the fold. */
+.topbar{height:64px;padding:0 18px}
+.app-shell{min-height:calc(100vh - 64px)}
+.rail{top:64px;height:calc(100vh - 64px);padding:12px 8px}
+.ambient-root{inset:64px 0 0 88px;opacity:.52}
+.main-stage{padding:18px 22px 26px}
+
+.empty-state{min-height:auto;max-width:1200px;grid-template-columns:minmax(0,1fr) minmax(320px,.72fr);gap:28px;align-items:center;padding:clamp(20px,4vh,44px) 0}
+.empty-copy h1{font-size:clamp(38px,4.6vw,64px);line-height:.98}
+.empty-copy p{max-width:620px;font-size:14px;line-height:1.55;margin:16px 0}
+.empty-badges{gap:6px}
+.empty-badges span{padding:6px 9px;font-size:11px}
+.drop-zone{min-height:250px;gap:9px}
+.drop-zone strong{font-size:17px}
+.drop-icon{width:52px;height:52px;border-radius:16px}
+.drop-icon i{width:21px;height:21px}
+.drop-scan{top:14%}
+
+.parse-state,.workspace{max-width:1500px}
+.parse-hero,.workspace-toolbar{align-items:center;margin:0 0 12px;gap:14px}
+.parse-hero h1,.workspace-toolbar h1{font-size:clamp(26px,2.2vw,36px);line-height:1.05}
+.parse-hero .eyebrow,.workspace-toolbar .eyebrow{margin-bottom:4px}
+.workspace-controls{align-items:center}
+.progress-track{margin:14px 0}
+.parse-metrics,.metrics{gap:8px}
+.parse-metrics article,.metric-card{padding:12px 14px;border-radius:12px}
+.parse-metrics strong,.metric-card strong{font-size:22px;margin-top:4px;font-variant-numeric:tabular-nums}
+.metric-card small{margin-top:3px}
+.partial-panel,.panel{margin-top:10px}
+.panel-head{padding:12px 16px}
+.panel-head h2{font-size:17px}
+th,td{padding:10px 14px}
+.encounters{padding:10px}
+.encounter{padding:12px}
+.timeline{padding:10px 14px}
+.compact-number{font-variant-numeric:tabular-nums;cursor:help}
+
+@media(max-width:1000px){
+  .empty-state{grid-template-columns:1fr;gap:16px;padding:20px 0}
+  .drop-zone{min-height:190px}
+  .empty-copy p{margin:12px 0}
+}
+
+@media(max-width:760px){
+  .main-stage{padding:12px 12px 82px}
+  .empty-state{padding:10px 0 18px}
+  .empty-copy h1{font-size:38px}
+  .empty-copy p{font-size:13px;line-height:1.5}
+  .drop-zone{min-height:180px}
+  .parse-hero,.workspace-toolbar{gap:10px;margin-bottom:10px}
+  .parse-hero h1,.workspace-toolbar h1{font-size:26px}
+  .parse-metrics article,.metric-card{padding:11px 12px}
+  .parse-metrics strong,.metric-card strong{font-size:20px}
+  th,td{padding:9px 11px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .compact-number{cursor:default}
+}
