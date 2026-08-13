@@ -177,7 +177,8 @@ function compactPower(power, playerDamage, playerDuration) {
 
 function finalizePlayer(player, scopeType) {
   const duration = player.firstDamage == null || player.lastDamage == null ? 0 : Math.max(0, player.lastDamage - player.firstDamage);
-  const combatTime = scopeType === 'session' ? sumWindowDuration(player.damageSeries) : duration;
+  const mergedPlayerWindows = mergeWindows(player.damageSeries);
+  const combatTime = mergedPlayerWindows.reduce((sum, window) => sum + Math.max(0, window.end - window.start), 0);
   const powers = Array.from(player.powers.values())
     .map(power => compactPower(power, player.damage, duration))
     .sort((a, b) => b.damage - a.damage || a.power.localeCompare(b.power));
@@ -195,7 +196,7 @@ function finalizePlayer(player, scopeType) {
     combatDps: player.damage / Math.max(1, combatTime),
     duration,
     combatTime,
-    encounters: scopeType === 'session' ? mergeWindows(player.damageSeries).length : (player.hits ? 1 : 0),
+    encounters: mergedPlayerWindows.length,
     crit: player.hits ? player.critHits / player.hits * 100 : 0,
     flank: player.hits ? player.flankHits / player.hits * 100 : 0,
     avgHit: player.hits ? player.damage / player.hits : 0,
@@ -302,9 +303,7 @@ export function buildShadowReport(rows, context = {}) {
   const firstParty = partySeries.length ? Math.min(...partySeries.map(point => point.time)) : 0;
   const lastParty = partySeries.length ? Math.max(...partySeries.map(point => point.time)) : firstParty;
   const duration = Math.max(0, lastParty - firstParty);
-  const activeCombatTime = scopeType === 'session'
-    ? mergedParty.reduce((sum, window) => sum + Math.max(0, window.end - window.start), 0)
-    : (partySeries.length ? Math.max(0, Number(context.scopeEnd) - Number(context.scopeStart)) : 0);
+  const activeCombatTime = mergedParty.reduce((sum, window) => sum + Math.max(0, window.end - window.start), 0);
 
   return {
     damage,
@@ -501,4 +500,4 @@ export function verifyRotationReport(primary, rows, context = {}) {
   };
 }
 
-export const VERIFICATION_ENGINE_VERSION = 3;
+export const VERIFICATION_ENGINE_VERSION = 4;
