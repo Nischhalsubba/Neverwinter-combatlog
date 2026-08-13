@@ -1,8 +1,8 @@
 {
   "name": "strikeglass",
   "private": true,
-  "version": "0.4.0",
-  "description": "A local-first, worker-first Neverwinter combat-log analyzer optimized for large logs, progressive summaries, traceable parser diagnostics, and a high-performance analytical UI.",
+  "version": "0.5.0",
+  "description": "A local-first, worker-first Neverwinter combat-log analyzer with indexed encounter scopes, boss analysis, player comparison, traceable parser diagnostics, and lightweight Canvas charts.",
   "author": "Nischhal Raj Subba",
   "license": "UNLICENSED",
   "packageManager": "pnpm@9.15.0",
@@ -13,7 +13,7 @@
   "scripts": {
     "start": "python -m http.server 5173",
     "dev": "python -m http.server 5173",
-    "test": "node scripts/smoke-test.mjs && node scripts/parser-regression.mjs",
+    "test": "node scripts/smoke-test.mjs && node scripts/parser-regression.mjs && node scripts/scope-regression.mjs",
     "build": "pnpm test && node build-static.mjs",
     "check": "pnpm build"
   },
