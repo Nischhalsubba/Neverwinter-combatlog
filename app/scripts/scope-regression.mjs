@@ -6,6 +6,9 @@ const waiters = [];
 globalThis.self = {
   postMessage(message) {
     messages.push(message);
+    if (message.type === 'error' || message.error) {
+      console.error('Worker regression message:', JSON.stringify({ type: message.type, requestId: message.requestId, error: message.error || message.message, verification: message.verification || null }));
+    }
     for (let index = waiters.length - 1; index >= 0; index -= 1) {
       const waiter = waiters[index];
       if (!waiter.predicate(message)) continue;
@@ -18,7 +21,10 @@ globalThis.self = {
 const waitFor = (predicate, timeoutMs = 5000) => new Promise((resolve, reject) => {
   const existing = messages.find(predicate);
   if (existing) return resolve(existing);
-  const timer = setTimeout(() => reject(new Error('Timed out waiting for worker message')), timeoutMs);
+  const timer = setTimeout(() => {
+    const recent = messages.slice(-8).map(message => ({ type: message.type, requestId: message.requestId, error: message.error || message.message || null, verification: message.verification?.status || null }));
+    reject(new Error(`Timed out waiting for worker message. Recent messages: ${JSON.stringify(recent)}`));
+  }, timeoutMs);
   waiters.push({
     predicate,
     resolve(message) {
