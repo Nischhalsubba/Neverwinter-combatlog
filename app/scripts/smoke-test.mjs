@@ -92,7 +92,7 @@ for (const marker of ['--muted:#b7c7d1', '--muted-2:#9fb4c1', 'body{font-size:14
 }
 
 const features = await readFile('src/v3/analysis-features.css', 'utf8');
-for (const marker of ['.verification-strip', '.reference-metrics', '.analysis-bars', '.raw-hits-panel', '.rotation-shell', '.class-badge']) {
+for (const marker of ['.verification-strip', '.reference-metrics', '.analysis-bars', '.raw-hits-panel', '.rotation-shell', '.class-badge', '.analysis-toolbar .field:has(#player-select)']) {
   if (!features.includes(marker)) failures.push(`analysis styles missing ${marker}`);
 }
 
