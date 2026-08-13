@@ -8,7 +8,7 @@
 
 **Brand line:** **See the fight clearly.**
 
-**Trust promise:** **Checked twice. Kept local.**
+**Trust promise:** **Double checked. Kept local.**
 
 Strikeglass turns Neverwinter combat logs into clear answers about damage, powers, players, and fights. The product should feel precise and dependable without sounding like a developer console. Accuracy and speed are product qualities; clarity is the brand.
 
@@ -53,7 +53,7 @@ Use short, direct language. Prefer the term a player would use over an internal 
 | Player | Actor / entity |
 | Power | Ability telemetry |
 | Active DPS | Combat DPS calculation clock |
-| Checked twice | Dual-engine verification |
+| Double checked | Dual-engine verification |
 | Log Health | Diagnostics |
 | Rows we could not read | Rejected parser rows |
 | Current fight | Active scope |
@@ -69,10 +69,10 @@ Use these states consistently:
 - **Reading log** — file parsing is in progress.
 - **Calculating** — the first calculation is running.
 - **Checking numbers** — the second calculation is running.
-- **Checked twice** — both calculations agree.
+- **Double checked** — both calculations agree.
 - **Needs attention** — the app cannot safely publish the result.
 
-Do not use success language that implies certainty beyond the data. `Checked twice` describes the mechanism without pretending the source log itself is infallible.
+Do not use success language that implies certainty beyond the data. `Double checked` describes the mechanism without pretending the source log itself is infallible.
 
 ## Logo
 
@@ -140,8 +140,8 @@ The wordmark is not a separate font asset. It uses the product typeface with tig
 Use these phrases consistently:
 
 - **See the fight clearly.** — brand line; empty state, documentation, release surfaces.
-- **Checked twice. Kept local.** — compact trust statement when both concepts are relevant.
-- **Checked twice** — verified state inside the application.
+- **Double checked. Kept local.** — compact trust statement when both concepts are relevant.
+- **Double checked** — verified state inside the application.
 - **Kept local** or **Stays on this device** — privacy explanation.
 
 Do not repeat the brand line on every screen. One strong use is branding; six uses are wallpaper.
@@ -209,7 +209,7 @@ Before shipping a UI change:
 
 - Is the product name written correctly?
 - Does player-facing copy use plain combat language?
-- Is `Checked twice` used instead of internal verification jargon outside Log Health?
+- Is `Double checked` used instead of internal verification jargon outside Log Health?
 - Does privacy copy say the log stays on the device without making broader security claims?
 - Are blue/cyan accents restrained enough that the data remains the focal point?
 - Is the logo used without glow, distortion, or continuous animation?
