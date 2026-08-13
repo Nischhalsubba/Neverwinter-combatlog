@@ -359,8 +359,11 @@ function compactPower(power, totalDamage) {
     share: totalDamage ? (power.damage / totalDamage) * 100 : 0,
     avg: power.hits ? power.damage / power.hits : 0,
     max: power.maxHit,
+    maxHit: power.maxHit,
     crit: power.hits ? (power.critHits / power.hits) * 100 : 0,
+    critHits: power.critHits,
     flank: power.hits ? (power.flankHits / power.hits) * 100 : 0,
+    flankHits: power.flankHits,
     companionDamage: power.companionDamage
   };
 }
