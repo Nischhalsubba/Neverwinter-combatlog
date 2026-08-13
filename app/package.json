@@ -1,8 +1,8 @@
 {
   "name": "strikeglass",
   "private": true,
-  "version": "0.6.1",
-  "description": "A local-first, dual-engine Neverwinter combat-log analyzer with verified combat values, indexed encounter scopes, raw-hit traceability, player comparison, party rotation, and lightweight Canvas charts.",
+  "version": "0.7.0",
+  "description": "A local-first, dual-engine Neverwinter combat-log analyzer with verified combat values, customizable analytics widgets, indexed encounter scopes, raw-hit traceability, player comparison, party rotation, and lightweight Canvas charts.",
   "author": "Nischhal Raj Subba",
   "license": "UNLICENSED",
   "packageManager": "pnpm@9.15.0",
@@ -13,7 +13,7 @@
   "scripts": {
     "start": "python -m http.server 5173",
     "dev": "python -m http.server 5173",
-    "syntax": "node --check src/v3/app.js && node --check src/v3/charts.js && node --check src/workers/fast-parse-worker.js && node --check src/engine/fast-parser-core.js && node --check src/engine/verification-engine.js && node --check src/engine/power-taxonomy.js",
+    "syntax": "node --check src/v3/app.js && node --check src/v3/power-drilldown.js && node --check src/v3/charts.js && node --check src/v3/ambient.js && node --check src/v6/dashboard.js && node --check src/workers/fast-parse-worker.js && node --check src/engine/fast-parser-core.js && node --check src/engine/verification-engine.js && node --check src/engine/power-taxonomy.js",
     "test": "pnpm syntax && node scripts/smoke-test.mjs && node scripts/parser-regression.mjs && node scripts/entity-ref-regression.mjs && node scripts/verification-regression.mjs && node scripts/scope-regression.mjs",
     "build": "pnpm test && node build-static.mjs",
     "check": "pnpm build"
