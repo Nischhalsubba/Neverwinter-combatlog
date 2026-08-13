@@ -3,7 +3,7 @@ export const SITE = Object.freeze({
   name: 'Strikeglass',
   title: 'Strikeglass | Neverwinter Combat Log Analyzer',
   description: 'Analyze Neverwinter combat logs locally with double-checked DPS, boss fights, player comparison, power damage, and raw-hit details.',
-  socialImagePath: '/assets/strikeglass-social.png',
+  socialImagePath: '/src/v6/brand/strikeglass-social.svg',
   themeColor: '#f6f8fb',
   language: 'en',
   pages: [
