@@ -1,4 +1,6 @@
 import { CombatAccumulator, FLAG, isBossRef, isPlayerRef, parseLine } from '../engine/fast-parser-core.js';
+import { activationDedupeSeconds, classifyPowerCategory, inferPlayerClass, isRotationCategory, summarizeCategories } from '../engine/power-taxonomy.js';
+import { verifyReport, verifyRotationReport } from '../engine/verification-engine.js';
 
 const CHUNK_ROWS = 32768;
 const YIELD_EVERY_LINES = 8000;
@@ -6,7 +8,6 @@ const PARTIAL_SUMMARY_MS = 1500;
 const PROGRESS_MS = 120;
 const FALLBACK_SLICE_BYTES = 8 * 1024 * 1024;
 const SCOPE_CACHE_LIMIT = 12;
-const ACTIVE_GAP_SECONDS = 5;
 
 const KIND_TO_CODE = Object.freeze({
   unknown: 0,
@@ -43,6 +44,7 @@ class StringPool {
 function createChunk() {
   return {
     length: 0,
+    abs: new Float64Array(CHUNK_ROWS),
     time: new Float64Array(CHUNK_ROWS),
     lineNo: new Uint32Array(CHUNK_ROWS),
     ownerName: new Uint32Array(CHUNK_ROWS),
@@ -84,6 +86,7 @@ class CompactRowStore {
     this.length += 1;
     if (row.time < this.lastTime) this.monotonic = false;
     this.lastTime = Math.max(this.lastTime, row.time);
+    chunk.abs[slot] = row.abs;
     chunk.time[slot] = row.time;
     chunk.lineNo[slot] = row.lineNo;
     chunk.ownerName[slot] = this.pool.intern(row.ownerName);
@@ -169,7 +172,10 @@ class CompactRowStore {
 
   scopeInfo(scope = {}) {
     if (!scope || scope.type === 'session' || !scope.type) {
-      return { type: 'session', id: null, start: 0, end: activeSummary?.duration || 0, startIndex: 0, endIndex: this.length, targetOnly: false, bossTargetIds: new Set() };
+      return {
+        type: 'session', id: null, start: 0, end: activeSummary?.logDuration ?? activeSummary?.duration ?? 0,
+        startIndex: 0, endIndex: this.length, targetOnly: false, bossTargetIds: new Set(), label: 'Full session'
+      };
     }
     const encounter = this.encounters.get(Number(scope.id));
     if (!encounter) return null;
@@ -183,6 +189,7 @@ class CompactRowStore {
     const { chunk, slot } = location;
     return {
       rowIndex: index,
+      abs: chunk.abs[slot],
       time: chunk.time[slot],
       lineNo: chunk.lineNo[slot],
       ownerName: this.pool.get(chunk.ownerName[slot]),
@@ -204,7 +211,20 @@ class CompactRowStore {
     };
   }
 
-  page({ cursor = null, limit = 200, playerRef = '', powerName = '', kind = '', start = null, end = null, scope = null } = {}) {
+  *iterateScope(scope = { type: 'session' }) {
+    const info = this.scopeInfo(scope);
+    if (!info) return;
+    for (let index = info.startIndex; index < info.endIndex; index += 1) {
+      const location = this.location(index);
+      if (!location) break;
+      const { chunk, slot } = location;
+      const time = chunk.time[slot];
+      if (time < info.start || time > info.end) continue;
+      yield this.row(index);
+    }
+  }
+
+  page({ cursor = null, limit = 200, playerRef = '', powerName = '', kind = '', validDamageOnly = false, start = null, end = null, scope = null } = {}) {
     const info = this.scopeInfo(scope || { type: 'session' });
     if (!info) return { rows: [], nextCursor: null, scannedTo: 0, totalStoredRows: this.length };
     const rows = [];
@@ -230,14 +250,21 @@ class CompactRowStore {
       if (powerId != null && chunk.powerName[slot] !== powerId) continue;
       if (powerName && powerId == null) continue;
       if (kindCode != null && chunk.kind[slot] !== kindCode) continue;
+      if (validDamageOnly && !chunk.validDamage[slot]) continue;
       if (info.targetOnly && info.bossTargetIds.size && !info.bossTargetIds.has(chunk.targetRef[slot])) continue;
       rows.push(this.row(index));
     }
-    return { rows, nextCursor: index < maxIndex ? index : null, scannedTo: index, totalStoredRows: this.length };
+    return {
+      rows,
+      nextCursor: index < maxIndex ? index : null,
+      scannedTo: index,
+      totalStoredRows: this.length,
+      verification: activeSummary?.verification || null
+    };
   }
 
   estimatedBytes() {
-    const bytesPerRow = 8 + 4 + (10 * 4) + 8 + 8 + 2 + 1 + 1 + 1;
+    const bytesPerRow = 8 + 8 + 4 + (10 * 4) + 8 + 8 + 2 + 1 + 1 + 1;
     const stringBytes = this.pool.values.reduce((sum, value) => sum + value.length * 2, 0);
     return this.length * bytesPerRow + stringBytes;
   }
@@ -249,6 +276,7 @@ let activeAccumulator = null;
 let activeFileMeta = null;
 let activeSummary = null;
 const scopeCache = new Map();
+const rotationCache = new Map();
 
 function sleep() { return new Promise(resolve => setTimeout(resolve, 0)); }
 
@@ -309,8 +337,11 @@ function attachMeta(summary) {
 }
 
 function powerResult(power, totalDamage, duration) {
+  const companionOnly = power.companionDamage > 0 && power.companionDamage >= power.damage - 0.001;
   return {
     power: power.power,
+    powerRef: power.powerRef || '',
+    category: classifyPowerCategory(power.power, { companion: companionOnly, powerRef: power.powerRef }),
     damage: power.damage,
     share: totalDamage ? power.damage / totalDamage * 100 : 0,
     hits: power.hits,
@@ -320,6 +351,18 @@ function powerResult(power, totalDamage, duration) {
     flank: power.hits ? power.flankHits / power.hits * 100 : 0,
     dps: power.damage / Math.max(1, duration),
     companionDamage: power.companionDamage
+  };
+}
+
+function enrichPlayer(base, powers, timeline) {
+  const classInfo = inferPlayerClass(powers);
+  return {
+    ...base,
+    className: classInfo.name,
+    classConfidence: classInfo.confidence,
+    categories: summarizeCategories(powers),
+    powers,
+    timeline
   };
 }
 
@@ -341,24 +384,28 @@ function createScopedPlayer(ref, name) {
     shielded: 0,
     firstDamage: null,
     lastDamage: null,
-    activeCombatTime: 0,
     powers: new Map(),
     timeline: new Map()
   };
 }
 
-function touchPower(player, powerName) {
+function touchPower(player, powerName, powerRef) {
   let power = player.powers.get(powerName);
   if (!power) {
-    power = { power: powerName || 'Unknown', damage: 0, hits: 0, critHits: 0, flankHits: 0, maxHit: 0, companionDamage: 0 };
+    power = { power: powerName || 'Unknown', powerRef: powerRef || '', damage: 0, hits: 0, critHits: 0, flankHits: 0, maxHit: 0, companionDamage: 0 };
     player.powers.set(powerName, power);
   }
   return power;
 }
 
-function compactScopedPlayer(player, duration) {
-  const combatTime = Math.max(0, player.activeCombatTime);
-  return {
+function compactScopedPlayer(player, scopeDuration) {
+  const duration = player.firstDamage == null || player.lastDamage == null ? 0 : Math.max(0, player.lastDamage - player.firstDamage);
+  const combatTime = duration;
+  const powers = Array.from(player.powers.values())
+    .map(power => powerResult(power, player.damage, duration))
+    .sort((a, b) => b.damage - a.damage || a.power.localeCompare(b.power));
+  const timeline = Array.from(player.timeline.entries()).map(([second, damage]) => ({ second, damage })).sort((a, b) => a.second - b.second);
+  return enrichPlayer({
     ref: player.ref,
     name: player.name,
     damage: player.damage,
@@ -369,7 +416,9 @@ function compactScopedPlayer(player, duration) {
     dps: player.damage / Math.max(1, duration),
     combatDps: player.damage / Math.max(1, combatTime),
     duration,
+    scopeDuration,
     combatTime,
+    encounters: player.hits ? 1 : 0,
     crit: player.hits ? player.critHits / player.hits * 100 : 0,
     flank: player.hits ? player.flankHits / player.hits * 100 : 0,
     avgHit: player.hits ? player.damage / player.hits : 0,
@@ -378,16 +427,14 @@ function compactScopedPlayer(player, duration) {
     healingDone: player.healingDone,
     healingReceived: player.healingReceived,
     damageTaken: player.damageTaken,
-    shielded: player.shielded,
-    powers: Array.from(player.powers.values()).map(power => powerResult(power, player.damage, duration)).sort((a, b) => b.damage - a.damage || a.power.localeCompare(b.power)),
-    timeline: Array.from(player.timeline.entries()).map(([second, damage]) => ({ second, damage })).sort((a, b) => a.second - b.second)
-  };
+    shielded: player.shielded
+  }, powers, timeline);
 }
 
-function cacheSet(key, value) {
-  if (scopeCache.has(key)) scopeCache.delete(key);
-  scopeCache.set(key, value);
-  while (scopeCache.size > SCOPE_CACHE_LIMIT) scopeCache.delete(scopeCache.keys().next().value);
+function cacheSet(cache, key, value, limit = SCOPE_CACHE_LIMIT) {
+  if (cache.has(key)) cache.delete(key);
+  cache.set(key, value);
+  while (cache.size > limit) cache.delete(cache.keys().next().value);
 }
 
 function scopeKey(scope) {
@@ -395,40 +442,59 @@ function scopeKey(scope) {
   return `${scope.type}:${Number(scope.id)}:${scope.targetOnly ? 'target' : 'window'}`;
 }
 
+function verificationContext(scope) {
+  const info = activeStore?.scopeInfo(scope || { type: 'session' });
+  if (!info) return null;
+  const session = info.type === 'session';
+  return {
+    scopeType: session ? 'session' : info.type,
+    scopeStart: session ? (activeSummary?.combatStart || 0) : info.start,
+    scopeEnd: session ? (activeSummary?.combatEnd ?? activeSummary?.combatStart ?? 0) : info.end,
+    targetOnly: Boolean(info.targetOnly),
+    bossTargets: Array.from(info.bossTargetIds || []).map(id => activeStore.pool.get(id))
+  };
+}
+
 function sessionReport() {
   const key = 'session';
   const cached = scopeCache.get(key);
   if (cached) return cached;
   const summary = activeSummary || attachMeta(activeAccumulator.snapshot());
-  const duration = summary.duration || 0;
+  const duration = summary.combatDuration ?? summary.duration ?? 0;
+  const combatStart = summary.combatStart ?? 0;
+  const combatEnd = summary.combatEnd ?? (combatStart + duration);
+  const activeCombatTime = summary.activeCombatTime ?? 0;
+  const timelineOffset = Math.floor(combatStart);
   const players = (summary.players || []).map(base => {
     const detail = activeAccumulator.playerReport(base.ref);
-    const powers = (detail?.powers || []).map(power => ({ ...power, dps: power.damage / Math.max(1, duration) }));
-    return {
+    const playerDuration = base.duration || 0;
+    const powers = (detail?.powers || []).map(power => powerResult(power, base.damage, playerDuration));
+    const timeline = (detail?.timeline || []).map(point => ({ second: Math.max(0, point.second - timelineOffset), damage: point.damage }));
+    return enrichPlayer({
       ...base,
       damageShare: summary.damage ? base.damage / summary.damage * 100 : 0,
-      avgHit: base.hits ? base.damage / base.hits : 0,
-      dps: base.damage / Math.max(1, duration),
-      powers,
-      timeline: detail?.timeline || []
-    };
+      avgHit: base.hits ? base.damage / base.hits : 0
+    }, powers, timeline);
   });
   const partyMap = new Map();
   for (const player of players) {
     for (const point of player.timeline || []) partyMap.set(point.second, (partyMap.get(point.second) || 0) + point.damage);
   }
   const report = {
-    scope: { type: 'session', id: null, targetOnly: false, label: 'Full session', start: 0, end: duration },
+    scope: { type: 'session', id: null, targetOnly: false, label: 'Full session', start: combatStart, end: combatEnd },
     damage: summary.damage || 0,
     hits: summary.validDamageRows || 0,
     duration,
+    logDuration: summary.logDuration ?? summary.duration ?? 0,
+    activeCombatTime,
     partyDps: (summary.damage || 0) / Math.max(1, duration),
+    partyCombatDps: (summary.damage || 0) / Math.max(1, activeCombatTime),
     healing: summary.healing || 0,
     shielded: summary.shielded || 0,
     players: players.sort((a, b) => b.damage - a.damage || a.name.localeCompare(b.name)),
     partyTimeline: Array.from(partyMap.entries()).map(([second, damage]) => ({ second, damage })).sort((a, b) => a.second - b.second)
   };
-  cacheSet(key, report);
+  cacheSet(scopeCache, key, report);
   return report;
 }
 
@@ -482,7 +548,7 @@ function aggregateScope(scope) {
       shielded += value;
       target.shielded += value;
     }
-    if (kind === 'damage' && target && amount > 0) target.damageTaken += amount;
+    if (chunk.validDamage[slot] && target && amount > 0) target.damageTaken += amount;
 
     if (!chunk.validDamage[slot] || !owner) continue;
     if (info.targetOnly && info.bossTargetIds.size && !info.bossTargetIds.has(chunk.targetRef[slot])) continue;
@@ -496,16 +562,13 @@ function aggregateScope(scope) {
     if ((chunk.flags[slot] & FLAG.CRITICAL) !== 0) owner.critHits += 1;
     if ((chunk.flags[slot] & (FLAG.FLANK | FLAG.COMBAT_ADVANTAGE)) !== 0) owner.flankHits += 1;
     const powerName = activeStore.pool.get(chunk.powerName[slot]) || 'Unknown';
+    const powerRef = activeStore.pool.get(chunk.powerRef[slot]);
     if (amount > owner.maxHit) { owner.maxHit = amount; owner.maxPower = powerName; }
-    const relativeTime = Math.max(0, chunk.time[slot] - info.start);
-    if (owner.firstDamage == null) owner.firstDamage = relativeTime;
-    if (owner.lastDamage != null) {
-      const gap = relativeTime - owner.lastDamage;
-      if (gap >= 0 && gap <= ACTIVE_GAP_SECONDS) owner.activeCombatTime += gap;
-    }
-    owner.lastDamage = relativeTime;
+    const relativeTime = Math.max(0, rowTime - info.start);
+    owner.firstDamage = owner.firstDamage == null ? relativeTime : Math.min(owner.firstDamage, relativeTime);
+    owner.lastDamage = owner.lastDamage == null ? relativeTime : Math.max(owner.lastDamage, relativeTime);
 
-    const power = touchPower(owner, powerName);
+    const power = touchPower(owner, powerName, powerRef);
     power.damage += amount;
     power.hits += 1;
     if ((chunk.flags[slot] & FLAG.CRITICAL) !== 0) power.critHits += 1;
@@ -520,7 +583,7 @@ function aggregateScope(scope) {
 
   const compactPlayers = Array.from(players.values())
     .map(player => compactScopedPlayer(player, duration))
-    .filter(player => player.damage || player.healingDone || player.damageTaken)
+    .filter(player => player.damage || player.healingDone || player.damageTaken || player.shielded)
     .sort((a, b) => b.damage - a.damage || a.name.localeCompare(b.name));
   for (const player of compactPlayers) player.damageShare = damage ? player.damage / damage * 100 : 0;
 
@@ -537,14 +600,34 @@ function aggregateScope(scope) {
     damage,
     hits,
     duration,
+    activeCombatTime: hits ? duration : 0,
     partyDps: damage / Math.max(1, duration),
+    partyCombatDps: damage / Math.max(1, hits ? duration : 0),
     healing,
     shielded,
     players: compactPlayers,
     partyTimeline: Array.from(partyTimeline.entries()).map(([second, bucketDamage]) => ({ second, damage: bucketDamage })).sort((a, b) => a.second - b.second)
   };
-  cacheSet(key, report);
+  cacheSet(scopeCache, key, report);
   return report;
+}
+
+function verifiedReport(scope = { type: 'session' }) {
+  const report = aggregateScope(scope);
+  if (!report) return { report: null, verification: null, error: 'Scope is unavailable.' };
+  if (report.verification?.status === 'verified') return { report, verification: report.verification, error: null };
+  const context = verificationContext(scope);
+  const verification = verifyReport(report, activeStore.iterateScope(scope), context || {});
+  report.verification = verification;
+  if (!verification.ok) {
+    const first = verification.mismatches?.[0];
+    return {
+      report: null,
+      verification,
+      error: `Verification blocked analytics${first?.path ? ` at ${first.path}` : ''}. Primary and verifier engines disagree.`
+    };
+  }
+  return { report, verification, error: null };
 }
 
 function selectPlayers(report, playerRefs = []) {
@@ -554,6 +637,97 @@ function selectPlayers(report, playerRefs = []) {
   return { ...report, players: report.players.filter(player => wanted.has(player.ref)) };
 }
 
+function buildRotationReport(scope = { type: 'session' }) {
+  const key = scopeKey(scope);
+  const cached = rotationCache.get(key);
+  if (cached) return cached;
+  const gate = verifiedReport(scope);
+  if (gate.error) return { error: gate.error, verification: gate.verification, report: null };
+  const info = activeStore.scopeInfo(scope);
+  const context = verificationContext(scope);
+  const origin = context?.scopeStart || 0;
+  const lanes = new Map();
+
+  for (const row of activeStore.iterateScope(scope)) {
+    if (!row.validDamage || !isPlayerRef(row.ownerRef) || row.companion) continue;
+    if (info.targetOnly && info.bossTargetIds.size) {
+      const targetId = activeStore.pool.id(row.targetRef);
+      if (targetId == null || !info.bossTargetIds.has(targetId)) continue;
+    }
+    const category = classifyPowerCategory(row.powerName, { companion: false, powerRef: row.powerRef });
+    if (!isRotationCategory(category)) continue;
+    let lane = lanes.get(row.ownerRef);
+    if (!lane) {
+      const player = gate.report.players.find(item => item.ref === row.ownerRef);
+      lane = {
+        ref: row.ownerRef,
+        name: row.ownerName || row.ownerRef,
+        className: player?.className || 'Unknown',
+        classConfidence: player?.classConfidence || 0,
+        rows: []
+      };
+      lanes.set(row.ownerRef, lane);
+    }
+    lane.rows.push({
+      time: row.time,
+      lineNo: row.lineNo,
+      power: row.powerName || 'Unknown',
+      category,
+      amount: row.amount
+    });
+  }
+
+  let activationCount = 0;
+  const compactLanes = [];
+  for (const lane of lanes.values()) {
+    lane.rows.sort((a, b) => a.time - b.time || a.lineNo - b.lineNo);
+    const lastByPower = new Map();
+    const activations = [];
+    for (const row of lane.rows) {
+      const previous = lastByPower.get(row.power);
+      const threshold = activationDedupeSeconds(row.category);
+      if (previous != null && row.time - previous < threshold) continue;
+      lastByPower.set(row.power, row.time);
+      activations.push({
+        time: Math.max(0, row.time - origin),
+        power: row.power,
+        category: row.category,
+        amount: row.amount
+      });
+    }
+    activationCount += activations.length;
+    compactLanes.push({
+      ref: lane.ref,
+      name: lane.name,
+      className: lane.className,
+      classConfidence: lane.classConfidence,
+      activationCount: activations.length,
+      activations
+    });
+  }
+  const rank = new Map(gate.report.players.map((player, index) => [player.ref, index]));
+  compactLanes.sort((a, b) => (rank.get(a.ref) ?? 999) - (rank.get(b.ref) ?? 999) || a.name.localeCompare(b.name));
+
+  const report = {
+    scope: gate.report.scope,
+    duration: gate.report.duration,
+    lanes: compactLanes,
+    activationCount
+  };
+  const verification = verifyRotationReport(report, activeStore.iterateScope(scope), context || {});
+  report.verification = verification;
+  if (!verification.ok) {
+    const first = verification.mismatches?.[0];
+    return {
+      report: null,
+      verification,
+      error: `Verification blocked rotation${first?.path ? ` at ${first.path}` : ''}. Primary and verifier engines disagree.`
+    };
+  }
+  cacheSet(rotationCache, key, report, 6);
+  return { report, verification, error: null };
+}
+
 async function parseFile(file, generation) {
   const startedAt = performance.now();
   activeStore = new CompactRowStore();
@@ -561,6 +735,7 @@ async function parseFile(file, generation) {
   activeSummary = null;
   activeFileMeta = { name: file.name || 'combat.log', size: file.size || 0, type: file.type || '' };
   scopeCache.clear();
+  rotationCache.clear();
   let lineNo = 0;
   let carry = '';
   let lastProgressAt = 0;
@@ -606,6 +781,15 @@ async function parseFile(file, generation) {
   postProgress(file, 'indexing', bytesRead, lineNo, startedAt);
   activeSummary = attachMeta(activeAccumulator.snapshot());
   activeStore.buildEncounterIndex(activeSummary.encounters);
+  scopeCache.clear();
+  rotationCache.clear();
+  postProgress(file, 'verifying', bytesRead, lineNo, startedAt);
+  const gate = verifiedReport({ type: 'session' });
+  activeSummary.verification = gate.verification;
+  if (gate.error) {
+    self.postMessage({ type: 'error', message: gate.error, verification: gate.verification });
+    return;
+  }
   postProgress(file, 'finalizing', bytesRead, lineNo, startedAt);
   activeSummary.parseMs = Math.round(performance.now() - startedAt);
   self.postMessage({ type: 'summary', summary: activeSummary });
@@ -634,20 +818,33 @@ self.onmessage = event => {
     activeSummary = null;
     activeFileMeta = null;
     scopeCache.clear();
+    rotationCache.clear();
     return;
   }
   if (message.type === 'player-report') {
-    const report = activeAccumulator ? activeAccumulator.playerReport(message.playerRef) : null;
-    self.postMessage({ type: 'player-report', requestId: message.requestId, report });
+    const gate = verifiedReport({ type: 'session' });
+    const report = gate.report?.players?.find(player => player.ref === message.playerRef) || null;
+    self.postMessage({ type: 'player-report', requestId: message.requestId, report, error: gate.error, verification: gate.verification });
     return;
   }
   if (message.type === 'scope-report') {
-    const report = selectPlayers(aggregateScope(message.scope || { type: 'session' }), message.playerRefs || []);
-    self.postMessage({ type: 'scope-report', requestId: message.requestId, report });
+    const scope = message.scope || { type: 'session' };
+    const gate = verifiedReport(scope);
+    const report = selectPlayers(gate.report, message.playerRefs || []);
+    self.postMessage({ type: 'scope-report', requestId: message.requestId, report, error: gate.error, verification: gate.verification });
+    return;
+  }
+  if (message.type === 'rotation-report') {
+    const result = buildRotationReport(message.scope || { type: 'session' });
+    self.postMessage({ type: 'rotation-report', requestId: message.requestId, report: result.report, error: result.error, verification: result.verification });
     return;
   }
   if (message.type === 'raw-page') {
-    const page = activeStore ? activeStore.page(message.options || {}) : { rows: [], nextCursor: null, scannedTo: 0, totalStoredRows: 0 };
+    if (activeSummary?.verification?.status !== 'verified') {
+      self.postMessage({ type: 'raw-page', requestId: message.requestId, page: null, error: 'Raw data is blocked until both engines verify the session.' });
+      return;
+    }
+    const page = activeStore ? activeStore.page(message.options || {}) : { rows: [], nextCursor: null, scannedTo: 0, totalStoredRows: 0, verification: null };
     self.postMessage({ type: 'raw-page', requestId: message.requestId, page });
     return;
   }

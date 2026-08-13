@@ -1,14 +1,18 @@
-const DAMAGE_TYPES = new Set([
+const KNOWN_DAMAGE_TYPES = new Set([
   'physical', 'arcane', 'cold', 'fire', 'lightning', 'necrotic',
   'poison', 'psychic', 'radiant', 'thunder', 'force', 'untyped'
 ]);
+const CANONICAL_DAMAGE_TYPES = new Set(['physical']);
 
 export const FLAG = Object.freeze({
   CRITICAL: 1 << 0,
   FLANK: 1 << 1,
   COMBAT_ADVANTAGE: 1 << 2,
   SHOW_POWER_DISPLAY_NAME: 1 << 3,
-  IMMUNE: 1 << 4
+  IMMUNE: 1 << 4,
+  DEFLECT: 1 << 5,
+  KILL: 1 << 6,
+  SHIELD_BREAK: 1 << 7
 });
 
 const PET_RE = /pet_|companion|appointment|summon/i;
@@ -38,16 +42,52 @@ export function entityTemplate(value) {
 }
 
 export function isBossRef(value) {
-  return entityTemplate(value).includes('_Boss');
+  return entityTemplate(value).toLowerCase().includes('_boss');
 }
 
 export function isMobRef(value) {
-  const template = entityTemplate(value);
-  return !template.includes('_Boss') && ['_Solo', '_Elite', '_Standard', '_Minion'].some(token => template.includes(token));
+  const template = entityTemplate(value).toLowerCase();
+  return !template.includes('_boss') && ['_solo', '_elite', '_standard', '_minion'].some(token => template.includes(token));
 }
 
 export function isPetRef(value) {
   return PET_RE.test(entityTemplate(value));
+}
+
+const DATE_EPOCH_CACHE = new Map();
+let lastDateKey = Number.NaN;
+let lastDateEpoch = Number.NaN;
+
+function dateEpochSeconds(year, month, day) {
+  const key = year * 10000 + month * 100 + day;
+  if (key === lastDateKey) return lastDateEpoch;
+  const cached = DATE_EPOCH_CACHE.get(key);
+  if (cached != null) {
+    lastDateKey = key;
+    lastDateEpoch = cached;
+    return cached;
+  }
+
+  const epochMs = Date.UTC(year, month - 1, day);
+  const date = new Date(epochMs);
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return Number.NaN;
+  const epoch = epochMs / 1000;
+  if (DATE_EPOCH_CACHE.size >= 32) DATE_EPOCH_CACHE.delete(DATE_EPOCH_CACHE.keys().next().value);
+  DATE_EPOCH_CACHE.set(key, epoch);
+  lastDateKey = key;
+  lastDateEpoch = epoch;
+  return epoch;
+}
+
+function utcTimestamp(year, month, day, hour, minute, second) {
+  if (![year, month, day, hour, minute, second].every(Number.isFinite)) return Number.NaN;
+  if (year < 0 || month < 1 || month > 12 || day < 1 || day > 31 || hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second >= 60) return Number.NaN;
+  const normalizedYear = year < 100 ? 2000 + year : year;
+  const dayEpoch = dateEpochSeconds(normalizedYear, month, day);
+  if (!Number.isFinite(dayEpoch)) return Number.NaN;
+  const totalMilliseconds = Math.round(second * 1000);
+  if (totalMilliseconds < 0 || totalMilliseconds >= 60000) return Number.NaN;
+  return dayEpoch + hour * 3600 + minute * 60 + totalMilliseconds / 1000;
 }
 
 export function parseTimestamp(raw) {
@@ -55,13 +95,27 @@ export function parseTimestamp(raw) {
   if (!text) return Number.NaN;
 
   const parts = text.split(':');
-  if (parts.length >= 4) {
-    const second = Number(parts.at(-1));
-    const minute = Number(parts.at(-2));
-    const hour = Number(parts.at(-3));
-    const day = parts.length >= 6 ? Number(parts.at(-4)) : 0;
-    if ([second, minute, hour, day].every(Number.isFinite)) {
+  if (parts.length === 6) {
+    return utcTimestamp(
+      Number(parts[0]), Number(parts[1]), Number(parts[2]),
+      Number(parts[3]), Number(parts[4]), Number(parts[5])
+    );
+  }
+  if (parts.length === 4) {
+    const day = Number(parts[0]);
+    const hour = Number(parts[1]);
+    const minute = Number(parts[2]);
+    const second = Number(parts[3]);
+    if ([day, hour, minute, second].every(Number.isFinite) && day >= 0 && hour >= 0 && hour < 24 && minute >= 0 && minute < 60 && second >= 0 && second < 60) {
       return day * 86400 + hour * 3600 + minute * 60 + second;
+    }
+  }
+  if (parts.length === 3) {
+    const hour = Number(parts[0]);
+    const minute = Number(parts[1]);
+    const second = Number(parts[2]);
+    if ([hour, minute, second].every(Number.isFinite) && hour >= 0 && minute >= 0 && minute < 60 && second >= 0 && second < 60) {
+      return hour * 3600 + minute * 60 + second;
     }
   }
 
@@ -146,6 +200,9 @@ export function parseFlags(raw) {
     else if (value === 'combatadvantage') bits |= FLAG.COMBAT_ADVANTAGE;
     else if (value === 'showpowerdisplayname') bits |= FLAG.SHOW_POWER_DISPLAY_NAME;
     else if (value === 'immune') bits |= FLAG.IMMUNE;
+    else if (value === 'dodge' || value === 'deflect' || value === 'deflected') bits |= FLAG.DEFLECT;
+    else if (value === 'kill') bits |= FLAG.KILL;
+    else if (value === 'shieldbreak') bits |= FLAG.SHIELD_BREAK;
   }
   return bits;
 }
@@ -162,13 +219,14 @@ export function classifyEvent(row) {
   if (type === 'triggercomplex') return 'meta';
   if (type.includes('summon') || flagsText.includes('summon')) return 'summon';
   if (type.includes('control') || flagsText.includes('control')) return 'control';
-  if (row.amount > 0 && DAMAGE_TYPES.has(type)) return 'damage';
+  if (row.amount > 0 && KNOWN_DAMAGE_TYPES.has(type)) return 'damage';
   return 'unknown';
 }
 
 export function isValidDamage(row) {
   if (classifyEvent(row) !== 'damage') return false;
   if (row.amount <= 0) return false;
+  if (!CANONICAL_DAMAGE_TYPES.has(normalizeText(row.damageType).toLowerCase())) return false;
   if ((row.flags & FLAG.SHOW_POWER_DISPLAY_NAME) !== 0) return false;
   if (row.targetRef === '*' && !isCreatureRef(row.sourceRef)) return false;
   return true;
@@ -257,13 +315,15 @@ function createPlayer(ref, name) {
     maxPower: '',
     firstDamage: null,
     lastDamage: null,
-    activeCombatTime: 0,
     healingDone: 0,
     healingReceived: 0,
     damageTaken: 0,
     shielded: 0,
     powers: new Map(),
-    timeline: new Map()
+    timeline: new Map(),
+    encounterWindows: [],
+    currentEncounter: null,
+    lastEncounterDamageAt: null
   };
 }
 
@@ -272,6 +332,7 @@ function updatePower(player, row) {
   if (!power) {
     power = {
       power: row.powerName,
+      powerRef: row.powerRef || '',
       damage: 0,
       hits: 0,
       critHits: 0,
@@ -292,15 +353,58 @@ function updatePower(player, row) {
 function compactPower(power, totalDamage) {
   return {
     power: power.power,
+    powerRef: power.powerRef || '',
     damage: power.damage,
     hits: power.hits,
     share: totalDamage ? (power.damage / totalDamage) * 100 : 0,
     avg: power.hits ? power.damage / power.hits : 0,
     max: power.maxHit,
+    maxHit: power.maxHit,
     crit: power.hits ? (power.critHits / power.hits) * 100 : 0,
+    critHits: power.critHits,
     flank: power.hits ? (power.flankHits / power.hits) * 100 : 0,
+    flankHits: power.flankHits,
     companionDamage: power.companionDamage
   };
+}
+
+function mergeMinimalWindows(source, bossMergeGapSeconds) {
+  const windows = source.map(window => ({
+    start: window.start,
+    end: window.end,
+    damage: window.damage || 0,
+    hits: window.hits || 0,
+    bossIds: new Set(window.bossIds || [])
+  }));
+  const merged = [];
+  const sameBoss = (a, b) => Array.from(a.bossIds).some(id => b.bossIds.has(id));
+  const mergeInto = (target, addition) => {
+    target.start = Math.min(target.start, addition.start);
+    target.end = Math.max(target.end, addition.end);
+    target.damage += addition.damage;
+    target.hits += addition.hits;
+    for (const id of addition.bossIds) target.bossIds.add(id);
+  };
+
+  for (let index = 0; index < windows.length; index += 1) {
+    const window = windows[index];
+    const previous = merged.at(-1);
+    if (previous?.bossIds.size && window.bossIds.size && sameBoss(previous, window) && window.start - previous.end <= bossMergeGapSeconds) {
+      mergeInto(previous, window);
+      continue;
+    }
+    if (previous?.bossIds.size && !window.bossIds.size) {
+      const next = windows[index + 1];
+      if (next?.bossIds.size && sameBoss(previous, next) && window.start - previous.end <= bossMergeGapSeconds && next.start - window.end <= bossMergeGapSeconds) {
+        mergeInto(previous, window);
+        mergeInto(previous, next);
+        index += 1;
+        continue;
+      }
+    }
+    merged.push(window);
+  }
+  return merged;
 }
 
 export class CombatAccumulator {
@@ -320,10 +424,12 @@ export class CombatAccumulator {
     this.players = new Map();
     this.eventTypes = new Map();
     this.unknownTypes = new Map();
+    this.nonCanonicalDamageTypes = new Map();
     this.rejectReasons = new Map();
     this.rejectedSamples = [];
     this.encounters = [];
     this.currentEncounter = null;
+    this.firstPartyDamageAt = null;
     this.lastPartyDamageAt = null;
   }
 
@@ -349,6 +455,20 @@ export class CombatAccumulator {
     }
   }
 
+  updatePlayerEncounter(player, row) {
+    const needsNew = player.lastEncounterDamageAt == null || row.time - player.lastEncounterDamageAt > this.encounterGapSeconds;
+    if (needsNew) {
+      player.currentEncounter = { start: row.time, end: row.time, damage: 0, hits: 0, bossIds: new Set() };
+      player.encounterWindows.push(player.currentEncounter);
+    }
+    const encounter = player.currentEncounter;
+    encounter.end = row.time;
+    encounter.damage += row.amount;
+    encounter.hits += 1;
+    if (isBossRef(row.targetRef)) encounter.bossIds.add(row.targetRef);
+    player.lastEncounterDamageAt = row.time;
+  }
+
   ingest(row) {
     this.lines = Math.max(this.lines, row.lineNo || this.lines + 1);
     this.parsed += 1;
@@ -358,6 +478,10 @@ export class CombatAccumulator {
 
     addCount(this.eventTypes, row.damageType || 'Unknown');
     if (row.kind === 'unknown') addCount(this.unknownTypes, row.damageType || 'Unknown');
+    if (row.kind === 'damage' && row.amount > 0 && !row.validDamage) {
+      const type = normalizeText(row.damageType) || 'Unknown';
+      if (type.toLowerCase() !== 'physical') addCount(this.nonCanonicalDamageTypes, type);
+    }
 
     const ownerPlayer = this.ensurePlayer(row.ownerRef, row.ownerName);
     const targetPlayer = this.ensurePlayer(row.targetRef, row.targetName);
@@ -375,7 +499,7 @@ export class CombatAccumulator {
       targetPlayer.shielded += value;
     }
 
-    if (row.kind === 'damage' && targetPlayer && row.amount > 0) targetPlayer.damageTaken += row.amount;
+    if (row.validDamage && targetPlayer && row.amount > 0) targetPlayer.damageTaken += row.amount;
 
     if (!row.validDamage || !ownerPlayer) return row;
 
@@ -392,13 +516,10 @@ export class CombatAccumulator {
       ownerPlayer.maxPower = row.powerName;
     }
 
-    if (ownerPlayer.firstDamage == null) ownerPlayer.firstDamage = row.time;
-    if (ownerPlayer.lastDamage != null) {
-      const gap = row.time - ownerPlayer.lastDamage;
-      if (gap >= 0 && gap <= this.encounterGapSeconds) ownerPlayer.activeCombatTime += gap;
-    }
-    ownerPlayer.lastDamage = row.time;
+    if (ownerPlayer.firstDamage == null || row.time < ownerPlayer.firstDamage) ownerPlayer.firstDamage = row.time;
+    if (ownerPlayer.lastDamage == null || row.time > ownerPlayer.lastDamage) ownerPlayer.lastDamage = row.time;
     updatePower(ownerPlayer, row);
+    this.updatePlayerEncounter(ownerPlayer, row);
 
     const secondBucket = Math.floor(row.time);
     ownerPlayer.timeline.set(secondBucket, (ownerPlayer.timeline.get(secondBucket) || 0) + row.amount);
@@ -407,7 +528,10 @@ export class CombatAccumulator {
   }
 
   updateEncounter(row) {
-    const needsNew = this.lastPartyDamageAt == null || row.time - this.lastPartyDamageAt > this.encounterGapSeconds;
+    const previousDamageAt = this.lastPartyDamageAt;
+    const needsNew = previousDamageAt == null || row.time - previousDamageAt > this.encounterGapSeconds;
+    if (this.firstPartyDamageAt == null) this.firstPartyDamageAt = row.time;
+
     if (needsNew) {
       this.currentEncounter = {
         start: row.time,
@@ -415,6 +539,7 @@ export class CombatAccumulator {
         damage: 0,
         hits: 0,
         bossIds: new Set(),
+        bossNames: new Map(),
         enemyNames: new Map()
       };
       this.encounters.push(this.currentEncounter);
@@ -424,9 +549,16 @@ export class CombatAccumulator {
     encounter.end = row.time;
     encounter.damage += row.amount;
     encounter.hits += 1;
-    if (isBossRef(row.targetRef)) encounter.bossIds.add(row.targetRef);
+    if (isBossRef(row.targetRef)) {
+      encounter.bossIds.add(row.targetRef);
+      addCount(encounter.bossNames, row.targetName || entityTemplate(row.targetRef) || row.targetRef, row.amount);
+    }
     if (isCreatureRef(row.targetRef) && !isPetRef(row.targetRef)) addCount(encounter.enemyNames, row.targetName || entityTemplate(row.targetRef) || row.targetRef, row.amount);
     this.lastPartyDamageAt = row.time;
+  }
+
+  mergedPlayerEncounters(player) {
+    return mergeMinimalWindows(player.encounterWindows || [], this.bossMergeGapSeconds);
   }
 
   mergedEncounters() {
@@ -439,23 +571,50 @@ export class CombatAccumulator {
       hits: encounter.hits,
       bossIds: new Set(encounter.bossIds),
       type: encounter.bossIds.size ? 'boss' : 'mob',
+      bosses: mapToSortedEntries(encounter.bossNames, 4).map(item => item.key),
       enemies: mapToSortedEntries(encounter.enemyNames, 4).map(item => item.key)
     }));
 
-    const merged = [];
     const sameBoss = (a, b) => Array.from(a.bossIds).some(id => b.bossIds.has(id));
-    for (const encounter of source) {
+    const mergeInto = (target, addition) => {
+      target.end = Math.max(target.end, addition.end);
+      target.start = Math.min(target.start, addition.start);
+      target.duration = Math.max(0, target.end - target.start);
+      target.damage += addition.damage;
+      target.hits += addition.hits;
+      for (const id of addition.bossIds) target.bossIds.add(id);
+      target.bosses = Array.from(new Set([...target.bosses, ...addition.bosses])).slice(0, 4);
+      target.enemies = Array.from(new Set([...target.enemies, ...addition.enemies])).slice(0, 4);
+      if (target.bossIds.size) target.type = 'boss';
+      return target;
+    };
+
+    const merged = [];
+    for (let index = 0; index < source.length; index += 1) {
+      const encounter = source[index];
       const previous = merged.at(-1);
-      if (previous && previous.type === 'boss' && encounter.type === 'boss' && sameBoss(previous, encounter) && encounter.start - previous.end <= this.bossMergeGapSeconds) {
-        previous.end = encounter.end;
-        previous.duration = previous.end - previous.start;
-        previous.damage += encounter.damage;
-        previous.hits += encounter.hits;
-        for (const id of encounter.bossIds) previous.bossIds.add(id);
-        previous.enemies = Array.from(new Set([...previous.enemies, ...encounter.enemies])).slice(0, 4);
-      } else {
-        merged.push(encounter);
+
+      if (previous?.type === 'boss' && encounter.type === 'boss' && sameBoss(previous, encounter) && encounter.start - previous.end <= this.bossMergeGapSeconds) {
+        mergeInto(previous, encounter);
+        continue;
       }
+
+      if (previous?.type === 'boss' && encounter.type === 'mob') {
+        const next = source[index + 1];
+        if (
+          next?.type === 'boss' &&
+          sameBoss(previous, next) &&
+          encounter.start - previous.end <= this.bossMergeGapSeconds &&
+          next.start - encounter.end <= this.bossMergeGapSeconds
+        ) {
+          mergeInto(previous, encounter);
+          mergeInto(previous, next);
+          index += 1;
+          continue;
+        }
+      }
+
+      merged.push(encounter);
     }
 
     return merged.map((encounter, index) => ({
@@ -466,13 +625,16 @@ export class CombatAccumulator {
       damage: encounter.damage,
       hits: encounter.hits,
       type: encounter.type,
-      label: encounter.type === 'boss' ? (encounter.enemies.join(', ') || `Boss ${index + 1}`) : `Combat ${index + 1}`
+      label: encounter.type === 'boss'
+        ? (encounter.bosses.join(', ') || encounter.enemies.join(', ') || `Boss ${index + 1}`)
+        : `Combat ${index + 1}`
     }));
   }
 
   compactPlayer(player, { includePowers = false, includeTimeline = false } = {}) {
     const duration = player.firstDamage == null || player.lastDamage == null ? 0 : Math.max(0, player.lastDamage - player.firstDamage);
-    const combatTime = Math.max(0, player.activeCombatTime);
+    const mergedPlayerEncounters = this.mergedPlayerEncounters(player);
+    const combatTime = mergedPlayerEncounters.reduce((sum, encounter) => sum + Math.max(0, encounter.end - encounter.start), 0);
     const result = {
       ref: player.ref,
       name: player.name,
@@ -484,6 +646,7 @@ export class CombatAccumulator {
       combatDps: player.damage / Math.max(1, combatTime),
       duration,
       combatTime,
+      encounters: mergedPlayerEncounters.length,
       crit: player.hits ? (player.critHits / player.hits) * 100 : 0,
       flank: player.hits ? (player.flankHits / player.hits) * 100 : 0,
       maxHit: player.maxHit,
@@ -514,22 +677,34 @@ export class CombatAccumulator {
       .map(player => this.compactPlayer(player))
       .filter(player => player.hits || player.damage || player.healingDone || player.damageTaken)
       .sort((a, b) => b.damage - a.damage || a.name.localeCompare(b.name));
+    const combatStart = this.firstPartyDamageAt == null ? 0 : this.firstPartyDamageAt;
+    const combatEnd = this.lastPartyDamageAt == null ? combatStart : this.lastPartyDamageAt;
+    const encounters = partial ? [] : this.mergedEncounters();
+    const activeCombatTime = partial
+      ? 0
+      : encounters.reduce((sum, encounter) => sum + Math.max(0, encounter.duration), 0);
 
     return {
-      version: 3,
+      version: 5,
       partial,
       lines: this.lines,
       parsed: this.parsed,
       rejected: this.rejected,
       validDamageRows: this.validDamageRows,
       duration: this.maxTime,
+      logDuration: this.maxTime,
+      combatStart,
+      combatEnd,
+      combatDuration: Math.max(0, combatEnd - combatStart),
+      activeCombatTime,
       damage: this.damage,
       healing: this.healing,
       shielded: this.shielded,
       players,
-      encounters: partial ? [] : this.mergedEncounters(),
+      encounters,
       eventTypes: mapToSortedEntries(this.eventTypes, 24),
       unknownTypes: mapToSortedEntries(this.unknownTypes, 24),
+      nonCanonicalDamageTypes: mapToSortedEntries(this.nonCanonicalDamageTypes, 24),
       rejectReasons: mapToSortedEntries(this.rejectReasons, 24),
       rejectedSamples: partial ? [] : this.rejectedSamples.slice()
     };
@@ -559,7 +734,8 @@ export function parseText(text, options = {}) {
 }
 
 export const FastParser = Object.freeze({
-  DAMAGE_TYPES,
+  KNOWN_DAMAGE_TYPES,
+  CANONICAL_DAMAGE_TYPES,
   parseTimestamp,
   tokenizeCsv,
   parseFlags,

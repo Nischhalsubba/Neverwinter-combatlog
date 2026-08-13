@@ -5,6 +5,7 @@ let cssReady = false;
 
 const MAX_POINTS = 1800;
 const SERIES_VARS = ['--cyan', '--amber', '--green', '--red', '--blue'];
+const AXIS_FONT = '12px Inter, ui-sans-serif, system-ui, sans-serif';
 
 function ensureCss() {
   if (cssReady) return;
@@ -118,20 +119,20 @@ export async function renderTimelineChart(node, series, { ariaLabel = 'Damage ov
   const options = {
     width,
     height,
-    padding: [12, 8, 4, 4],
+    padding: [12, 10, 6, 6],
     cursor: { drag: { x: true, y: false, setScale: true } },
     legend: { show: true },
     scales: { x: { time: false }, y: { auto: true } },
     axes: [
-      { stroke: cssColor('--muted'), grid: { stroke: cssColor('--grid') }, values: (_u, values) => values.map(timeLabel), size: 38 },
-      { stroke: cssColor('--muted'), grid: { stroke: cssColor('--grid') }, values: (_u, values) => values.map(compact), size: 58 }
+      { stroke: cssColor('--muted'), font: AXIS_FONT, grid: { stroke: cssColor('--grid') }, values: (_u, values) => values.map(timeLabel), size: 42 },
+      { stroke: cssColor('--muted'), font: AXIS_FONT, grid: { stroke: cssColor('--grid') }, values: (_u, values) => values.map(compact), size: 66 }
     ],
     series: [
       {},
       ...reduced.map((item, index) => ({
         label: item.label,
         stroke: cssColor(SERIES_VARS[index % SERIES_VARS.length]),
-        width: index === 0 ? 2 : 1.6,
+        width: index === 0 ? 2.2 : 1.8,
         dash: index === 1 ? [8, 4] : index === 2 ? [3, 4] : undefined,
         points: { show: false },
         value: (_u, value) => value == null ? '-' : compact(value)
