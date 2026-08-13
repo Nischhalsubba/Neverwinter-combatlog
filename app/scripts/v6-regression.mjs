@@ -7,16 +7,18 @@ const required = [
   'src/v6/stability.css',
   'src/v6/dashboard.js',
   'src/v6/dashboard-interactions.js',
-  'src/v6/copy.js'
+  'src/v6/copy.js',
+  'src/v6/drawer-copy.js'
 ];
 
 for (const path of required) await access(path);
 
-const [index, dashboard, interactions, copy, styles, components, stability] = await Promise.all([
+const [index, dashboard, interactions, copy, drawerCopy, styles, components, stability] = await Promise.all([
   readFile('index.html', 'utf8'),
   readFile('src/v6/dashboard.js', 'utf8'),
   readFile('src/v6/dashboard-interactions.js', 'utf8'),
   readFile('src/v6/copy.js', 'utf8'),
+  readFile('src/v6/drawer-copy.js', 'utf8'),
   readFile('src/v6/v6.css', 'utf8'),
   readFile('src/v6/components.css', 'utf8'),
   readFile('src/v6/stability.css', 'utf8')
@@ -31,6 +33,7 @@ for (const marker of [
   'src/v6/dashboard.js',
   'src/v6/dashboard-interactions.js',
   'src/v6/copy.js',
+  'src/v6/drawer-copy.js',
   'content="#f6f8fb"',
   'content="light"',
   '<span>Summary</span>',
@@ -77,6 +80,14 @@ for (const marker of [
 ]) if (!copy.includes(marker)) failures.push(`plain-language copy missing ${marker}`);
 
 for (const marker of [
+  "['Widgets', 'Choose what to show']",
+  "['Party Summary', 'Group totals']",
+  "['Damage Over Time', 'Damage timeline']",
+  "['Encounters', 'Fights']",
+  "observe(document.body, { childList: true, subtree: true })"
+]) if (!drawerCopy.includes(marker)) failures.push(`drawer copy missing ${marker}`);
+
+for (const marker of [
   '--sg-page:#f6f8fb',
   '--sg-text:#0f172a',
   '--sg-primary:#2563eb',
@@ -114,4 +125,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('V6 regression passed. Drawer visibility, plain-language labels, data definitions, widget controls, accessibility hooks, and reduced-motion contracts are present.');
+console.log('V6 regression passed. Drawer visibility, portal copy, plain-language labels, data definitions, widget controls, accessibility hooks, and reduced-motion contracts are present.');
