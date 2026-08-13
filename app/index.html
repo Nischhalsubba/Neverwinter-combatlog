@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f6f8fb">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="Strikeglass is a local-first Neverwinter combat log analyzer with double-checked combat results, fight summaries, player comparison, customizable widgets, and lightweight Canvas charts.">
-  <title>Strikeglass - Neverwinter Combat Analyzer</title>
+  <meta name="application-name" content="Strikeglass">
+  <meta name="description" content="Strikeglass turns Neverwinter combat logs into clear, double-checked fight, player, and power analysis. Your log stays on your device.">
+  <title>Strikeglass | Neverwinter Combat Analysis</title>
+  <link rel="icon" type="image/svg+xml" href="src/v6/brand/strikeglass-mark.svg">
   <link rel="stylesheet" href="src/v3/styles.css">
   <link rel="stylesheet" href="src/v3/readability.css">
   <link rel="stylesheet" href="src/v3/analysis-features.css">
@@ -15,6 +17,7 @@
   <link rel="stylesheet" href="src/v6/components.css">
   <link rel="stylesheet" href="src/v6/stability.css">
   <link rel="stylesheet" href="src/v6/performance.css">
+  <link rel="stylesheet" href="src/v6/brand.css">
 </head>
 <body>
   <svg class="svg-sprite" aria-hidden="true">
@@ -35,8 +38,11 @@
   <div class="app-shell">
     <aside class="sidebar" aria-label="Strikeglass navigation">
       <div class="brand-block">
-        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-        <div><strong>Strikeglass</strong><small>Combat log</small></div>
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+          <path class="sg-pane" d="M12 2.75 21.25 12 12 21.25 2.75 12 12 2.75Z"/>
+          <path class="sg-strike" d="M5.6 15.45 18.4 8.55"/>
+        </svg>
+        <div class="brand-lockup"><strong>Strikeglass</strong><small>Combat analysis</small></div>
       </div>
 
       <nav id="app-nav" class="nav-list">
@@ -52,14 +58,14 @@
       </nav>
 
       <div class="sidebar-foot">
-        <span>Accuracy</span><strong>Double checked</strong>
-        <small>Local only</small>
+        <span>Trust</span><strong>Checked twice</strong>
+        <small>Kept local</small>
       </div>
     </aside>
 
     <div class="shell-main">
       <header class="topbar">
-        <div class="topbar-title"><strong>Combat Log</strong><span id="topbar-file">No combat log linked</span></div>
+        <div class="topbar-title"><strong>Combat analysis</strong><span id="topbar-file">No combat log linked</span></div>
         <div class="topbar-actions">
           <div class="topbar-status" id="topbar-status" role="status" aria-live="polite"><span class="status-dot"></span><span>Ready</span></div>
           <input id="file-input" class="visually-hidden" type="file" accept=".log,.txt,.csv,text/plain,text/csv">
@@ -70,9 +76,12 @@
       <main class="main-stage" id="main-stage">
         <section class="empty-state" id="empty-state">
           <div class="ingest-title">
-            <span class="eyebrow">Open log</span>
-            <h1>Open a Neverwinter combat log</h1>
-            <p>Your log is read and checked on this device. Nothing is uploaded.</p>
+            <div class="brand-intro">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path class="sg-pane" d="M12 2.75 21.25 12 12 21.25 2.75 12 12 2.75Z"/><path class="sg-strike" d="M5.6 15.45 18.4 8.55"/></svg>
+              <span>Strikeglass</span>
+            </div>
+            <h1 class="brand-line">See the fight clearly.</h1>
+            <p class="brand-promise">Open a Neverwinter combat log. Strikeglass reads it on this device, checks the numbers twice, and shows what happened.</p>
           </div>
           <div class="ingest-grid">
             <section class="panel input-panel">
@@ -81,7 +90,7 @@
                 <svg aria-hidden="true"><use href="#i-upload"/></svg>
                 <strong>Drag & drop combat log</strong>
                 <span id="drop-help">or click to choose a file</span>
-                <small>Strikeglass calculates the results, then checks them a second time before showing numbers.</small>
+                <small>Results are checked twice before they appear.</small>
               </button>
             </section>
             <aside class="ingest-side">
