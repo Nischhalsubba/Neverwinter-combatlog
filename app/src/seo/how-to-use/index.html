@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f6f8fb">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <meta name="description" content="Learn how to create a Neverwinter combat log, open it in Strikeglass, choose a fight, compare players, and inspect power damage.">
+  <title>How to Use Strikeglass | Neverwinter Combat Log Analyzer</title>
+  <link rel="canonical" href="https://neverwinter-combatlog.hinischalsubba.workers.dev/how-to-use/">
+  <link rel="icon" type="image/svg+xml" href="/src/v6/brand/strikeglass-mark.svg">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta property="og:type" content="website"><meta property="og:site_name" content="Strikeglass">
+  <meta property="og:title" content="How to Use Strikeglass | Neverwinter Combat Log Analyzer">
+  <meta property="og:description" content="Create a Neverwinter combat log, open it locally in Strikeglass, choose a fight, compare players, and inspect powers and raw hits.">
+  <meta property="og:url" content="https://neverwinter-combatlog.hinischalsubba.workers.dev/how-to-use/">
+  <meta property="og:image" content="https://neverwinter-combatlog.hinischalsubba.workers.dev/assets/strikeglass-social.png">
+  <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Strikeglass — See the fight clearly.">
+  <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="How to Use Strikeglass"><meta name="twitter:description" content="A simple guide to Neverwinter combat logs and Strikeglass."><meta name="twitter:image" content="https://neverwinter-combatlog.hinischalsubba.workers.dev/assets/strikeglass-social.png">
+  <link rel="stylesheet" href="/site.css">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"How to use Strikeglass","url":"https://neverwinter-combatlog.hinischalsubba.workers.dev/how-to-use/","description":"Learn how to create a Neverwinter combat log, open it in Strikeglass, choose a fight, compare players, and inspect power damage.","isPartOf":{"@type":"WebSite","name":"Strikeglass","url":"https://neverwinter-combatlog.hinischalsubba.workers.dev/"}}</script>
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner"><a class="site-brand" href="/" aria-label="Strikeglass home"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="sg-pane" d="M12 2.75 21.25 12 12 21.25 2.75 12 12 2.75Z"/><path class="sg-strike" d="M5.6 15.45 18.4 8.55"/></svg><span>Strikeglass</span></a><nav class="site-nav" aria-label="Strikeglass guides"><a href="/how-to-use/">How to use</a><a href="/dps-explained/">DPS explained</a><a href="/privacy/">Privacy</a><a href="/about/">About</a></nav></div></header>
+<main class="page-shell"><p class="eyebrow">Guide</p><h1>How to use Strikeglass</h1><p class="lede">Strikeglass turns a Neverwinter combat log into readable fight, player, and power results without uploading the log.</p><div class="trust"><i></i><span>Double checked. Kept local.</span></div>
+<article class="content-card">
+<section class="content-section"><h2>1. Turn on combat logging in Neverwinter</h2><p>On PC, open chat and enter <strong>/combatlog 1</strong>. The game starts writing combat events to a log file.</p><p>Play the fight or dungeon you want to review. When you are finished, you can turn logging off with <strong>/combatlog 0</strong>.</p><div class="code-line">/combatlog 1</div></section>
+<section class="content-section"><h2>2. Find the combat log</h2><p>A common Neverwinter installation stores combat logs under <strong>Neverwinter/Live/logs/GameClient/</strong>. The exact install folder can vary.</p><p>Strikeglass accepts .log, .txt, and .csv files. Drag the file onto the app or choose it with <strong>Open log</strong>.</p></section>
+<section class="content-section"><h2>3. Wait for both calculations</h2><p>Strikeglass reads the file in a background worker, calculates the results, and then checks the important values with a separate verifier before showing them.</p><p>If the two calculations disagree, Strikeglass blocks the affected result instead of publishing a number it cannot confirm.</p></section>
+<section class="content-section"><h2>4. Choose the fight and player you care about</h2><p>Use the Fight selector to switch between the full session, individual fights, and detected boss fights. Use the Player selector when a page is focused on one player.</p><p>Compare Players keeps everyone on the same selected fight so damage and DPS are measured against the same scope.</p></section>
+<section class="content-section"><h2>5. Inspect powers and raw hits</h2><p>Open Powers to see where a player’s damage came from. Click a damaging power to open its hit details without leaving the current page.</p><p>The popup shows total damage, hit count, average and biggest hit, critical rate, Combat Advantage rate, targets, base damage, and individual hit flags.</p></section>
+</article><nav class="related" aria-label="Related Strikeglass guides"><a href="/dps-explained/">Understand DPS and Active DPS</a><a href="/privacy/">How local processing works</a></nav></main>
+<footer class="site-footer"><div class="site-footer-inner"><nav class="site-footer-links" aria-label="Footer"><a href="/">Open Strikeglass</a><a href="/how-to-use/">How to use</a><a href="/dps-explained/">DPS explained</a><a href="/privacy/">Privacy</a><a href="/about/">About</a></nav><div>Strikeglass is an independent community tool and is not affiliated with or endorsed by Arc Games or Cryptic Studios.</div></div></footer>
+</body></html>
