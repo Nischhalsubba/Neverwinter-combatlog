@@ -341,11 +341,15 @@ function scheduleCopy() {
   queueMicrotask(applyCopy);
 }
 
-if (viewRoot) new MutationObserver(scheduleCopy).observe(viewRoot, { childList: true, subtree: true });
-if (workspaceTitle) new MutationObserver(scheduleCopy).observe(workspaceTitle, { childList: true, characterData: true, subtree: true });
-if (topbarStatus) new MutationObserver(scheduleCopy).observe(topbarStatus, { childList: true, characterData: true, subtree: true });
-if (parseState) new MutationObserver(scheduleCopy).observe(parseState, { childList: true, characterData: true, subtree: true });
-new MutationObserver(scheduleCopy).observe(document.body, { childList: true, subtree: false });
-nav?.addEventListener('click', scheduleCopy);
+if (viewRoot) {
+  new MutationObserver(scheduleCopy).observe(viewRoot, { childList: true, subtree: false });
+  viewRoot.addEventListener('click', () => requestAnimationFrame(scheduleCopy), { passive: true });
+  viewRoot.addEventListener('change', () => requestAnimationFrame(scheduleCopy), { passive: true });
+}
+if (workspaceTitle) new MutationObserver(simplifyWorkspaceTitle).observe(workspaceTitle, { childList: true, characterData: true, subtree: true });
+if (topbarStatus) new MutationObserver(simplifyStatus).observe(topbarStatus, { childList: true, characterData: true, subtree: true });
+if (parseState) new MutationObserver(simplifyParseState).observe(parseState, { childList: true, characterData: true, subtree: true });
+new MutationObserver(() => requestAnimationFrame(scheduleCopy)).observe(document.body, { childList: true, subtree: false });
+nav?.addEventListener('click', () => requestAnimationFrame(scheduleCopy));
 
 scheduleCopy();

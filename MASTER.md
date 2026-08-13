@@ -282,3 +282,14 @@ Three.js is optional and only runs in the empty/log-open state when the device i
 - No WebGL after the app enters analytics mode.
 - Widget customization never triggers reparsing.
 - Hidden widget preferences are UI-only and must not mutate verified data.
+
+## Loading and responsiveness
+
+- Any analysis expected to take more than 300ms shows a skeleton and progress bar with a plain-language task stage.
+- Navigation remains available while worker analysis is running; stale asynchronous results must never replace a newer view.
+- Power Timing performs its own independent two-engine verification without redundantly rebuilding the full scoped analytics report first.
+- Charts initialize only when near the viewport and yield to the browser before construction.
+- Large data views skip whole-view GSAP transforms; motion is reserved for small, cheap UI feedback.
+- The copy layer observes top-level view swaps rather than every chart/table mutation.
+- Verifier code avoids full-session spread/flat-map allocations and only sorts event series when source timestamps are actually out of order.
+- Skeleton animation is opacity-only and disabled under reduced motion.
