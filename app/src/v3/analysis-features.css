@@ -92,6 +92,9 @@
 .raw-flag.crit{border-color:#9b593e;color:#ff9c76;background:#2a1915}.raw-flag.ca{border-color:#745a8d;color:#d9a9ff;background:#241a2c}.raw-flag.deflect{border-color:#287890;color:#79e7ff;background:#10252d}.raw-flag.kill{border-color:#8c3d49;color:#ff8d9a;background:#2b1519}
 .raw-hits-foot{min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 11px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
 
+body:has([data-view="rotation"].is-active) .analysis-toolbar .field:has(#player-select),
+body:has([data-view="comparison"].is-active) .analysis-toolbar .field:has(#player-select){display:none}
+
 .rotation-panel{overflow:visible}
 .rotation-help{padding:12px 14px;border-bottom:1px solid var(--line-soft);color:var(--muted);font-size:13px;line-height:1.55}
 .rotation-filters{display:flex;flex-wrap:wrap;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line-soft)}
