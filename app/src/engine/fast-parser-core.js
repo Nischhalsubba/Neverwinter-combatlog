@@ -37,7 +37,7 @@ export function isEntityRef(value) {
 }
 
 export function entityTemplate(value) {
-  const match = normalizeText(value).match(/^C\[(?:\d+)\s+(.+)\]$/);
+  const match = normalizeText(value).match(/^C\[(?:[^\s\]]+)\s+([\s\S]+)\]$/);
   return match ? match[1] : '';
 }
 
