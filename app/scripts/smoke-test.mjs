@@ -12,7 +12,12 @@ const required = [
   'src/v3/motion.js',
   'src/v3/ambient.js',
   'src/v6/v6.css',
+  'src/v6/components.css',
+  'src/v6/stability.css',
   'src/v6/dashboard.js',
+  'src/v6/dashboard-interactions.js',
+  'src/v6/copy.js',
+  'src/v6/drawer-copy.js',
   'src/engine/fast-parser-core.js',
   'src/engine/scoped-combat-clock.js',
   'src/engine/power-taxonomy.js',
@@ -32,12 +37,21 @@ for (const marker of [
   'src/v3/analysis-features.css',
   'src/v3/power-drilldown.css',
   'src/v6/v6.css',
+  'src/v6/components.css',
+  'src/v6/stability.css',
   'type="module" src="src/v3/app.js"',
   'type="module" src="src/v3/power-drilldown.js"',
   'type="module" src="src/v6/dashboard.js"',
+  'type="module" src="src/v6/dashboard-interactions.js"',
+  'type="module" src="src/v6/copy.js"',
+  'type="module" src="src/v6/drawer-copy.js"',
   'content="#f6f8fb"',
   'content="light"',
-  'Dual engine V6',
+  'Double checked',
+  '<span>Summary</span>',
+  '<span>Power Timing</span>',
+  '<span>Compare Players</span>',
+  '<span>Log Health</span>',
   'data-view="rotation"',
   'data-view="comparison"',
   'data-view="boss"',
@@ -88,6 +102,30 @@ for (const marker of [
   'aria-modal',
   'Reset layout'
 ]) if (!dashboard.includes(marker)) failures.push(`V6 dashboard missing ${marker}`);
+
+const interactions = await readFile('src/v6/dashboard-interactions.js', 'utf8');
+for (const marker of [
+  "event.target.closest?.('[data-v6-drag]')",
+  "document.addEventListener('pointerdown'",
+  'widget.draggable = true',
+  'widget.draggable = false'
+]) if (!interactions.includes(marker)) failures.push(`V6 dashboard interaction guard missing ${marker}`);
+
+const copy = await readFile('src/v6/copy.js', 'utf8');
+for (const marker of [
+  "['Session overview', 'Session summary']",
+  "['Combat DPS', 'Active DPS']",
+  "['Reject reasons', 'Rows we could not read']",
+  'What do these numbers mean?',
+  'Damage per second from the first counted hit to the last counted hit.'
+]) if (!copy.includes(marker)) failures.push(`V6 plain-language copy missing ${marker}`);
+
+const drawerCopy = await readFile('src/v6/drawer-copy.js', 'utf8');
+for (const marker of [
+  "['Widgets', 'Choose what to show']",
+  "['Top Damage Powers', 'Top damaging powers']",
+  'observe(document.body, { childList: true, subtree: true })'
+]) if (!drawerCopy.includes(marker)) failures.push(`V6 drawer copy missing ${marker}`);
 
 const powerDrilldown = await readFile('src/v3/power-drilldown.js', 'utf8');
 for (const marker of [
@@ -164,6 +202,11 @@ for (const marker of [
 ]) if (!v6Styles.includes(marker)) failures.push(`V6 styles missing ${marker}`);
 if (/backdrop-filter\s*:\s*blur\(/i.test(v6Styles.match(/\.v6-drawer-scrim[\s\S]*?\}/)?.[0] || '')) failures.push('V6 widget drawer must not blur its scrim.');
 
+const stability = await readFile('src/v6/stability.css', 'utf8');
+for (const marker of ['.v6-drawer-scrim{', 'opacity:1', '.v6-widget-drawer{', 'transform:translateX(0)', '.v6-data-guide']) {
+  if (!stability.includes(marker)) failures.push(`V6 drawer stability missing ${marker}`);
+}
+
 const powerDrilldownStyles = await readFile('src/v3/power-drilldown.css', 'utf8');
 for (const marker of [
   '.power-drilldown-trigger',
@@ -193,4 +236,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('Smoke test passed. V6 light design tokens, customizable Overview widgets, dual-engine verification, scoped combat clocks, player comparison, live rotation counts, crisp raw-hit drilldowns, uPlot charts, Three.js idle budget, and GSAP motion contracts are present.');
+console.log('Smoke test passed. V6 light design tokens, persistent widget controls, plain-language analytics, dual-engine verification, scoped combat clocks, player comparison, live rotation counts, crisp raw-hit drilldowns, uPlot charts, Three.js idle budget, and GSAP motion contracts are present.');
