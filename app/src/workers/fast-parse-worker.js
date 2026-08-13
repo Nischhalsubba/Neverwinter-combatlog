@@ -356,7 +356,8 @@ function touchPower(player, powerName) {
   return power;
 }
 
-function compactScopedPlayer(player, duration) {
+function compactScopedPlayer(player, scopeDuration) {
+  const duration = player.firstDamage == null || player.lastDamage == null ? 0 : Math.max(0, player.lastDamage - player.firstDamage);
   const combatTime = Math.max(0, player.activeCombatTime);
   return {
     ref: player.ref,
@@ -369,6 +370,7 @@ function compactScopedPlayer(player, duration) {
     dps: player.damage / Math.max(1, duration),
     combatDps: player.damage / Math.max(1, combatTime),
     duration,
+    scopeDuration,
     combatTime,
     crit: player.hits ? player.critHits / player.hits * 100 : 0,
     flank: player.hits ? player.flankHits / player.hits * 100 : 0,
@@ -382,6 +384,19 @@ function compactScopedPlayer(player, duration) {
     powers: Array.from(player.powers.values()).map(power => powerResult(power, player.damage, duration)).sort((a, b) => b.damage - a.damage || a.power.localeCompare(b.power)),
     timeline: Array.from(player.timeline.entries()).map(([second, damage]) => ({ second, damage })).sort((a, b) => a.second - b.second)
   };
+}
+
+function activeTimeFromSortedTimes(times) {
+  if (!times || times.length < 2) return 0;
+  let total = 0;
+  let previous = times[0];
+  for (let index = 1; index < times.length; index += 1) {
+    const current = times[index];
+    const gap = current - previous;
+    if (gap >= 0 && gap <= ACTIVE_GAP_SECONDS) total += gap;
+    previous = current;
+  }
+  return total;
 }
 
 function cacheSet(key, value) {
@@ -400,17 +415,22 @@ function sessionReport() {
   const cached = scopeCache.get(key);
   if (cached) return cached;
   const summary = activeSummary || attachMeta(activeAccumulator.snapshot());
-  const duration = summary.duration || 0;
+  const duration = summary.combatDuration ?? summary.duration ?? 0;
+  const combatStart = summary.combatStart ?? 0;
+  const combatEnd = summary.combatEnd ?? (combatStart + duration);
+  const activeCombatTime = summary.activeCombatTime ?? 0;
+  const timelineOffset = Math.floor(combatStart);
   const players = (summary.players || []).map(base => {
     const detail = activeAccumulator.playerReport(base.ref);
-    const powers = (detail?.powers || []).map(power => ({ ...power, dps: power.damage / Math.max(1, duration) }));
+    const playerDuration = base.duration || 0;
+    const powers = (detail?.powers || []).map(power => ({ ...power, dps: power.damage / Math.max(1, playerDuration) }));
+    const timeline = (detail?.timeline || []).map(point => ({ second: Math.max(0, point.second - timelineOffset), damage: point.damage }));
     return {
       ...base,
       damageShare: summary.damage ? base.damage / summary.damage * 100 : 0,
       avgHit: base.hits ? base.damage / base.hits : 0,
-      dps: base.damage / Math.max(1, duration),
       powers,
-      timeline: detail?.timeline || []
+      timeline
     };
   });
   const partyMap = new Map();
@@ -418,11 +438,14 @@ function sessionReport() {
     for (const point of player.timeline || []) partyMap.set(point.second, (partyMap.get(point.second) || 0) + point.damage);
   }
   const report = {
-    scope: { type: 'session', id: null, targetOnly: false, label: 'Full session', start: 0, end: duration },
+    scope: { type: 'session', id: null, targetOnly: false, label: 'Full session', start: combatStart, end: combatEnd },
     damage: summary.damage || 0,
     hits: summary.validDamageRows || 0,
     duration,
+    logDuration: summary.logDuration ?? summary.duration ?? 0,
+    activeCombatTime,
     partyDps: (summary.damage || 0) / Math.max(1, duration),
+    partyCombatDps: (summary.damage || 0) / Math.max(1, activeCombatTime),
     healing: summary.healing || 0,
     shielded: summary.shielded || 0,
     players: players.sort((a, b) => b.damage - a.damage || a.name.localeCompare(b.name)),
@@ -447,6 +470,9 @@ function aggregateScope(scope) {
   let hits = 0;
   let healing = 0;
   let shielded = 0;
+  let activeCombatTime = 0;
+  let lastPartyDamageAt = null;
+  const unorderedPartyTimes = activeStore.monotonic ? null : [];
   const duration = Math.max(0, info.end - info.start);
 
   const ensurePlayer = (refId, nameId) => {
@@ -482,7 +508,7 @@ function aggregateScope(scope) {
       shielded += value;
       target.shielded += value;
     }
-    if (kind === 'damage' && target && amount > 0) target.damageTaken += amount;
+    if (chunk.validDamage[slot] && target && amount > 0) target.damageTaken += amount;
 
     if (!chunk.validDamage[slot] || !owner) continue;
     if (info.targetOnly && info.bossTargetIds.size && !info.bossTargetIds.has(chunk.targetRef[slot])) continue;
@@ -498,12 +524,25 @@ function aggregateScope(scope) {
     const powerName = activeStore.pool.get(chunk.powerName[slot]) || 'Unknown';
     if (amount > owner.maxHit) { owner.maxHit = amount; owner.maxPower = powerName; }
     const relativeTime = Math.max(0, chunk.time[slot] - info.start);
-    if (owner.firstDamage == null) owner.firstDamage = relativeTime;
-    if (owner.lastDamage != null) {
-      const gap = relativeTime - owner.lastDamage;
-      if (gap >= 0 && gap <= ACTIVE_GAP_SECONDS) owner.activeCombatTime += gap;
+    if (activeStore.monotonic) {
+      if (owner.firstDamage == null) owner.firstDamage = relativeTime;
+      if (owner.lastDamage != null) {
+        const gap = relativeTime - owner.lastDamage;
+        if (gap >= 0 && gap <= ACTIVE_GAP_SECONDS) owner.activeCombatTime += gap;
+      }
+      owner.lastDamage = relativeTime;
+      if (lastPartyDamageAt != null) {
+        const gap = relativeTime - lastPartyDamageAt;
+        if (gap >= 0 && gap <= ACTIVE_GAP_SECONDS) activeCombatTime += gap;
+      }
+      lastPartyDamageAt = relativeTime;
+    } else {
+      owner.firstDamage = owner.firstDamage == null ? relativeTime : Math.min(owner.firstDamage, relativeTime);
+      owner.lastDamage = owner.lastDamage == null ? relativeTime : Math.max(owner.lastDamage, relativeTime);
+      if (!owner.damageTimes) owner.damageTimes = [];
+      owner.damageTimes.push(relativeTime);
+      unorderedPartyTimes.push(relativeTime);
     }
-    owner.lastDamage = relativeTime;
 
     const power = touchPower(owner, powerName);
     power.damage += amount;
@@ -516,6 +555,17 @@ function aggregateScope(scope) {
     const second = Math.floor(relativeTime);
     owner.timeline.set(second, (owner.timeline.get(second) || 0) + amount);
     partyTimeline.set(second, (partyTimeline.get(second) || 0) + amount);
+  }
+
+  if (!activeStore.monotonic) {
+    unorderedPartyTimes.sort((a, b) => a - b);
+    activeCombatTime = activeTimeFromSortedTimes(unorderedPartyTimes);
+    for (const player of players.values()) {
+      if (!player.damageTimes) continue;
+      player.damageTimes.sort((a, b) => a - b);
+      player.activeCombatTime = activeTimeFromSortedTimes(player.damageTimes);
+      delete player.damageTimes;
+    }
   }
 
   const compactPlayers = Array.from(players.values())
@@ -537,7 +587,9 @@ function aggregateScope(scope) {
     damage,
     hits,
     duration,
+    activeCombatTime,
     partyDps: damage / Math.max(1, duration),
+    partyCombatDps: damage / Math.max(1, activeCombatTime),
     healing,
     shielded,
     players: compactPlayers,
