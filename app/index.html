@@ -5,102 +5,125 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#071018">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="Strikeglass parses Neverwinter combat logs locally in your browser with a worker-first analytics pipeline.">
+  <meta name="description" content="Strikeglass is a local-first Neverwinter combat log analyzer with worker-based parsing, boss scopes, player comparison, and fast Canvas charts.">
   <title>Strikeglass - Neverwinter Combat Analyzer</title>
   <link rel="stylesheet" href="src/v3/styles.css">
-  <link rel="stylesheet" href="src/v3/compact.css">
 </head>
 <body>
+  <svg class="svg-sprite" aria-hidden="true">
+    <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></symbol>
+    <symbol id="i-compare" viewBox="0 0 24 24"><path d="M4 7h13M14 4l3 3-3 3M20 17H7M10 14l-3 3 3 3"/></symbol>
+    <symbol id="i-boss" viewBox="0 0 24 24"><path d="M4 20V9l4 3 4-7 4 7 4-3v11zM7 20h10"/></symbol>
+    <symbol id="i-swords" viewBox="0 0 24 24"><path d="M5 4l6 6-7 7 3 3 7-7 6 6M19 4l-6 6"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-2a6 6 0 0 1 12 0v2M17 11a3 3 0 1 0 0-6M17 14a5 5 0 0 1 5 5v2"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 5 14h6l-1 8 9-13h-6z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+    <symbol id="i-diagnostic" viewBox="0 0 24 24"><path d="M9 3h6l1 3 3 1v6a7 7 0 0 1-14 0V7l3-1zM9 10h6M9 14h6"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 14a4 4 0 0 0 1 8h12a4 4 0 0 0 1-8"/></symbol>
+  </svg>
+
   <div id="ambient-root" class="ambient-root" aria-hidden="true"></div>
 
-  <header class="topbar">
-    <a class="brand" href="#" aria-label="Strikeglass home">
-      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-      <span><strong>Strikeglass</strong><small>Combat intelligence</small></span>
-    </a>
-    <div class="topbar-status" id="topbar-status" role="status" aria-live="polite">
-      <span class="status-dot"></span>
-      <span>No log loaded</span>
-    </div>
-    <div class="topbar-actions">
-      <span class="privacy-chip" title="Combat logs stay in your browser"><span class="privacy-dot"></span>Local only</span>
-      <input id="file-input" class="visually-hidden" type="file" accept=".log,.txt,.csv,text/plain,text/csv">
-      <button class="button button-primary" id="open-file" type="button">Open combat log</button>
-    </div>
-  </header>
-
   <div class="app-shell">
-    <aside class="rail" aria-label="Analysis navigation">
-      <nav id="app-nav">
-        <button class="nav-item is-active" type="button" data-view="overview" aria-current="page"><span class="nav-icon">OV</span><span>Overview</span></button>
-        <button class="nav-item" type="button" data-view="players" disabled><span class="nav-icon">PL</span><span>Players</span></button>
-        <button class="nav-item" type="button" data-view="powers" disabled><span class="nav-icon">PW</span><span>Powers</span></button>
-        <button class="nav-item" type="button" data-view="events" disabled><span class="nav-icon">EV</span><span>Events</span></button>
-        <button class="nav-item" type="button" data-view="diagnostics" disabled><span class="nav-icon">DG</span><span>Diagnostics</span></button>
+    <aside class="sidebar" aria-label="Strikeglass navigation">
+      <div class="brand-block">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <div><strong>Strikeglass</strong><small>Combat analyzer</small></div>
+      </div>
+
+      <nav id="app-nav" class="nav-list">
+        <button class="nav-item is-active" type="button" data-view="overview" aria-current="page"><svg><use href="#i-grid"/></svg><span>Overview</span></button>
+        <button class="nav-item" type="button" data-view="comparison" disabled><svg><use href="#i-compare"/></svg><span>Comparison</span></button>
+        <button class="nav-item" type="button" data-view="boss" disabled><svg><use href="#i-boss"/></svg><span>Boss Analysis</span></button>
+        <button class="nav-item" type="button" data-view="encounters" disabled><svg><use href="#i-swords"/></svg><span>Encounters</span></button>
+        <button class="nav-item" type="button" data-view="players" disabled><svg><use href="#i-users"/></svg><span>Players</span></button>
+        <button class="nav-item" type="button" data-view="powers" disabled><svg><use href="#i-bolt"/></svg><span>Powers</span></button>
+        <button class="nav-item" type="button" data-view="events" disabled><svg><use href="#i-list"/></svg><span>Events</span></button>
+        <button class="nav-item" type="button" data-view="diagnostics" disabled><svg><use href="#i-diagnostic"/></svg><span>Diagnostics</span></button>
       </nav>
-      <div class="rail-foot">
-        <span class="engine-label">Parser engine</span>
-        <strong>V3 worker</strong>
+
+      <div class="sidebar-foot">
+        <span>Parser</span><strong>Worker V4</strong>
+        <small>Local only</small>
       </div>
     </aside>
 
-    <main class="main-stage" id="main-stage">
-      <section class="empty-state" id="empty-state">
-        <div class="empty-copy">
-          <span class="eyebrow">Neverwinter combat analysis</span>
-          <h1>Drop the log.<br><em>Keep the browser.</em></h1>
-          <p>Strikeglass streams the file in a dedicated worker, keeps raw rows off the main thread, and gives you useful combat summaries before you drill into the expensive details.</p>
-          <div class="empty-badges" aria-label="Parser capabilities">
-            <span>Worker-first</span><span>Streaming</span><span>Local-first</span><span>Traceable rejects</span>
-          </div>
+    <div class="shell-main">
+      <header class="topbar">
+        <div class="topbar-title"><strong>Combat Analyzer</strong><span id="topbar-file">No combat log linked</span></div>
+        <div class="topbar-actions">
+          <div class="topbar-status" id="topbar-status" role="status" aria-live="polite"><span class="status-dot"></span><span>Idle</span></div>
+          <input id="file-input" class="visually-hidden" type="file" accept=".log,.txt,.csv,text/plain,text/csv">
+          <button class="button button-primary" id="open-file" type="button">Open log</button>
         </div>
+      </header>
 
-        <button class="drop-zone" id="drop-zone" type="button" aria-describedby="drop-help">
-          <span class="drop-scan" aria-hidden="true"></span>
-          <span class="drop-icon" aria-hidden="true"><i></i></span>
-          <strong>Choose or drop a combat log</strong>
-          <span id="drop-help">.log, .txt or .csv - parsed on this device</span>
-          <small>No upload. No account. No server-side copy.</small>
-        </button>
-      </section>
+      <main class="main-stage" id="main-stage">
+        <section class="empty-state" id="empty-state">
+          <div class="ingest-title">
+            <span class="eyebrow">Data input</span>
+            <h1>Open a Neverwinter combat log</h1>
+            <p>Parse locally in a dedicated worker. No upload, account, or server-side copy.</p>
+          </div>
+          <div class="ingest-grid">
+            <section class="panel input-panel">
+              <div class="panel-head"><div><span class="eyebrow">Combat log source</span><h2>Telemetry file</h2></div><span>.log · .txt · .csv</span></div>
+              <button class="drop-zone" id="drop-zone" type="button" aria-describedby="drop-help">
+                <svg aria-hidden="true"><use href="#i-upload"/></svg>
+                <strong>Drag & drop combat log</strong>
+                <span id="drop-help">or click to browse local storage</span>
+                <small>Large files stream into the parser instead of loading into the UI thread.</small>
+              </button>
+            </section>
+            <aside class="ingest-side">
+              <section class="panel status-panel">
+                <div class="panel-head"><h2>System status</h2></div>
+                <dl class="status-list"><div><dt>Parser</dt><dd>Ready</dd></div><div><dt>Privacy</dt><dd class="good-text">Local only</dd></div><div><dt>Charts</dt><dd>uPlot / Canvas</dd></div></dl>
+              </section>
+              <section class="panel quick-panel">
+                <div class="panel-head"><h2>Input contract</h2></div>
+                <ol><li>Choose a Neverwinter combat log.</li><li>Strikeglass streams and indexes it off the main thread.</li><li>Analyze party, boss, player and power scopes from the same exact parsed rows.</li></ol>
+              </section>
+            </aside>
+          </div>
+        </section>
 
-      <section class="parse-state" id="parse-state" hidden aria-live="polite">
-        <div class="parse-hero">
-          <div>
-            <span class="eyebrow">Worker pipeline active</span>
-            <h1>Reading combat log</h1>
-            <p id="parse-file-name">combat.log</p>
+        <section class="parse-state" id="parse-state" hidden aria-live="polite">
+          <div class="section-heading">
+            <div><span class="eyebrow">Parsing pipeline</span><h1>Reading combat log</h1><p id="parse-file-name">combat.log</p></div>
+            <button class="button" id="cancel-parse" type="button">Cancel</button>
           </div>
-          <button class="button button-ghost" id="cancel-parse" type="button">Cancel</button>
-        </div>
-        <div class="progress-track" aria-hidden="true"><i id="progress-bar"></i></div>
-        <div class="parse-metrics">
-          <article><span>Read</span><strong id="parse-read">0 MB</strong></article>
-          <article><span>Lines</span><strong id="parse-lines">0</strong></article>
-          <article><span>Parsed</span><strong id="parse-parsed">0</strong></article>
-          <article><span>Rejected</span><strong id="parse-rejected">0</strong></article>
-          <article><span>Elapsed</span><strong id="parse-elapsed">0.0s</strong></article>
-        </div>
-        <div class="partial-panel" id="partial-panel">
-          <div class="panel-head"><div><span class="eyebrow">Progressive summary</span><h2>Party signal</h2></div><span id="parse-phase">Starting worker...</span></div>
-          <div class="partial-list" id="partial-list"><span class="empty-inline">Top players appear while the log is still being parsed.</span></div>
-        </div>
-      </section>
+          <div class="progress-track" aria-hidden="true"><i id="progress-bar"></i></div>
+          <section class="telemetry-grid">
+            <article class="telemetry-card"><span>Read</span><strong id="parse-read">0 MB</strong></article>
+            <article class="telemetry-card"><span>Lines</span><strong id="parse-lines">0</strong></article>
+            <article class="telemetry-card"><span>Accepted</span><strong id="parse-parsed">0</strong></article>
+            <article class="telemetry-card"><span>Rejected</span><strong id="parse-rejected">0</strong></article>
+            <article class="telemetry-card"><span>Elapsed</span><strong id="parse-elapsed">0.0s</strong></article>
+          </section>
+          <section class="panel partial-panel">
+            <div class="panel-head"><div><span class="eyebrow">Progressive summary</span><h2>Party signal</h2></div><span id="parse-phase">Starting worker...</span></div>
+            <div class="partial-list" id="partial-list"><span class="empty-inline">Player totals appear while parsing continues.</span></div>
+          </section>
+        </section>
 
-      <section class="workspace" id="workspace" hidden>
-        <div class="workspace-toolbar">
-          <div>
-            <span class="eyebrow" id="file-eyebrow">Loaded log</span>
-            <h1 id="workspace-title">Combat overview</h1>
+        <section class="workspace" id="workspace" hidden>
+          <div class="workspace-head">
+            <div><span class="eyebrow" id="file-eyebrow">Loaded log</span><h1 id="workspace-title">Session overview</h1></div>
+            <button class="button" id="replace-file" type="button">Replace log</button>
           </div>
-          <div class="workspace-controls">
-            <label class="field compact"><span>Player</span><select id="player-select"></select></label>
-            <button class="button button-secondary" id="replace-file" type="button">Replace log</button>
-          </div>
-        </div>
-        <div id="view-root" class="view-root"></div>
-      </section>
-    </main>
+
+          <section class="analysis-toolbar" aria-label="Analysis scope">
+            <label class="field"><span>Scope</span><select id="encounter-select"></select></label>
+            <label class="field"><span>Player</span><select id="player-select"></select></label>
+            <label class="check-field" id="boss-target-field"><input id="boss-target-only" type="checkbox"><span>Boss target only</span></label>
+            <div class="scope-readout"><span>Current scope</span><strong id="scope-label">Full session</strong></div>
+          </section>
+
+          <div id="view-root" class="view-root"></div>
+        </section>
+      </main>
+    </div>
   </div>
 
   <div class="drop-overlay" id="drop-overlay" hidden aria-hidden="true"><div><strong>Drop to parse</strong><span>Nothing leaves your browser</span></div></div>
