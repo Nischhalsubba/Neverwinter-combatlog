@@ -1,70 +1,91 @@
 <div align="center">
 
-# Neverwinter Combat Log
+# Strikeglass
 
-**A Neverwinter combat-log project for turning raw combat events into structured, reviewable information for analysis and tooling.**
+**See the fight clearly.**
+
+A local-first Neverwinter combat log analyzer for damage, DPS, boss fights, player comparison, power analysis, and raw-hit review.
 
 ![Top language](https://img.shields.io/github/languages/top/Nischhalsubba/Neverwinter-combatlog?style=flat-square)
 ![Last commit](https://img.shields.io/github/last-commit/Nischhalsubba/Neverwinter-combatlog?style=flat-square)
 ![Repo size](https://img.shields.io/github/repo-size/Nischhalsubba/Neverwinter-combatlog?style=flat-square)
 
-[Browse source](https://github.com/Nischhalsubba/Neverwinter-combatlog/tree/main) · [Issues](https://github.com/Nischhalsubba/Neverwinter-combatlog/issues)
+[Open Strikeglass](https://neverwinter-combatlog.hinischalsubba.workers.dev/) · [How to use](https://neverwinter-combatlog.hinischalsubba.workers.dev/how-to-use/) · [Source](https://github.com/Nischhalsubba/Neverwinter-combatlog/tree/main) · [Issues](https://github.com/Nischhalsubba/Neverwinter-combatlog/issues)
 
 </div>
 
-## Overview
+## What Strikeglass does
 
-**Neverwinter Combat Log** is documented around a data pipeline: read combat-log input, parse events, normalize useful fields, aggregate or inspect results, and present information that players or developers can reason about.
+Strikeglass reads Neverwinter combat logs in the browser, calculates combat results, and checks important published values with a separate verification engine before showing them. The combat log itself stays on the device during analysis.
 
-| Audience | Focus |
+| Area | What it answers |
 |---|---|
-| Players / analysts | Understand combat events and resulting summaries |
-| Developers | Parsing, event models, normalization and calculations |
-| Designers | Dense combat data, filtering, hierarchy and comparison |
-| Maintainers | Sample logs, edge cases, format changes and version assumptions |
+| Summary | How much damage did the group and each player do? |
+| DPS / Active DPS | How quickly was that damage dealt using elapsed and active-combat clocks? |
+| Boss Fights | What happened in one detected boss fight? |
+| Compare Players | How do selected players compare inside the same fight? |
+| Powers | Which powers produced the damage and what did individual hits look like? |
+| Power Timing | When did important powers activate? |
+| Log Health | What could not be parsed or safely verified? |
 
-<details open>
-<summary><strong>🏗️ Interactive parsing architecture</strong></summary>
+## Architecture
 
 ```mermaid
 flowchart LR
-    LOG["Neverwinter combat log"] --> READ["Read / stream input"]
-    READ --> PARSE["Parse events"]
-    PARSE --> NORMALIZE["Normalize fields"]
-    NORMALIZE --> MODEL["Structured combat events"]
-    MODEL --> ANALYZE["Aggregate / analyze"]
-    ANALYZE --> OUTPUT["Tables / metrics / exports"]
+    LOG["Neverwinter combat log"] --> READ["Background reader"]
+    READ --> PRIMARY["Primary calculation engine"]
+    PRIMARY --> VERIFY["Independent verification engine"]
+    VERIFY -->|match| REPORT["Verified report"]
+    VERIFY -->|disagree| BLOCK["Block affected analytics"]
+    REPORT --> UI["Strikeglass UI"]
 ```
 
-</details>
+Large logs are streamed into worker-owned compact storage. Raw events are paged rather than copied into the full frontend state, charts are downsampled for display only, and authoritative totals come from verified aggregates.
 
-## Analysis flow
+## Getting started locally
 
-```mermaid
-flowchart TD
-    FILE["Choose combat log"] --> INGEST["Ingest lines"] --> PARSE["Parse supported events"] --> CHECK["Handle invalid / unknown lines"] --> AGG["Aggregate relevant data"] --> REVIEW["Review results"]
-```
-
-## Getting started
+Requirements: Node.js 22+ and pnpm 9+.
 
 ```bash
 git clone https://github.com/Nischhalsubba/Neverwinter-combatlog.git
 cd Neverwinter-combatlog
+corepack enable
+corepack prepare pnpm@9.15.0 --activate
+pnpm install --frozen-lockfile
+pnpm --dir app check
+pnpm --dir app start
 ```
 
-Use the manifests and project files to determine the current runtime and commands. Keep sample logs free of private or unrelated information before committing them.
+## Public product pages
 
-## Data & UX principles
+The production build publishes a small set of indexable pages around the analyzer:
 
-Parsers should fail visibly and recover gracefully. Preserve raw context when useful, distinguish parsed facts from derived calculations, document assumptions, and keep filters/metrics understandable to people who did not write the parser.
+- `/` — Strikeglass analyzer and product overview
+- `/how-to-use/` — enabling combat logging and using the app
+- `/dps-explained/` — damage, DPS, Active DPS, group share, critical rate, and Combat Advantage
+- `/privacy/` — local processing and external-library disclosure
+- `/about/` — product purpose and verification approach
 
-## SEO & discoverability
+Search discovery files are published at `/robots.txt`, `/sitemap.txt`, and `/site.webmanifest`.
 
-Use accurate terms such as **Neverwinter combat log, combat log parser, Neverwinter combat analysis, damage analysis, combat events, and Neverwinter tools** only where supported by implemented behavior.
+## Data and UX principles
 
-## Contribution flow
+- Accuracy comes before presentation.
+- Parser or verifier disagreements must be visible rather than averaged away.
+- Player-facing labels use normal combat language; internal parser terminology belongs in Log Health.
+- Presentation may abbreviate values with K, M, and B, but formatting must never change the underlying calculation.
+- Heavy analysis stays off the main thread where practical.
+- Hidden or offscreen UI must not trigger unnecessary full-log work.
 
-```mermaid
-flowchart LR
-    SAMPLE["New log case"] --> VERIFY["Confirm format"] --> PARSER["Update parser"] --> TEST["Regression test"] --> DOCS["Document event / assumption"] --> PR["Pull request"]
-```
+## Ground-truth fixtures
+
+Synthetic regressions protect known edge cases, but the strongest numerical tests come from real anonymized Neverwinter logs paired with trusted reference values. See `docs/ENGINE_VALIDATION.md` for the fixture requirements and acceptance process.
+
+## Brand and SEO
+
+- `BRAND.md` is the canonical product identity and voice guide.
+- `MASTER.md` is the canonical UI/design and performance system.
+- `SEO.md` documents the public search/discovery contract.
+- `app/site.config.mjs` records the current production origin for SEO work.
+
+Strikeglass is an independent community tool and is not affiliated with or endorsed by Arc Games or Cryptic Studios. Neverwinter and related names belong to their respective owners.

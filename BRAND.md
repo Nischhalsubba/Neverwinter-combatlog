@@ -2,49 +2,31 @@
 
 ## Brand foundation
 
-**Product name:** Strikeglass
-
-**Category:** Neverwinter combat analysis
-
-**Brand line:** **See the fight clearly.**
-
+**Product name:** Strikeglass  
+**Category:** Neverwinter combat log analysis  
+**Brand line:** **See the fight clearly.**  
 **Trust promise:** **Double checked. Kept local.**
 
-Strikeglass turns Neverwinter combat logs into clear answers about damage, powers, players, and fights. The product should feel precise and dependable without sounding like a developer console. Accuracy and speed are product qualities; clarity is the brand.
+Strikeglass turns Neverwinter combat logs into clear answers about damage, powers, players, and fights. Accuracy and speed are product qualities; clarity is the brand.
 
 ## Brand idea
 
 The name combines two ideas:
 
-- **Strike** — the combat event, impact, action, and measurable result.
+- **Strike** — combat events, impact, action, and measurable results.
 - **Glass** — clarity, inspection, transparency, and seeing through noise.
 
-The visual identity uses a simple glass pane cut by a single strike. It should feel analytical rather than fantasy-themed, so the product can sit beside dense combat data without competing with it.
+The primary mark is a simple glass pane crossed by one diagonal strike. It is analytical rather than fantasy-themed so it can sit beside dense combat data without competing with it.
 
 ## Brand personality
 
-Strikeglass is:
+Strikeglass is **clear, exact, fast, calm, and private**.
 
-- **Clear** — explain the result before exposing implementation details.
-- **Exact** — numbers are treated as evidence, not decoration.
-- **Fast** — the interface responds immediately and heavy work happens in the background.
-- **Calm** — no visual noise, fake urgency, or unnecessary motion.
-- **Private** — the log stays on the device unless the user explicitly exports something.
-
-Strikeglass is not:
-
-- theatrical
-- cyberpunk
-- gamer-neon
-- corporate-slogan heavy
-- jargon-first
-- chatty inside analytical screens
+Strikeglass is not theatrical, cyberpunk, gamer-neon, corporate-slogan heavy, jargon-first, or chatty inside analytical screens.
 
 ## Voice
 
 Use short, direct language. Prefer the term a player would use over an internal engineering term.
-
-### Preferred vocabulary
 
 | Use | Avoid in normal UI |
 | --- | --- |
@@ -72,30 +54,27 @@ Use these states consistently:
 - **Double checked** — both calculations agree.
 - **Needs attention** — the app cannot safely publish the result.
 
-Do not use success language that implies certainty beyond the data. `Double checked` describes the mechanism without pretending the source log itself is infallible.
+`Double checked` describes the mechanism without pretending the source log itself is infallible.
 
 ## Logo
 
 The primary symbol is the **Strikeglass mark**: a diamond-shaped pane crossed by one diagonal strike.
 
-### Meaning
-
-- outer diamond: a pane / inspection surface
+- outer diamond: pane / inspection surface
 - diagonal cut: impact / damage event
 - open center: data passing through the mark rather than being hidden behind ornament
 
-### Usage
+Rules:
 
-- Use the symbol with the Strikeglass wordmark in the sidebar and product headers.
+- Use the symbol with the Strikeglass wordmark in product headers.
 - Use the symbol alone for favicon-sized contexts.
-- Keep the mark upright. Do not rotate, skew, glow, bevel, or place it inside another badge.
-- Do not animate the logo continuously.
+- Keep the mark upright.
+- Do not rotate, skew, glow, bevel, or place it inside another badge.
+- Do not animate it continuously.
 - Minimum UI size: 18px.
 - Preferred sidebar size: 26px.
 
 ## Color
-
-The brand stays inside the approved V6 light design rather than creating a second palette.
 
 ```css
 --sg-brand-blue: #2563eb;
@@ -109,63 +88,125 @@ The brand stays inside the approved V6 light design rather than creating a secon
 --sg-brand-error: #b91c1c;
 ```
 
-### Rules
-
-- Brand blue is the primary action and navigation color.
-- Brand cyan is the secondary data signal and the strike inside the logo.
+- Blue is the primary action/navigation color.
+- Cyan is the secondary data signal and logo strike.
 - Ink and slate carry most text.
 - Green is reserved for checked/success states.
 - Amber is reserved for boss/warning meaning.
 - Red is reserved for errors and blocked results.
-- Never make normal analytical content depend on color alone.
-- Avoid decorative gradients in the application shell. Charts may use multiple semantic series colors when required.
+- Color is never the sole carrier of meaning.
+- Avoid decorative gradients in the application shell.
 
 ## Typography
 
-Use the existing performance-friendly stack everywhere:
+Use the performance-friendly product stack everywhere:
 
 ```css
 font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 ```
 
-The wordmark is not a separate font asset. It uses the product typeface with tighter tracking and strong weight so branding does not add a network dependency.
+The wordmark does not introduce a separate font download.
 
 - Wordmark: 15px / 750 / -0.025em
-- Brand descriptor: 10px / 650 / 0.02em
-- Brand line: normal product typography; never script or display lettering
-- Monospace remains reserved for machine-oriented values such as timestamps and references
+- Brand descriptor: 10px / 650
+- Brand line: normal product typography
+- Monospace: timestamps, references, checksums, and machine-oriented telemetry only
 
 ## Product signature
 
 Use these phrases consistently:
 
-- **See the fight clearly.** — brand line; empty state, documentation, release surfaces.
-- **Double checked. Kept local.** — compact trust statement when both concepts are relevant.
+- **See the fight clearly.** — brand line; empty state, documentation, and public release surfaces.
+- **Double checked. Kept local.** — compact trust statement when both concepts matter.
 - **Double checked** — verified state inside the application.
 - **Kept local** or **Stays on this device** — privacy explanation.
 
-Do not repeat the brand line on every screen. One strong use is branding; six uses are wallpaper.
+Do not repeat the brand line on every analytical screen.
+
+## Public search identity
+
+The public search name is **Strikeglass**.
+
+Until a custom domain is adopted, the canonical production origin is:
+
+```text
+https://neverwinter-combatlog.hinischalsubba.workers.dev
+```
+
+The origin is tracked in `app/site.config.mjs`. A future custom-domain migration must update all canonical URLs, Open Graph URLs, structured data, sitemap URLs, robots sitemap location, public help pages, repository links, and Search Console property together.
+
+### Canonical homepage copy
+
+**Title:** `Strikeglass | Neverwinter Combat Log Analyzer`
+
+**Description:** `Analyze Neverwinter combat logs locally with double-checked DPS, boss fights, player comparison, power damage, and raw-hit details.`
+
+### Public indexable pages
+
+- `/` — analyzer and product explanation
+- `/how-to-use/` — combat-log setup and product workflow
+- `/dps-explained/` — DPS, Active DPS, group share, critical rate, and Combat Advantage
+- `/privacy/` — local processing and external-library disclosure
+- `/about/` — product purpose and verification approach
+
+### Search metadata rules
+
+Every indexable page must have:
+
+- one descriptive `<title>`
+- one concise meta description
+- one canonical URL
+- `index,follow` robots metadata unless there is a deliberate reason not to index it
+- Open Graph title, description, URL, and image
+- Twitter/X card metadata
+- structured data only when it accurately describes visible page content
+- internal links to at least one other useful Strikeglass page
+
+The homepage publishes `WebSite` and `SoftwareApplication` structured data. Help pages publish `WebPage` structured data.
+
+### Search discovery files
+
+Production must expose:
+
+- `/robots.txt`
+- `/sitemap.txt`
+- `/site.webmanifest`
+
+These are copied to the static-asset root by the production build. Do not leave them only under `/src/`.
+
+### Search content rules
+
+Use phrases such as **Neverwinter combat log analyzer**, **Neverwinter DPS**, **boss damage**, **player comparison**, and **power damage** only where the page genuinely answers that intent. Do not stuff repeated keyword variants into analytical UI.
+
+SEO content belongs primarily in the empty/public state and dedicated help pages. Once a log is loaded, combat data remains the focal point.
+
+## Social/share identity
+
+The preferred share treatment uses the Strikeglass mark, the name, **See the fight clearly.**, and the trust promise on the light V6 palette.
+
+- Source artwork: `app/src/v6/brand/strikeglass-social.svg`
+- Preferred final share export: 1200×630 PNG when a raster asset can be published reliably
+- No combat-log screenshots containing player/account information in default social artwork
+- No fake performance claims or unverified numerical examples in share artwork
 
 ## UI expression
 
-Branding should frame the data, not compete with it.
+Branding frames the data rather than competing with it.
 
-- Sidebar carries the full symbol + wordmark.
+- Sidebar carries symbol + wordmark.
 - Top bar stays functional and compact.
-- Empty state may use the brand line as the main heading.
+- Empty state may use the brand line as its main heading.
 - Primary buttons use solid brand blue.
 - Active navigation uses the pale blue selected surface.
-- Tables, charts, and metrics remain primarily neutral.
-- No branded background texture behind analytics.
-- The optional Three.js empty-state particles remain subtle and are not part of the logo.
+- Tables, charts, and metrics stay primarily neutral.
+- Public SEO/product copy is hidden with the empty state once analysis begins.
+- No branded texture or persistent WebGL effect behind analytics.
 
 ## Motion
 
-The mark itself stays still during normal use.
+Allowed:
 
-Allowed brand motion:
-
-- 120-220ms opacity/translate entrance with the surrounding shell
+- 120–220ms opacity/translate entrance with the surrounding shell
 - subtle button press feedback
 - short verified-state transition
 
@@ -177,12 +218,16 @@ Forbidden:
 - animated wordmark
 - splash-screen delay added only to show branding
 
-## Accessibility
+## Privacy language
 
-- The symbol is decorative when the visible wordmark is present and should use `aria-hidden="true"`.
-- Standalone logo links/buttons require an accessible name.
-- Brand colors must maintain the V6 contrast rules.
-- The wordmark must remain readable at compact sidebar sizes.
+State only what the application actually does:
+
+- the combat log is parsed in browser workers on the device
+- dashboard layout preferences may be stored locally
+- optional interface libraries may be fetched from jsDelivr
+- the combat-log file is not sent to those libraries by the analysis pipeline
+
+Do not turn `Kept local` into a broader security guarantee.
 
 ## Naming rule
 
@@ -197,20 +242,16 @@ Do not write:
 
 Descriptors can follow the name when context needs them, for example **Strikeglass — Neverwinter combat analysis**.
 
-## Canonical browser copy
-
-**Title:** `Strikeglass | Neverwinter Combat Analysis`
-
-**Description:** `Strikeglass turns Neverwinter combat logs into clear, double-checked fight, player, and power analysis. Your log stays on your device.`
-
 ## Brand QA checklist
 
-Before shipping a UI change:
+Before shipping a public UI change:
 
 - Is the product name written correctly?
-- Does player-facing copy use plain combat language?
-- Is `Double checked` used instead of internal verification jargon outside Log Health?
-- Does privacy copy say the log stays on the device without making broader security claims?
-- Are blue/cyan accents restrained enough that the data remains the focal point?
-- Is the logo used without glow, distortion, or continuous animation?
-- Does the page still read clearly if all branding decoration is ignored?
+- Does the visible copy use plain combat language?
+- Is `Double checked` used instead of verifier jargon outside Log Health?
+- Does privacy copy accurately describe local processing without overclaiming?
+- Are blue/cyan accents restrained enough that data stays primary?
+- Is the mark free of glow, distortion, and continuous animation?
+- Do page title, canonical URL, Open Graph URL, structured data URL, and sitemap agree on the same origin?
+- Do public help pages explain something useful instead of existing only for keywords?
+- Does the page still read clearly when branding decoration is ignored?

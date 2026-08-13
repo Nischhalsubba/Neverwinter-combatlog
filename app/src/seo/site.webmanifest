@@ -1,0 +1,18 @@
+{
+  "name": "Strikeglass",
+  "short_name": "Strikeglass",
+  "description": "Analyze Neverwinter combat logs locally with double-checked DPS, boss fights, player comparison, power damage, and raw-hit details.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#f6f8fb",
+  "icons": [
+    {
+      "src": "/src/v6/brand/strikeglass-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

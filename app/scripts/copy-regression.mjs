@@ -30,3 +30,4 @@ if (failures.length) {
 }
 
 console.log('Copy regression passed. Plain-language metric definitions and persistent widget-drawer visibility are present.');
+await import('./seo-regression.mjs');
