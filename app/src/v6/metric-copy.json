@@ -1,0 +1,15 @@
+{
+  "groupDamage": "Group damage",
+  "groupDps": "Group DPS",
+  "groupActiveDps": "Group Active DPS",
+  "playerDamage": "Total damage",
+  "playerDps": "DPS",
+  "playerActiveDps": "Active DPS",
+  "activeTime": "Active time",
+  "groupShare": "Group share",
+  "biggestHit": "Biggest hit",
+  "criticalRate": "Critical hit rate",
+  "flankCombatAdvantageRate": "Flank / CA rate",
+  "damageTaken": "Damage taken",
+  "damageBlocked": "Damage blocked"
+}

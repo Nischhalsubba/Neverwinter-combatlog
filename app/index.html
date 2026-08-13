@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f6f8fb">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="Strikeglass is a local-first Neverwinter combat log analyzer with dual-engine verification, boss scopes, player comparison, customizable analytics widgets, and lightweight Canvas charts.">
+  <meta name="description" content="Strikeglass is a local-first Neverwinter combat log analyzer with double-checked combat results, fight summaries, player comparison, customizable widgets, and lightweight Canvas charts.">
   <title>Strikeglass - Neverwinter Combat Analyzer</title>
   <link rel="stylesheet" href="src/v3/styles.css">
   <link rel="stylesheet" href="src/v3/readability.css">
@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="src/v3/power-drilldown.css">
   <link rel="stylesheet" href="src/v6/v6.css">
   <link rel="stylesheet" href="src/v6/components.css">
+  <link rel="stylesheet" href="src/v6/stability.css">
 </head>
 <body>
   <svg class="svg-sprite" aria-hidden="true">
@@ -34,32 +35,32 @@
     <aside class="sidebar" aria-label="Strikeglass navigation">
       <div class="brand-block">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-        <div><strong>Strikeglass</strong><small>Combat analyzer</small></div>
+        <div><strong>Strikeglass</strong><small>Combat log</small></div>
       </div>
 
       <nav id="app-nav" class="nav-list">
-        <button class="nav-item is-active" type="button" data-view="overview" aria-current="page"><svg><use href="#i-grid"/></svg><span>Overview</span></button>
-        <button class="nav-item" type="button" data-view="rotation" disabled><svg><use href="#i-rotation"/></svg><span>Party Rotation</span></button>
-        <button class="nav-item" type="button" data-view="comparison" disabled><svg><use href="#i-compare"/></svg><span>Comparison</span></button>
-        <button class="nav-item" type="button" data-view="boss" disabled><svg><use href="#i-boss"/></svg><span>Boss Analysis</span></button>
-        <button class="nav-item" type="button" data-view="encounters" disabled><svg><use href="#i-swords"/></svg><span>Encounters</span></button>
+        <button class="nav-item is-active" type="button" data-view="overview" aria-current="page"><svg><use href="#i-grid"/></svg><span>Summary</span></button>
+        <button class="nav-item" type="button" data-view="rotation" disabled><svg><use href="#i-rotation"/></svg><span>Power Timing</span></button>
+        <button class="nav-item" type="button" data-view="comparison" disabled><svg><use href="#i-compare"/></svg><span>Compare Players</span></button>
+        <button class="nav-item" type="button" data-view="boss" disabled><svg><use href="#i-boss"/></svg><span>Boss Fights</span></button>
+        <button class="nav-item" type="button" data-view="encounters" disabled><svg><use href="#i-swords"/></svg><span>Fights</span></button>
         <button class="nav-item" type="button" data-view="players" disabled><svg><use href="#i-users"/></svg><span>Players</span></button>
-        <button class="nav-item" type="button" data-view="powers" disabled><svg><use href="#i-bolt"/></svg><span>Damage Out</span></button>
-        <button class="nav-item" type="button" data-view="events" disabled><svg><use href="#i-list"/></svg><span>Events</span></button>
-        <button class="nav-item" type="button" data-view="diagnostics" disabled><svg><use href="#i-diagnostic"/></svg><span>Diagnostics</span></button>
+        <button class="nav-item" type="button" data-view="powers" disabled><svg><use href="#i-bolt"/></svg><span>Powers</span></button>
+        <button class="nav-item" type="button" data-view="events" disabled><svg><use href="#i-list"/></svg><span>Raw Events</span></button>
+        <button class="nav-item" type="button" data-view="diagnostics" disabled><svg><use href="#i-diagnostic"/></svg><span>Log Health</span></button>
       </nav>
 
       <div class="sidebar-foot">
-        <span>Analytics</span><strong>Dual engine V6</strong>
-        <small>Verified locally</small>
+        <span>Accuracy</span><strong>Double checked</strong>
+        <small>Local only</small>
       </div>
     </aside>
 
     <div class="shell-main">
       <header class="topbar">
-        <div class="topbar-title"><strong>Combat Analyzer</strong><span id="topbar-file">No combat log linked</span></div>
+        <div class="topbar-title"><strong>Combat Log</strong><span id="topbar-file">No combat log linked</span></div>
         <div class="topbar-actions">
-          <div class="topbar-status" id="topbar-status" role="status" aria-live="polite"><span class="status-dot"></span><span>Idle</span></div>
+          <div class="topbar-status" id="topbar-status" role="status" aria-live="polite"><span class="status-dot"></span><span>Ready</span></div>
           <input id="file-input" class="visually-hidden" type="file" accept=".log,.txt,.csv,text/plain,text/csv">
           <button class="button button-primary" id="open-file" type="button">Open log</button>
         </div>
@@ -68,28 +69,28 @@
       <main class="main-stage" id="main-stage">
         <section class="empty-state" id="empty-state">
           <div class="ingest-title">
-            <span class="eyebrow">Data input</span>
+            <span class="eyebrow">Open log</span>
             <h1>Open a Neverwinter combat log</h1>
-            <p>Parse and verify locally in dedicated worker engines. No upload, account, or server-side copy.</p>
+            <p>Your log is read and checked on this device. Nothing is uploaded.</p>
           </div>
           <div class="ingest-grid">
             <section class="panel input-panel">
-              <div class="panel-head"><div><span class="eyebrow">Combat log source</span><h2>Telemetry file</h2></div><span>.log · .txt · .csv</span></div>
+              <div class="panel-head"><div><span class="eyebrow">File</span><h2>Combat log</h2></div><span>.log · .txt · .csv</span></div>
               <button class="drop-zone" id="drop-zone" type="button" aria-describedby="drop-help">
                 <svg aria-hidden="true"><use href="#i-upload"/></svg>
                 <strong>Drag & drop combat log</strong>
-                <span id="drop-help">or click to browse local storage</span>
-                <small>Engine 1 calculates the log. Engine 2 independently verifies values before the UI can publish them.</small>
+                <span id="drop-help">or click to choose a file</span>
+                <small>Strikeglass calculates the results, then checks them a second time before showing numbers.</small>
               </button>
             </section>
             <aside class="ingest-side">
               <section class="panel status-panel">
-                <div class="panel-head"><h2>System status</h2></div>
-                <dl class="status-list"><div><dt>Calculator</dt><dd>Ready</dd></div><div><dt>Verifier</dt><dd class="good-text">Ready</dd></div><div><dt>Privacy</dt><dd class="good-text">Local only</dd></div></dl>
+                <div class="panel-head"><h2>Ready to analyze</h2></div>
+                <dl class="status-list"><div><dt>Damage calculation</dt><dd>Ready</dd></div><div><dt>Second check</dt><dd class="good-text">Ready</dd></div><div><dt>Data handling</dt><dd class="good-text">Local only</dd></div></dl>
               </section>
               <section class="panel quick-panel">
-                <div class="panel-head"><h2>Publication contract</h2></div>
-                <ol><li>Stream and index the Neverwinter log off the main thread.</li><li>Build canonical Physical-damage metrics and scoped reports.</li><li>Publish analytics only when the independent verifier agrees.</li></ol>
+                <div class="panel-head"><h2>How this works</h2></div>
+                <ol><li>Read the log in the background so the page stays responsive.</li><li>Count Physical damage and build player and fight summaries.</li><li>Show results only after a second calculation matches.</li></ol>
               </section>
             </aside>
           </div>
@@ -97,34 +98,34 @@
 
         <section class="parse-state" id="parse-state" hidden aria-live="polite">
           <div class="section-heading">
-            <div><span class="eyebrow">Parsing pipeline</span><h1>Reading combat log</h1><p id="parse-file-name">combat.log</p></div>
+            <div><span class="eyebrow">Reading log</span><h1>Reading combat log</h1><p id="parse-file-name">combat.log</p></div>
             <button class="button" id="cancel-parse" type="button">Cancel</button>
           </div>
           <div class="progress-track" aria-hidden="true"><i id="progress-bar"></i></div>
           <section class="telemetry-grid">
             <article class="telemetry-card"><span>Read</span><strong id="parse-read">0 MB</strong></article>
-            <article class="telemetry-card"><span>Lines</span><strong id="parse-lines">0</strong></article>
-            <article class="telemetry-card"><span>Accepted</span><strong id="parse-parsed">0</strong></article>
-            <article class="telemetry-card"><span>Rejected</span><strong id="parse-rejected">0</strong></article>
-            <article class="telemetry-card"><span>Elapsed</span><strong id="parse-elapsed">0.0s</strong></article>
+            <article class="telemetry-card"><span>Log lines</span><strong id="parse-lines">0</strong></article>
+            <article class="telemetry-card"><span>Rows read</span><strong id="parse-parsed">0</strong></article>
+            <article class="telemetry-card"><span>Rows skipped</span><strong id="parse-rejected">0</strong></article>
+            <article class="telemetry-card"><span>Time spent</span><strong id="parse-elapsed">0.0s</strong></article>
           </section>
           <section class="panel partial-panel">
-            <div class="panel-head"><div><span class="eyebrow">Progressive summary</span><h2>Party signal</h2></div><span id="parse-phase">Starting worker...</span></div>
-            <div class="partial-list" id="partial-list"><span class="empty-inline">Player totals appear while parsing continues. They remain provisional until verification completes.</span></div>
+            <div class="panel-head"><div><span class="eyebrow">Live preview</span><h2>Player damage so far</h2></div><span id="parse-phase">Starting log reader...</span></div>
+            <div class="partial-list" id="partial-list"><span class="empty-inline">Player totals update while the log is being read. Final numbers appear after the second check.</span></div>
           </section>
         </section>
 
         <section class="workspace" id="workspace" hidden>
           <div class="workspace-head">
-            <div><span class="eyebrow" id="file-eyebrow">Loaded log</span><h1 id="workspace-title">Session overview</h1></div>
-            <button class="button" id="replace-file" type="button">Replace log</button>
+            <div><span class="eyebrow" id="file-eyebrow">Log</span><h1 id="workspace-title">Session summary</h1></div>
+            <button class="button" id="replace-file" type="button">Change log</button>
           </div>
 
-          <section class="analysis-toolbar" aria-label="Analysis scope">
-            <label class="field"><span>Scope</span><select id="encounter-select"></select></label>
+          <section class="analysis-toolbar" aria-label="Analysis filters">
+            <label class="field"><span>Fight</span><select id="encounter-select"></select></label>
             <label class="field"><span>Player</span><select id="player-select"></select></label>
-            <label class="check-field" id="boss-target-field"><input id="boss-target-only" type="checkbox"><span>Boss target only</span></label>
-            <div class="scope-readout"><span>Current scope</span><strong id="scope-label">Full session</strong></div>
+            <label class="check-field" id="boss-target-field"><input id="boss-target-only" type="checkbox"><span>Boss only</span></label>
+            <div class="scope-readout"><span>Showing</span><strong id="scope-label">Full session</strong></div>
           </section>
 
           <div id="view-root" class="view-root"></div>
@@ -133,12 +134,14 @@
     </div>
   </div>
 
-  <div class="drop-overlay" id="drop-overlay" hidden aria-hidden="true"><div><strong>Drop to parse</strong><span>Nothing leaves your browser</span></div></div>
+  <div class="drop-overlay" id="drop-overlay" hidden aria-hidden="true"><div><strong>Drop to open</strong><span>Nothing leaves your device</span></div></div>
   <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
 
   <script type="module" src="src/v3/app.js"></script>
   <script type="module" src="src/v3/power-drilldown.js"></script>
   <script type="module" src="src/v6/dashboard.js"></script>
   <script type="module" src="src/v6/dashboard-interactions.js"></script>
+  <script type="module" src="src/v6/copy.js"></script>
+  <script type="module" src="src/v6/drawer-copy.js"></script>
 </body>
 </html>
