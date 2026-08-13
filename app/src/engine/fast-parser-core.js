@@ -145,7 +145,6 @@ export function tokenizeCsv(text) {
       cell = '';
       continue;
     }
-
     cell += char;
   }
 
@@ -160,7 +159,6 @@ function recoverLegacyPayload(tokens) {
   const tail = tokens.slice(-5);
   const head = tokens.slice(0, -5);
   const refIndexes = [];
-
   for (let index = 0; index < head.length; index += 1) {
     if (isEntityRef(head[index])) refIndexes.push(index);
     if (refIndexes.length === 3) break;
@@ -177,7 +175,6 @@ function recoverLegacyPayload(tokens) {
   const targetName = head.slice(sourceIndex + 1, targetIndex).join(', ').trim();
   const targetRef = head[targetIndex];
   const powerName = head.slice(targetIndex + 1).join(', ').trim();
-
   if (!powerName) return null;
   return [ownerName, ownerRef, sourceName, sourceRef, targetName, targetRef, powerName, ...tail];
 }
@@ -301,6 +298,76 @@ function mapToSortedEntries(map, limit = Infinity) {
     .slice(0, limit);
 }
 
+function mergeCountMaps(target, source) {
+  if (!target || !source) return;
+  for (const [key, value] of source) addCount(target, key, value);
+}
+
+function createDamageWindow(row, includeNames = false) {
+  const boss = isBossRef(row.targetRef);
+  const window = {
+    start: row.time,
+    end: row.time,
+    damage: row.amount,
+    hits: 1,
+    bossIds: new Set(boss ? [row.targetRef] : [])
+  };
+  if (includeNames) {
+    window.bossNames = new Map();
+    window.enemyNames = new Map();
+    if (boss) addCount(window.bossNames, row.targetName || entityTemplate(row.targetRef) || row.targetRef, row.amount);
+    if (isCreatureRef(row.targetRef) && !isPetRef(row.targetRef)) {
+      addCount(window.enemyNames, row.targetName || entityTemplate(row.targetRef) || row.targetRef, row.amount);
+    }
+  }
+  return window;
+}
+
+function mergeDamageWindow(target, addition) {
+  target.start = Math.min(target.start, addition.start);
+  target.end = Math.max(target.end, addition.end);
+  target.damage += addition.damage || 0;
+  target.hits += addition.hits || 0;
+  for (const id of addition.bossIds || []) target.bossIds.add(id);
+  mergeCountMaps(target.bossNames, addition.bossNames);
+  mergeCountMaps(target.enemyNames, addition.enemyNames);
+  return target;
+}
+
+function insertDamageWindow(windows, row, gapSeconds, includeNames = false) {
+  const time = row.time;
+  let lo = 0;
+  let hi = windows.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (windows[mid].start <= time) lo = mid + 1;
+    else hi = mid;
+  }
+
+  const rightIndex = lo;
+  const left = rightIndex > 0 ? windows[rightIndex - 1] : null;
+  const right = rightIndex < windows.length ? windows[rightIndex] : null;
+  const leftConnected = Boolean(left && time - left.end <= gapSeconds);
+  const rightConnected = Boolean(right && right.start - time <= gapSeconds);
+  const point = createDamageWindow(row, includeNames);
+
+  if (leftConnected) {
+    mergeDamageWindow(left, point);
+    if (rightConnected) {
+      mergeDamageWindow(left, right);
+      windows.splice(rightIndex, 1);
+    }
+    return left;
+  }
+  if (rightConnected) {
+    mergeDamageWindow(right, point);
+    return right;
+  }
+
+  windows.splice(rightIndex, 0, point);
+  return point;
+}
+
 function createPlayer(ref, name) {
   return {
     ref,
@@ -375,7 +442,7 @@ function mergeMinimalWindows(source, bossMergeGapSeconds) {
     damage: window.damage || 0,
     hits: window.hits || 0,
     bossIds: new Set(window.bossIds || [])
-  }));
+  })).sort((a, b) => a.start - b.start || a.end - b.end);
   const merged = [];
   const sameBoss = (a, b) => Array.from(a.bossIds).some(id => b.bossIds.has(id));
   const mergeInto = (target, addition) => {
@@ -456,17 +523,10 @@ export class CombatAccumulator {
   }
 
   updatePlayerEncounter(player, row) {
-    const needsNew = player.lastEncounterDamageAt == null || row.time - player.lastEncounterDamageAt > this.encounterGapSeconds;
-    if (needsNew) {
-      player.currentEncounter = { start: row.time, end: row.time, damage: 0, hits: 0, bossIds: new Set() };
-      player.encounterWindows.push(player.currentEncounter);
-    }
-    const encounter = player.currentEncounter;
-    encounter.end = row.time;
-    encounter.damage += row.amount;
-    encounter.hits += 1;
-    if (isBossRef(row.targetRef)) encounter.bossIds.add(row.targetRef);
-    player.lastEncounterDamageAt = row.time;
+    player.currentEncounter = insertDamageWindow(player.encounterWindows, row, this.encounterGapSeconds, false);
+    player.lastEncounterDamageAt = player.lastEncounterDamageAt == null
+      ? row.time
+      : Math.max(player.lastEncounterDamageAt, row.time);
   }
 
   ingest(row) {
@@ -500,7 +560,6 @@ export class CombatAccumulator {
     }
 
     if (row.validDamage && targetPlayer && row.amount > 0) targetPlayer.damageTaken += row.amount;
-
     if (!row.validDamage || !ownerPlayer) return row;
 
     this.validDamageRows += 1;
@@ -528,33 +587,13 @@ export class CombatAccumulator {
   }
 
   updateEncounter(row) {
-    const previousDamageAt = this.lastPartyDamageAt;
-    const needsNew = previousDamageAt == null || row.time - previousDamageAt > this.encounterGapSeconds;
-    if (this.firstPartyDamageAt == null) this.firstPartyDamageAt = row.time;
-
-    if (needsNew) {
-      this.currentEncounter = {
-        start: row.time,
-        end: row.time,
-        damage: 0,
-        hits: 0,
-        bossIds: new Set(),
-        bossNames: new Map(),
-        enemyNames: new Map()
-      };
-      this.encounters.push(this.currentEncounter);
-    }
-
-    const encounter = this.currentEncounter;
-    encounter.end = row.time;
-    encounter.damage += row.amount;
-    encounter.hits += 1;
-    if (isBossRef(row.targetRef)) {
-      encounter.bossIds.add(row.targetRef);
-      addCount(encounter.bossNames, row.targetName || entityTemplate(row.targetRef) || row.targetRef, row.amount);
-    }
-    if (isCreatureRef(row.targetRef) && !isPetRef(row.targetRef)) addCount(encounter.enemyNames, row.targetName || entityTemplate(row.targetRef) || row.targetRef, row.amount);
-    this.lastPartyDamageAt = row.time;
+    this.firstPartyDamageAt = this.firstPartyDamageAt == null
+      ? row.time
+      : Math.min(this.firstPartyDamageAt, row.time);
+    this.lastPartyDamageAt = this.lastPartyDamageAt == null
+      ? row.time
+      : Math.max(this.lastPartyDamageAt, row.time);
+    this.currentEncounter = insertDamageWindow(this.encounters, row, this.encounterGapSeconds, true);
   }
 
   mergedPlayerEncounters(player) {
@@ -573,7 +612,7 @@ export class CombatAccumulator {
       type: encounter.bossIds.size ? 'boss' : 'mob',
       bosses: mapToSortedEntries(encounter.bossNames, 4).map(item => item.key),
       enemies: mapToSortedEntries(encounter.enemyNames, 4).map(item => item.key)
-    }));
+    })).sort((a, b) => a.start - b.start || a.end - b.end);
 
     const sameBoss = (a, b) => Array.from(a.bossIds).some(id => b.bossIds.has(id));
     const mergeInto = (target, addition) => {
@@ -662,13 +701,11 @@ export class CombatAccumulator {
         .map(power => compactPower(power, player.damage))
         .sort((a, b) => b.damage - a.damage || a.power.localeCompare(b.power));
     }
-
     if (includeTimeline) {
       result.timeline = Array.from(player.timeline.entries())
         .map(([second, damage]) => ({ second, damage }))
         .sort((a, b) => a.second - b.second);
     }
-
     return result;
   }
 
