@@ -79,12 +79,13 @@ Search discovery files are published at `/robots.txt`, `/sitemap.txt`, and `/sit
 
 ## Ground-truth fixtures
 
-Synthetic regressions protect known edge cases, but the strongest numerical tests come from real anonymized Neverwinter logs paired with trusted reference values. See `ENGINE_GROUND_TRUTH.md` for the fixture requirements and acceptance process.
+Synthetic regressions protect known edge cases, but the strongest numerical tests come from real anonymized Neverwinter logs paired with trusted reference values. See `docs/ENGINE_VALIDATION.md` for the fixture requirements and acceptance process.
 
 ## Brand and SEO
 
 - `BRAND.md` is the canonical product identity and voice guide.
 - `MASTER.md` is the canonical UI/design and performance system.
-- `app/site.config.mjs` is the source of truth for the current production origin used by SEO generation work.
+- `SEO.md` documents the public search/discovery contract.
+- `app/site.config.mjs` records the current production origin for SEO work.
 
 Strikeglass is an independent community tool and is not affiliated with or endorsed by Arc Games or Cryptic Studios. Neverwinter and related names belong to their respective owners.
