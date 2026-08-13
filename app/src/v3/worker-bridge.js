@@ -1,3 +1,5 @@
+import './power-popup/index.js';
+
 (() => {
   const NativeWorker = window.Worker;
   if (!NativeWorker || window.__strikeglassWorkerBridgeInstalled) return;
