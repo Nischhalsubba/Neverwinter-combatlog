@@ -13,7 +13,8 @@
   "scripts": {
     "start": "python -m http.server 5173",
     "dev": "python -m http.server 5173",
-    "test": "node scripts/smoke-test.mjs && node scripts/parser-regression.mjs && node scripts/verification-regression.mjs && node scripts/scope-regression.mjs",
+    "syntax": "node --check src/v3/app.js && node --check src/v3/charts.js && node --check src/workers/fast-parse-worker.js && node --check src/engine/fast-parser-core.js && node --check src/engine/verification-engine.js && node --check src/engine/power-taxonomy.js",
+    "test": "pnpm syntax && node scripts/smoke-test.mjs && node scripts/parser-regression.mjs && node scripts/verification-regression.mjs && node scripts/scope-regression.mjs",
     "build": "pnpm test && node build-static.mjs",
     "check": "pnpm build"
   },
