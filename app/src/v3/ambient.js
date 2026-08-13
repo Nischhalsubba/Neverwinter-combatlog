@@ -1,3 +1,5 @@
+import './worker-bridge.js';
+
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let controller = null;
 
