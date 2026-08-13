@@ -5,7 +5,9 @@ const required = [
   'src/v3/styles.css',
   'src/v3/readability.css',
   'src/v3/analysis-features.css',
+  'src/v3/power-drilldown.css',
   'src/v3/app.js',
+  'src/v3/power-drilldown.js',
   'src/v3/charts.js',
   'src/v3/motion.js',
   'src/v3/ambient.js',
@@ -22,7 +24,7 @@ for (const path of required) {
 }
 
 const index = await readFile('index.html', 'utf8');
-for (const marker of ['src/v3/styles.css', 'src/v3/readability.css', 'src/v3/analysis-features.css', 'type="module" src="src/v3/app.js"', 'data-view="rotation"', 'data-view="comparison"', 'data-view="boss"', 'data-view="powers"', 'id="encounter-select"', 'id="boss-target-only"']) {
+for (const marker of ['src/v3/styles.css', 'src/v3/readability.css', 'src/v3/analysis-features.css', 'src/v3/power-drilldown.css', 'type="module" src="src/v3/app.js"', 'type="module" src="src/v3/power-drilldown.js"', 'data-view="rotation"', 'data-view="comparison"', 'data-view="boss"', 'data-view="powers"', 'id="encounter-select"', 'id="boss-target-only"']) {
   if (!index.includes(marker)) failures.push(`index missing ${marker}`);
 }
 if (index.includes('compact.css')) failures.push('Obsolete compact.css is still loaded.');
@@ -50,6 +52,20 @@ for (const marker of [
   'visible /',
   '1e9', '1e6', '1e3'
 ]) if (!app.includes(marker)) failures.push(`app missing ${marker}`);
+
+const powerDrilldown = await readFile('src/v3/power-drilldown.js', 'utf8');
+for (const marker of [
+  'POWER_BAR_SELECTOR',
+  'Open raw hit details',
+  'Total damage',
+  'Average hit',
+  'Flank / CA',
+  'power-drilldown-backdrop',
+  'aria-modal',
+  "[data-view=\"powers\"]",
+  'raw-hits-panel',
+  'MutationObserver'
+]) if (!powerDrilldown.includes(marker)) failures.push(`power drilldown missing ${marker}`);
 
 const charts = await readFile('src/v3/charts.js', 'utf8');
 for (const marker of ['uplot@1.6.32', 'MAX_POINTS = 1800', 'AXIS_FONT', 'ResizeObserver', 'destroyChart', 'bucketTimeline']) {
@@ -96,6 +112,11 @@ for (const marker of ['.verification-strip', '.reference-metrics', '.analysis-ba
   if (!features.includes(marker)) failures.push(`analysis styles missing ${marker}`);
 }
 
+const powerDrilldownStyles = await readFile('src/v3/power-drilldown.css', 'utf8');
+for (const marker of ['.power-drilldown-trigger', '.power-drilldown-backdrop', 'body.power-drilldown-open .raw-hits-panel', '.power-hit-summary', 'min-width:44px', '@media(prefers-reduced-motion:reduce)']) {
+  if (!powerDrilldownStyles.includes(marker)) failures.push(`power drilldown styles missing ${marker}`);
+}
+
 const ambient = await readFile('src/v3/ambient.js', 'utf8');
 for (const marker of ['three@0.185.1', 'renderer.dispose()', 'deviceMemory', '33']) {
   if (!ambient.includes(marker)) failures.push(`ambient missing ${marker}`);
@@ -110,4 +131,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('Smoke test passed. Dual-engine verification, scoped combat clocks, interactive comparison controls, live rotation counts, raw-hit traceability, category analysis, readable contrast, scoped reports, uPlot charts, Three.js budget, and GSAP motion contracts are present.');
+console.log('Smoke test passed. Dual-engine verification, scoped combat clocks, interactive comparison controls, live rotation counts, clickable power raw-hit drilldowns, raw-hit traceability, category analysis, readable contrast, scoped reports, uPlot charts, Three.js budget, and GSAP motion contracts are present.');
