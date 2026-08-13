@@ -1,0 +1,36 @@
+.v6-dashboard-actions .button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+}
+.v6-dashboard-actions .button svg{
+  width:16px;
+  height:16px;
+  flex:none;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+[data-v6-drag]{cursor:grab}
+.v6-widget.is-dragging [data-v6-drag]{cursor:grabbing}
+.v6-widget-action[data-v6-edit-only]{transition:background var(--motion-quick) var(--motion-enter),border-color var(--motion-quick) var(--motion-enter),color var(--motion-quick) var(--motion-enter),transform var(--motion-quick) var(--motion-enter),opacity var(--motion-quick) var(--motion-enter)}
+.v6-widget-drawer select:focus-visible,.v6-widget-drawer button:focus-visible{outline:2px solid var(--sg-focus);outline-offset:2px}
+.v6-drawer-item[aria-disabled="true"]{opacity:.55}
+.v6-widget-toggle:active::after{transform:scale(.94)}
+.v6-widget-toggle[aria-pressed="true"]:active::after{transform:translateX(18px) scale(.94)}
+.v6-widget-content .table-wrap{border:0;border-radius:0}
+.v6-widget-content .chart-host{padding:6px 10px 10px}
+.v6-widget-content .encounter-strip{padding:8px}
+.v6-widget-content .analysis-bars{padding-top:2px}
+
+@media(max-width:760px){
+  .v6-widget-action{min-width:44px;min-height:44px}
+  .v6-size-select{min-height:44px;height:44px;font-size:13px}
+  .v6-widget-toggle{width:48px;height:28px;padding:2px}
+  .v6-widget-toggle::after{width:24px;height:24px}
+  .v6-widget-toggle[aria-pressed="true"]::after{transform:translateX(20px)}
+  .v6-widget-toggle[aria-pressed="true"]:active::after{transform:translateX(20px) scale(.94)}
+}

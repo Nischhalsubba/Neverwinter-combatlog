@@ -11,6 +11,8 @@ const required = [
   'src/v3/charts.js',
   'src/v3/motion.js',
   'src/v3/ambient.js',
+  'src/v6/v6.css',
+  'src/v6/dashboard.js',
   'src/engine/fast-parser-core.js',
   'src/engine/scoped-combat-clock.js',
   'src/engine/power-taxonomy.js',
@@ -20,13 +22,29 @@ const required = [
 const failures = [];
 for (const path of required) {
   try { await access(path); }
-  catch { failures.push(`Missing required V5 file: ${path}`); }
+  catch { failures.push(`Missing required Strikeglass file: ${path}`); }
 }
 
 const index = await readFile('index.html', 'utf8');
-for (const marker of ['src/v3/styles.css', 'src/v3/readability.css', 'src/v3/analysis-features.css', 'src/v3/power-drilldown.css', 'type="module" src="src/v3/app.js"', 'type="module" src="src/v3/power-drilldown.js"', 'data-view="rotation"', 'data-view="comparison"', 'data-view="boss"', 'data-view="powers"', 'id="encounter-select"', 'id="boss-target-only"']) {
-  if (!index.includes(marker)) failures.push(`index missing ${marker}`);
-}
+for (const marker of [
+  'src/v3/styles.css',
+  'src/v3/readability.css',
+  'src/v3/analysis-features.css',
+  'src/v3/power-drilldown.css',
+  'src/v6/v6.css',
+  'type="module" src="src/v3/app.js"',
+  'type="module" src="src/v3/power-drilldown.js"',
+  'type="module" src="src/v6/dashboard.js"',
+  'content="#f6f8fb"',
+  'content="light"',
+  'Dual engine V6',
+  'data-view="rotation"',
+  'data-view="comparison"',
+  'data-view="boss"',
+  'data-view="powers"',
+  'id="encounter-select"',
+  'id="boss-target-only"'
+]) if (!index.includes(marker)) failures.push(`index missing ${marker}`);
 if (index.includes('compact.css')) failures.push('Obsolete compact.css is still loaded.');
 if (index.toLowerCase().includes('apexcharts')) failures.push('Legacy ApexCharts runtime is still loaded.');
 
@@ -52,6 +70,24 @@ for (const marker of [
   'visible /',
   '1e9', '1e6', '1e3'
 ]) if (!app.includes(marker)) failures.push(`app missing ${marker}`);
+
+const dashboard = await readFile('src/v6/dashboard.js', 'utf8');
+for (const marker of [
+  "STORAGE_KEY = 'strikeglass.dashboard.v1'",
+  'Customize layout',
+  'Add widget',
+  'DEFAULT_LAYOUT',
+  'data-v6-drawer-id',
+  'data-v6-size',
+  'data-v6-toggle',
+  'data-v6-move',
+  'localStorage.setItem',
+  "gsap@3.15.0",
+  'prefers-reduced-motion',
+  'MutationObserver',
+  'aria-modal',
+  'Reset layout'
+]) if (!dashboard.includes(marker)) failures.push(`V6 dashboard missing ${marker}`);
 
 const powerDrilldown = await readFile('src/v3/power-drilldown.js', 'utf8');
 for (const marker of [
@@ -112,6 +148,22 @@ for (const marker of ['.verification-strip', '.reference-metrics', '.analysis-ba
   if (!features.includes(marker)) failures.push(`analysis styles missing ${marker}`);
 }
 
+const v6Styles = await readFile('src/v6/v6.css', 'utf8');
+for (const marker of [
+  '--sg-page:#f6f8fb',
+  '--sg-text:#0f172a',
+  '--sg-primary:#2563eb',
+  '--motion-standard:220ms',
+  '.v6-dashboard-grid',
+  '.v6-widget-drawer',
+  '.v6-widget-toggle',
+  '.v6-drawer-scrim',
+  '.power-drilldown-backdrop',
+  'body{font-size:16px}',
+  '@media(prefers-reduced-motion:reduce)'
+]) if (!v6Styles.includes(marker)) failures.push(`V6 styles missing ${marker}`);
+if (/backdrop-filter\s*:\s*blur\(/i.test(v6Styles.match(/\.v6-drawer-scrim[\s\S]*?\}/)?.[0] || '')) failures.push('V6 widget drawer must not blur its scrim.');
+
 const powerDrilldownStyles = await readFile('src/v3/power-drilldown.css', 'utf8');
 for (const marker of [
   '.power-drilldown-trigger',
@@ -128,7 +180,7 @@ for (const marker of [
 if (/backdrop-filter\s*:\s*blur\(/i.test(powerDrilldownStyles)) failures.push('Power drilldown must not blur its modal backdrop.');
 
 const ambient = await readFile('src/v3/ambient.js', 'utf8');
-for (const marker of ['three@0.185.1', 'renderer.dispose()', 'deviceMemory', '33']) {
+for (const marker of ['three@0.185.1', 'renderer.dispose()', 'deviceMemory', '33', 'const count = 64', 'color: 0x60a5fa']) {
   if (!ambient.includes(marker)) failures.push(`ambient missing ${marker}`);
 }
 const motion = await readFile('src/v3/motion.js', 'utf8');
@@ -141,4 +193,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('Smoke test passed. Dual-engine verification, scoped combat clocks, interactive comparison controls, live rotation counts, crisp clickable power raw-hit drilldowns, raw-hit traceability, category analysis, readable contrast, scoped reports, uPlot charts, Three.js budget, and GSAP motion contracts are present.');
+console.log('Smoke test passed. V6 light design tokens, customizable Overview widgets, dual-engine verification, scoped combat clocks, player comparison, live rotation counts, crisp raw-hit drilldowns, uPlot charts, Three.js idle budget, and GSAP motion contracts are present.');
