@@ -329,6 +329,18 @@ function postProgress(file, phase, bytesRead, lineNo, startedAt) {
   });
 }
 
+function postTaskProgress(requestId, task, phase, progress, detail = '') {
+  if (!requestId) return;
+  self.postMessage({
+    type: 'task-progress',
+    requestId,
+    task,
+    phase,
+    progress: Math.max(0, Math.min(1, Number(progress) || 0)),
+    detail
+  });
+}
+
 function attachMeta(summary) {
   return Object.assign({}, summary, {
     file: activeFileMeta,
@@ -454,7 +466,8 @@ function verificationContext(scope) {
     scopeStart: session ? (activeSummary?.combatStart || 0) : info.start,
     scopeEnd: session ? (activeSummary?.combatEnd ?? activeSummary?.combatStart ?? 0) : info.end,
     targetOnly: Boolean(info.targetOnly),
-    bossTargets: Array.from(info.bossTargetIds || []).map(id => activeStore.pool.get(id))
+    bossTargets: Array.from(info.bossTargetIds || []).map(id => activeStore.pool.get(id)),
+    totalRows: Math.max(0, info.endIndex - info.startIndex)
   };
 }
 
@@ -501,7 +514,7 @@ function sessionReport() {
   return report;
 }
 
-function aggregateScope(scope) {
+function aggregateScope(scope, onProgress = null) {
   if (!activeStore || !activeAccumulator) return null;
   const key = scopeKey(scope);
   if (key === 'session') return sessionReport();
@@ -518,6 +531,7 @@ function aggregateScope(scope) {
   let healing = 0;
   let shielded = 0;
   const duration = Math.max(0, info.end - info.start);
+  const totalRows = Math.max(1, info.endIndex - info.startIndex);
 
   const ensurePlayer = (refId, nameId) => {
     const ref = activeStore.pool.get(refId);
@@ -531,6 +545,7 @@ function aggregateScope(scope) {
   };
 
   for (let index = info.startIndex; index < info.endIndex; index += 1) {
+    if (onProgress && (index - info.startIndex) % 4096 === 0) onProgress((index - info.startIndex) / totalRows);
     const location = activeStore.location(index);
     if (!location) break;
     const { chunk, slot } = location;
@@ -596,6 +611,8 @@ function aggregateScope(scope) {
     partyTimeline.set(second, (partyTimeline.get(second) || 0) + amount);
   }
 
+  if (onProgress) onProgress(1);
+
   const compactPlayers = Array.from(players.values())
     .map(player => compactScopedPlayer(player, duration))
     .filter(player => player.damage || player.healingDone || player.damageTaken || player.shielded)
@@ -628,12 +645,16 @@ function aggregateScope(scope) {
   return report;
 }
 
-function verifiedReport(scope = { type: 'session' }) {
-  const report = aggregateScope(scope);
+function verifiedReport(scope = { type: 'session' }, onProgress = null) {
+  const report = aggregateScope(scope, ratio => onProgress?.('calculate', ratio));
   if (!report) return { report: null, verification: null, error: 'Scope is unavailable.' };
-  if (report.verification?.status === 'verified') return { report, verification: report.verification, error: null };
+  if (report.verification?.status === 'verified') {
+    onProgress?.('cached', 1);
+    return { report, verification: report.verification, error: null };
+  }
   const context = verificationContext(scope);
-  const verification = verifyReport(report, activeStore.iterateScope(scope), context || {});
+  onProgress?.('verify', 0);
+  const verification = verifyReport(report, activeStore.iterateScope(scope), context || {}, ratio => onProgress?.('verify', ratio));
   report.verification = verification;
   if (!verification.ok) {
     const first = verification.mismatches?.[0];
@@ -643,6 +664,7 @@ function verifiedReport(scope = { type: 'session' }) {
       error: `Verification blocked analytics${first?.path ? ` at ${first.path}` : ''}. Primary and verifier engines disagree.`
     };
   }
+  onProgress?.('done', 1);
   return { report, verification, error: null };
 }
 
@@ -653,52 +675,80 @@ function selectPlayers(report, playerRefs = []) {
   return { ...report, players: report.players.filter(player => wanted.has(player.ref)) };
 }
 
-function buildRotationReport(scope = { type: 'session' }) {
+async function buildRotationReport(scope = { type: 'session' }, requestId = 0) {
   const key = scopeKey(scope);
   const cached = rotationCache.get(key);
-  if (cached) return cached;
-  const gate = verifiedReport(scope);
-  if (gate.error) return { error: gate.error, verification: gate.verification, report: null };
-  const info = activeStore.scopeInfo(scope);
-  const context = verificationContext(scope);
-  const origin = context?.scopeStart || 0;
-  const lanes = new Map();
+  if (cached) {
+    postTaskProgress(requestId, 'rotation-report', 'cached', 1, 'Using saved power timing');
+    return { report: cached, verification: cached.verification, error: null };
+  }
 
-  for (const row of activeStore.iterateScope(scope)) {
-    if (!row.validDamage || !isPlayerRef(row.ownerRef) || row.companion) continue;
-    if (info.targetOnly && info.bossTargetIds.size) {
-      const targetId = activeStore.pool.id(row.targetRef);
-      if (targetId == null || !info.bossTargetIds.has(targetId)) continue;
+  const store = activeStore;
+  const generation = activeGeneration;
+  if (!store) return { report: null, verification: null, error: 'No combat log is loaded.' };
+  const info = store.scopeInfo(scope);
+  const context = verificationContext(scope);
+  if (!info || !context) return { report: null, verification: null, error: 'Scope is unavailable.' };
+
+  const origin = context.scopeStart || 0;
+  const lanes = new Map();
+  const sessionPlayers = new Map((scopeCache.get('session')?.players || []).map(player => [player.ref, player]));
+  const totalRows = Math.max(1, info.endIndex - info.startIndex);
+  postTaskProgress(requestId, 'rotation-report', 'scan', .03, 'Reading damaging power uses');
+
+  for (let index = info.startIndex; index < info.endIndex; index += 1) {
+    if ((index - info.startIndex) % 4096 === 0) {
+      postTaskProgress(requestId, 'rotation-report', 'scan', .03 + .52 * ((index - info.startIndex) / totalRows), 'Reading damaging power uses');
+      await sleep();
+      if (generation !== activeGeneration || store !== activeStore) return { report: null, verification: null, error: 'Power timing task was cancelled.' };
     }
-    const category = classifyPowerCategory(row.powerName, { companion: false, powerRef: row.powerRef });
+    const location = store.location(index);
+    if (!location) break;
+    const { chunk, slot } = location;
+    const rowTime = chunk.time[slot];
+    if (rowTime < info.start || rowTime > info.end) continue;
+    if (!chunk.validDamage[slot] || chunk.companion[slot]) continue;
+    if (info.targetOnly && info.bossTargetIds.size && !info.bossTargetIds.has(chunk.targetRef[slot])) continue;
+
+    const ownerRef = store.pool.get(chunk.ownerRef[slot]);
+    if (!isPlayerRef(ownerRef)) continue;
+    const power = store.pool.get(chunk.powerName[slot]) || 'Unknown';
+    const powerRef = store.pool.get(chunk.powerRef[slot]);
+    const category = classifyPowerCategory(power, { companion: false, powerRef });
     if (!isRotationCategory(category)) continue;
-    let lane = lanes.get(row.ownerRef);
+
+    let lane = lanes.get(ownerRef);
     if (!lane) {
-      const player = gate.report.players.find(item => item.ref === row.ownerRef);
+      const known = sessionPlayers.get(ownerRef);
       lane = {
-        ref: row.ownerRef,
-        name: row.ownerName || row.ownerRef,
-        className: player?.className || 'Unknown',
-        classConfidence: player?.classConfidence || 0,
+        ref: ownerRef,
+        name: store.pool.get(chunk.ownerName[slot]) || ownerRef,
+        className: known?.className || 'Unknown',
+        classConfidence: known?.classConfidence || 0,
+        damage: 0,
         rows: []
       };
-      lanes.set(row.ownerRef, lane);
+      lanes.set(ownerRef, lane);
     }
+    lane.damage += chunk.amount[slot];
     lane.rows.push({
-      time: row.time,
-      lineNo: row.lineNo,
-      power: row.powerName || 'Unknown',
+      time: rowTime,
+      lineNo: chunk.lineNo[slot],
+      power,
       category,
-      amount: row.amount
+      amount: chunk.amount[slot]
     });
   }
 
+  postTaskProgress(requestId, 'rotation-report', 'group', .58, 'Grouping repeated hits into power uses');
   let activationCount = 0;
   const compactLanes = [];
+  let laneIndex = 0;
   for (const lane of lanes.values()) {
     lane.rows.sort((a, b) => a.time - b.time || a.lineNo - b.lineNo);
     const lastByPower = new Map();
     const activations = [];
+    const categoryCounts = Object.create(null);
     for (const row of lane.rows) {
       const previous = lastByPower.get(row.power);
       const threshold = activationDedupeSeconds(row.category);
@@ -710,6 +760,7 @@ function buildRotationReport(scope = { type: 'session' }) {
         category: row.category,
         amount: row.amount
       });
+      categoryCounts[row.category] = (categoryCounts[row.category] || 0) + 1;
     }
     activationCount += activations.length;
     compactLanes.push({
@@ -718,19 +769,32 @@ function buildRotationReport(scope = { type: 'session' }) {
       className: lane.className,
       classConfidence: lane.classConfidence,
       activationCount: activations.length,
-      activations
+      categoryCounts,
+      activations,
+      _damage: lane.damage
     });
+    laneIndex += 1;
+    if (laneIndex % 2 === 0) await sleep();
+    if (generation !== activeGeneration || store !== activeStore) return { report: null, verification: null, error: 'Power timing task was cancelled.' };
   }
-  const rank = new Map(gate.report.players.map((player, index) => [player.ref, index]));
-  compactLanes.sort((a, b) => (rank.get(a.ref) ?? 999) - (rank.get(b.ref) ?? 999) || a.name.localeCompare(b.name));
+  compactLanes.sort((a, b) => b._damage - a._damage || a.name.localeCompare(b.name));
+  for (const lane of compactLanes) delete lane._damage;
 
-  const report = {
-    scope: gate.report.scope,
-    duration: gate.report.duration,
-    lanes: compactLanes,
-    activationCount
-  };
-  const verification = verifyRotationReport(report, activeStore.iterateScope(scope), context || {});
+  const duration = info.type === 'session'
+    ? (activeSummary?.combatDuration ?? activeSummary?.duration ?? 0)
+    : Math.max(0, info.end - info.start);
+  const reportScope = info.type === 'session'
+    ? { type: 'session', id: null, targetOnly: false, label: 'Full session', start: context.scopeStart, end: context.scopeEnd }
+    : { type: info.type, id: info.id, targetOnly: info.targetOnly, label: info.label, bosses: info.bosses || [], start: info.start, end: info.end };
+  const report = { scope: reportScope, duration, lanes: compactLanes, activationCount };
+
+  postTaskProgress(requestId, 'rotation-report', 'verify-rotation', .66, 'Double-checking power timing');
+  const verification = verifyRotationReport(
+    report,
+    store.iterateScope(scope),
+    { ...context, totalRows },
+    ratio => postTaskProgress(requestId, 'rotation-report', 'verify-rotation', .66 + .32 * ratio, 'Double-checking power timing')
+  );
   report.verification = verification;
   if (!verification.ok) {
     const first = verification.mismatches?.[0];
@@ -741,6 +805,7 @@ function buildRotationReport(scope = { type: 'session' }) {
     };
   }
   cacheSet(rotationCache, key, report, 6);
+  postTaskProgress(requestId, 'rotation-report', 'done', 1, 'Power timing ready');
   return { report, verification, error: null };
 }
 
@@ -812,7 +877,7 @@ async function parseFile(file, generation) {
   self.postMessage({ type: 'done', summary: activeSummary });
 }
 
-self.onmessage = event => {
+self.onmessage = async event => {
   const message = event.data || {};
   if (message.type === 'parse') {
     activeGeneration += 1;
@@ -845,13 +910,21 @@ self.onmessage = event => {
   }
   if (message.type === 'scope-report') {
     const scope = message.scope || { type: 'session' };
-    const gate = verifiedReport(scope);
+    postTaskProgress(message.requestId, 'scope-report', 'calculate', .03, 'Calculating the selected fight');
+    const gate = verifiedReport(scope, (phase, ratio) => {
+      const progress = phase === 'calculate' ? .03 + .45 * ratio
+        : phase === 'verify' ? .5 + .47 * ratio
+        : phase === 'cached' || phase === 'done' ? 1 : .5;
+      const detail = phase === 'verify' ? 'Double-checking the numbers' : phase === 'cached' ? 'Using saved results' : 'Calculating the selected fight';
+      postTaskProgress(message.requestId, 'scope-report', phase, progress, detail);
+    });
     const report = selectPlayers(gate.report, message.playerRefs || []);
+    postTaskProgress(message.requestId, 'scope-report', 'done', 1, 'Results ready');
     self.postMessage({ type: 'scope-report', requestId: message.requestId, report, error: gate.error, verification: gate.verification });
     return;
   }
   if (message.type === 'rotation-report') {
-    const result = buildRotationReport(message.scope || { type: 'session' });
+    const result = await buildRotationReport(message.scope || { type: 'session' }, message.requestId);
     self.postMessage({ type: 'rotation-report', requestId: message.requestId, report: result.report, error: result.error, verification: result.verification });
     return;
   }

@@ -3,12 +3,14 @@ let gsapPromise = null;
 
 function loadGsap() {
   if (reduceMotion.matches) return Promise.resolve(null);
-  if (!gsapPromise) {
-    gsapPromise = import('https://cdn.jsdelivr.net/npm/gsap@3.15.0/+esm')
-      .then(module => module.gsap || module.default || null)
-      .catch(() => null);
-  }
+  if (!gsapPromise) gsapPromise = import('https://cdn.jsdelivr.net/npm/gsap@3.15.0/+esm').then(module => module.gsap || module.default || null).catch(() => null);
   return gsapPromise;
+}
+
+function isHeavyView(root) {
+  if (!root) return true;
+  if (root.querySelector('[data-task-loading],.rotation-panel,.raw-hits-panel,.table-wrap.raw')) return true;
+  return root.querySelectorAll('tr').length >= 100;
 }
 
 export function warmMotion() {
@@ -18,51 +20,25 @@ export function warmMotion() {
 }
 
 export async function revealView(root) {
-  if (!root || reduceMotion.matches) return;
+  if (!root || reduceMotion.matches || isHeavyView(root)) return;
   const gsap = await loadGsap();
-  if (!gsap) {
-    root.classList.remove('view-enter');
-    void root.offsetWidth;
-    root.classList.add('view-enter');
-    return;
-  }
+  if (!gsap || !root.isConnected || isHeavyView(root)) return;
   gsap.killTweensOf(root);
-  gsap.fromTo(root, { y: 12, autoAlpha: 0.01 }, {
-    y: 0,
-    autoAlpha: 1,
-    duration: 0.28,
-    ease: 'power2.out',
-    clearProps: 'transform,opacity,visibility',
-    overwrite: 'auto'
-  });
+  gsap.fromTo(root, { y: 8, autoAlpha: .01 }, { y: 0, autoAlpha: 1, duration: .2, ease: 'power2.out', clearProps: 'transform,opacity,visibility', overwrite: 'auto' });
 }
 
 export async function revealCards(root) {
-  if (!root || reduceMotion.matches) return;
-  const cards = Array.from(root.querySelectorAll('[data-motion-card]')).slice(0, 10);
+  if (!root || reduceMotion.matches || isHeavyView(root)) return;
+  const cards = Array.from(root.querySelectorAll('[data-motion-card]')).slice(0, 8);
   if (!cards.length) return;
   const gsap = await loadGsap();
   if (!gsap) return;
-  gsap.fromTo(cards, { y: 10, autoAlpha: 0 }, {
-    y: 0,
-    autoAlpha: 1,
-    duration: 0.24,
-    stagger: 0.025,
-    ease: 'power2.out',
-    clearProps: 'transform,opacity,visibility',
-    overwrite: 'auto'
-  });
+  gsap.fromTo(cards, { y: 6, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: .18, stagger: .02, ease: 'power2.out', clearProps: 'transform,opacity,visibility', overwrite: 'auto' });
 }
 
 export async function pulseDropZone(element) {
   if (!element || reduceMotion.matches) return;
   const gsap = await loadGsap();
   if (!gsap) return;
-  gsap.fromTo(element, { scale: 0.992 }, {
-    scale: 1,
-    duration: 0.22,
-    ease: 'power2.out',
-    clearProps: 'transform',
-    overwrite: 'auto'
-  });
+  gsap.fromTo(element, { scale: .992 }, { scale: 1, duration: .18, ease: 'power2.out', clearProps: 'transform', overwrite: 'auto' });
 }

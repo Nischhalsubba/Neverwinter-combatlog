@@ -62,6 +62,8 @@ const state = {
 };
 
 let seq = 0;
+let renderEpoch = 0;
+let rotationPaintToken = 0;
 const pending = new Map();
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
@@ -136,7 +138,7 @@ function mode(name) {
 
 function request(type, payload = {}) {
   const requestId = ++seq;
-  return new Promise((resolve, reject) => {
+  const promise = new Promise((resolve, reject) => {
     pending.set(requestId, { resolve, reject });
     worker.postMessage({ type, requestId, ...payload });
     setTimeout(() => {
@@ -145,6 +147,8 @@ function request(type, payload = {}) {
       reject(new Error(`${type} timed out`));
     }, 45000);
   });
+  promise.requestId = requestId;
+  return promise;
 }
 
 function settle(message) {
@@ -162,11 +166,57 @@ function settle(message) {
   return true;
 }
 
+const TASK_PHASE_LABELS = Object.freeze({
+  calculate: 'Calculating the selected fight',
+  verify: 'Double-checking the numbers',
+  scan: 'Reading damaging power uses',
+  group: 'Grouping power uses',
+  'verify-rotation': 'Double-checking power timing',
+  cached: 'Using saved results',
+  done: 'Ready'
+});
+
+function taskLoading(title, detail, type) {
+  return `<section class="task-loading" data-task-loading data-task-type="${esc(type)}" aria-busy="true" aria-live="polite">
+    <div class="task-loading-head"><div><span class="eyebrow">Working</span><h2>${esc(title)}</h2><p>${esc(detail)}</p></div><strong data-task-progress-value>2%</strong></div>
+    <div class="task-progress-track" role="progressbar" aria-label="${esc(title)} progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="2"><i data-task-progress-bar style="--task-progress:.02"></i></div>
+    <div class="task-progress-copy" data-task-progress-label>Starting…</div>
+    <div class="task-skeleton-grid" aria-hidden="true">
+      <span class="task-skeleton task-skeleton-wide"></span><span class="task-skeleton"></span><span class="task-skeleton"></span>
+      <span class="task-skeleton task-skeleton-tall"></span><span class="task-skeleton task-skeleton-tall"></span>
+    </div>
+  </section>`;
+}
+
+function bindTaskRequest(promise, task) {
+  if (!promise?.requestId) return promise;
+  const loading = el.root.querySelector(`[data-task-loading][data-task-type="${task}"]`);
+  if (loading) loading.dataset.taskRequest = String(promise.requestId);
+  return promise;
+}
+
+function updateTaskProgress(message) {
+  const requestId = String(message.requestId || '');
+  const loading = Array.from(el.root.querySelectorAll('[data-task-loading]')).find(node => node.dataset.taskRequest === requestId);
+  if (!loading) return;
+  const value = Math.max(.02, Math.min(1, Number(message.progress) || 0));
+  const percent = Math.round(value * 100);
+  const bar = loading.querySelector('[data-task-progress-bar]');
+  const meter = loading.querySelector('[role="progressbar"]');
+  const valueLabel = loading.querySelector('[data-task-progress-value]');
+  const phaseLabel = loading.querySelector('[data-task-progress-label]');
+  if (bar) bar.style.setProperty('--task-progress', String(value));
+  if (meter) meter.setAttribute('aria-valuenow', String(percent));
+  if (valueLabel) valueLabel.textContent = `${percent}%`;
+  if (phaseLabel) phaseLabel.textContent = message.detail || TASK_PHASE_LABELS[message.phase] || 'Working…';
+}
+
 function clearCharts() {
   el.root.querySelectorAll('[data-chart]').forEach(node => destroyChart(node));
 }
 
 function replaceRoot(html) {
+  rotationPaintToken += 1;
   clearCharts();
   el.root.innerHTML = html;
 }
@@ -306,7 +356,8 @@ function requireVerified(value, label = 'analytics') {
 async function getScopeReport() {
   const key = scopeKey();
   if (state.report && state.reportKey === key) return requireVerified(state.report, 'Scope report');
-  const report = requireVerified(await request('scope-report', { scope: currentScopeForWorker() }), 'Scope report');
+  const task = bindTaskRequest(request('scope-report', { scope: currentScopeForWorker() }), 'scope-report');
+  const report = requireVerified(await task, 'Scope report');
   if (key !== scopeKey()) return null;
   state.report = report;
   state.reportKey = key;
@@ -318,7 +369,8 @@ async function getScopeReport() {
 async function getRotationReport() {
   const key = scopeKey();
   if (state.rotation && state.rotationKey === key) return requireVerified(state.rotation, 'Rotation report');
-  const report = requireVerified(await request('rotation-report', { scope: currentScopeForWorker() }), 'Rotation report');
+  const task = bindTaskRequest(request('rotation-report', { scope: currentScopeForWorker() }), 'rotation-report');
+  const report = requireVerified(await task, 'Rotation report');
   if (key !== scopeKey()) return null;
   state.rotation = report;
   state.rotationKey = key;
@@ -420,10 +472,10 @@ function selectedOverview(player, report) {
   </section>`;
 }
 
-async function renderOverview() {
-  replaceRoot('<div class="empty-block">Building and verifying scoped combat summary...</div>');
+async function renderOverview(epoch = renderEpoch) {
+  replaceRoot(taskLoading('Loading summary', 'Calculating the selected fight and checking the values before display.', 'scope-report'));
   const report = await getScopeReport();
-  if (!report) return;
+  if (!report || epoch !== renderEpoch || state.view !== 'overview') return;
   const player = currentPlayer(report);
   const scopeText = report.scope?.label || scopeName();
   replaceRoot(`
@@ -525,23 +577,23 @@ function renderComparison(report) {
   revealCards(el.root);
 }
 
-async function renderComparisonView() {
-  replaceRoot('<div class="empty-block">Building and verifying comparison scope...</div>');
+async function renderComparisonView(epoch = renderEpoch) {
+  replaceRoot(taskLoading('Loading comparison', 'Preparing the same fight for the selected players.', 'scope-report'));
   const report = await getScopeReport();
-  if (!report) return;
+  if (!report || epoch !== renderEpoch || state.view !== 'comparison') return;
   renderComparison(report);
 }
 
-async function renderBoss() {
+async function renderBoss(epoch = renderEpoch) {
   if (!ensureBossScope()) {
     replaceRoot('<section class="panel"><div class="panel-head"><h2>Boss analysis</h2></div><div class="empty-block">No boss encounters were detected in this log.</div></section>');
     return;
   }
   fillScopeControl();
   updateScopeControls();
-  replaceRoot('<div class="empty-block">Building and verifying boss report...</div>');
+  replaceRoot(taskLoading('Loading boss fight', 'Calculating this boss fight and checking the values before display.', 'scope-report'));
   const report = await getScopeReport();
-  if (!report) return;
+  if (!report || epoch !== renderEpoch || state.view !== 'boss') return;
   const encounter = encounterById(state.scope.id);
   const current = currentPlayer(report);
   const topPowers = (current?.powers || []).slice(0, 8);
@@ -573,10 +625,10 @@ async function renderEncounters() {
   bindScopeButtons();
 }
 
-async function renderPlayers() {
-  replaceRoot('<div class="empty-block">Building and verifying scoped party table...</div>');
+async function renderPlayers(epoch = renderEpoch) {
+  replaceRoot(taskLoading('Loading player results', 'Calculating player totals for the selected fight.', 'scope-report'));
   const report = await getScopeReport();
-  if (!report) return;
+  if (!report || epoch !== renderEpoch || state.view !== 'players') return;
   replaceRoot(`<section class="verification-strip">${verificationBadge(report.verification)}<span>${esc(report.scope?.label || scopeName())}</span></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">${esc(report.scope?.label || scopeName())}</span><h2>Player performance</h2></div><span>${compact(report.players.length)} players</span></div>${playerTable(report.players)}</section>`);
   bindPlayerRows();
 }
@@ -653,10 +705,10 @@ function bindPowerRows() {
   el.root.querySelector('[data-more-power]')?.addEventListener('click', () => loadPowerHits(state.powerDetail?.power, false));
 }
 
-async function renderPowers() {
-  if (!state.report || state.reportKey !== scopeKey()) replaceRoot('<div class="empty-block">Building and verifying damage-out report...</div>');
+async function renderPowers(epoch = renderEpoch) {
+  if (!state.report || state.reportKey !== scopeKey()) replaceRoot(taskLoading('Loading power damage', 'Calculating power totals for the selected fight.', 'scope-report'));
   const report = await getScopeReport();
-  if (!report) return;
+  if (!report || epoch !== renderEpoch || state.view !== 'powers') return;
   const player = currentPlayer(report);
   if (!player) {
     replaceRoot('<section class="panel"><div class="panel-head"><h2>Damage out</h2></div><div class="empty-block">No player damage in this scope.</div></section>');
@@ -698,7 +750,14 @@ function rotationCanvasWidth(duration) {
 }
 
 function visibleRotationCount(lane) {
-  return (lane?.activations || []).reduce((count, item) => count + (state.rotationFilters.has(item.category) ? 1 : 0), 0);
+  if (lane?.categoryCounts) {
+    let count = 0;
+    for (const category of state.rotationFilters) count += Number(lane.categoryCounts[category]) || 0;
+    return count;
+  }
+  let count = 0;
+  for (const item of lane?.activations || []) if (state.rotationFilters.has(item.category)) count += 1;
+  return count;
 }
 
 function updateRotationCounts(report) {
@@ -731,10 +790,17 @@ function drawRotation(report) {
     Artifact: css.getPropertyValue('--cyan').trim() || '#65e4ff',
     Mount: css.getPropertyValue('--amber').trim() || '#ffbf69'
   };
-  el.root.querySelectorAll('canvas[data-rotation-lane]').forEach(canvas => {
+  const canvases = Array.from(el.root.querySelectorAll('canvas[data-rotation-lane]'));
+  const token = ++rotationPaintToken;
+  let canvasIndex = 0;
+
+  const paintNext = () => {
+    if (token !== rotationPaintToken || canvasIndex >= canvases.length) return;
+    const canvas = canvases[canvasIndex++];
+    if (!canvas?.isConnected) return;
     const lane = report.lanes.find(item => item.ref === canvas.dataset.rotationLane);
-    if (!lane) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (!lane) { requestAnimationFrame(paintNext); return; }
+    const dpr = Math.min(1.25, window.devicePixelRatio || 1);
     const height = 42;
     canvas.width = Math.floor(width * dpr);
     canvas.height = Math.floor(height * dpr);
@@ -749,9 +815,14 @@ function drawRotation(report) {
     ctx.moveTo(0, height - 6);
     ctx.lineTo(width, height - 6);
     ctx.stroke();
-    const visible = lane.activations.filter(item => filters.has(item.category));
-    const maxAmount = Math.max(1, ...visible.map(item => Number(item.amount) || 0));
-    for (const item of visible) {
+
+    let maxAmount = 1;
+    for (const item of lane.activations || []) {
+      if (!filters.has(item.category)) continue;
+      maxAmount = Math.max(maxAmount, Number(item.amount) || 0);
+    }
+    for (const item of lane.activations || []) {
+      if (!filters.has(item.category)) continue;
       const x = Math.max(1, Math.min(width - 1, (Number(item.time) || 0) / Math.max(1, report.duration) * width));
       const markerHeight = 8 + Math.sqrt((Number(item.amount) || 0) / maxAmount) * 22;
       ctx.strokeStyle = color[item.category] || color.Encounter;
@@ -761,7 +832,10 @@ function drawRotation(report) {
       ctx.lineTo(x, height - 6 - markerHeight);
       ctx.stroke();
     }
-  });
+    if (canvasIndex < canvases.length) requestAnimationFrame(paintNext);
+  };
+
+  requestAnimationFrame(paintNext);
 }
 
 function bindRotationFilters(report) {
@@ -786,10 +860,10 @@ function bindRotationFilters(report) {
   });
 }
 
-async function renderRotation() {
-  replaceRoot('<div class="empty-block">Building and independently verifying rotation lanes...</div>');
+async function renderRotation(epoch = renderEpoch) {
+  replaceRoot(taskLoading('Loading power timing', 'Reading damaging power uses and checking them before display.', 'rotation-report'));
   const report = await getRotationReport();
-  if (!report) return;
+  if (!report || epoch !== renderEpoch || state.view !== 'rotation') return;
   const width = rotationCanvasWidth(report.duration);
   replaceRoot(`
     <section class="verification-strip">${verificationBadge(report.verification)}<span data-rotation-visible-total>${compact(report.activationCount)} visible · ${compact(report.activationCount)} verified total</span></section>
@@ -869,20 +943,23 @@ function renderDiagnostics() {
 }
 
 async function render() {
+  const epoch = ++renderEpoch;
   setView(state.view);
   updateScopeControls();
   try {
-    if (state.view === 'overview') await renderOverview();
-    else if (state.view === 'rotation') await renderRotation();
-    else if (state.view === 'comparison') await renderComparisonView();
-    else if (state.view === 'boss') await renderBoss();
+    if (state.view === 'overview') await renderOverview(epoch);
+    else if (state.view === 'rotation') await renderRotation(epoch);
+    else if (state.view === 'comparison') await renderComparisonView(epoch);
+    else if (state.view === 'boss') await renderBoss(epoch);
     else if (state.view === 'encounters') await renderEncounters();
-    else if (state.view === 'players') await renderPlayers();
-    else if (state.view === 'powers') await renderPowers();
+    else if (state.view === 'players') await renderPlayers(epoch);
+    else if (state.view === 'powers') await renderPowers(epoch);
     else if (state.view === 'events') renderEvents();
     else renderDiagnostics();
-    revealView(el.root);
+    if (epoch !== renderEpoch) return;
+    if (!el.root.querySelector('[data-task-loading],.rotation-panel,.raw-hits-panel') && el.root.querySelectorAll('tr').length < 100) revealView(el.root);
   } catch (error) {
+    if (epoch !== renderEpoch) return;
     replaceRoot(`<section class="panel verification-blocked"><div class="panel-head"><h2>Analytics blocked</h2></div><div class="empty-block bad-text">${esc(error.message || error)}</div><div class="view-note">Strikeglass does not publish calculated values when the primary and verifier engines disagree.</div></section>`);
     toast(error.message || String(error), 'bad');
   }
@@ -943,6 +1020,7 @@ function acceptFile(file) {
 
 worker.onmessage = event => {
   const message = event.data || {};
+  if (message.type === 'task-progress') { updateTaskProgress(message); return; }
   if (message.requestId && settle(message)) return;
   if (message.type === 'progress') {
     const progress = message.progress;
