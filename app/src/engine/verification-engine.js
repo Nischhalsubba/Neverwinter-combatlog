@@ -13,8 +13,18 @@ const BOSS_MERGE_GAP_SECONDS = 15;
 const text = value => String(value == null ? '' : value).trim();
 const isPlayer = value => text(value).startsWith('P[');
 const isCreature = value => text(value).startsWith('C[');
-const isBoss = value => /_boss(?:\]|$)/i.test(text(value));
-const isPet = value => /pet_|companion|appointment|summon/i.test(text(value));
+
+function verifierCreatureTemplate(value) {
+  const raw = text(value);
+  if (!raw.startsWith('C[') || !raw.endsWith(']')) return '';
+  const body = raw.slice(2, -1).trim();
+  const separator = body.search(/\s/);
+  if (separator < 0) return '';
+  return body.slice(separator).trim();
+}
+
+const isBoss = value => verifierCreatureTemplate(value).toLowerCase().includes('_boss');
+const isPet = value => /pet_|companion|appointment|summon/i.test(verifierCreatureTemplate(value));
 
 function isCanonicalDamage(row) {
   if (!row || Number(row.amount) <= 0) return false;
@@ -382,7 +392,7 @@ function comparePlayers(mismatches, primaryPlayers = [], shadowPlayers = []) {
       mismatches.push({ path: `players.${player.ref}`, primary: 'present', verifier: 'missing' });
       continue;
     }
-    for (const field of ['damage','playerDamage','companionDamage','hits','dps','combatDps','duration','combatTime','encounters','crit','flank','avgHit','maxHit','healingDone','healingReceived','damageTaken','shielded']) {
+    for (const field of ['damage','playerDamage','companionDamage','hits','duration','combatTime','dps','combatDps','encounters','crit','flank','avgHit','maxHit','healingDone','healingReceived','damageTaken','shielded']) {
       compareNumber(mismatches, `players.${player.ref}.${field}`, player[field], shadow[field]);
     }
     if (text(player.maxPower) !== text(shadow.maxPower)) mismatches.push({ path: `players.${player.ref}.maxPower`, primary: text(player.maxPower), verifier: text(shadow.maxPower) });
@@ -491,4 +501,4 @@ export function verifyRotationReport(primary, rows, context = {}) {
   };
 }
 
-export const VERIFICATION_ENGINE_VERSION = 2;
+export const VERIFICATION_ENGINE_VERSION = 3;

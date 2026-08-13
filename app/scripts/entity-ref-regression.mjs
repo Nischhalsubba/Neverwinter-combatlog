@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { buildShadowReport } from '../src/engine/verification-engine.js';
 import { entityTemplate, isBossRef, isMobRef, isPetRef, parseText } from '../src/engine/fast-parser-core.js';
 
-const bossRef = 'C[617426298@32885548 Dragon_Boss]';
+const bossRef = 'C[617426298@32885548 Dragon_Boss_Phase_1]';
 const mobRef = 'C[617426299@32885548 Goblin_Standard]';
 const petRef = 'C[617426300@32885548 Pet_Wolf]';
 
-assert.equal(entityTemplate(bossRef), 'Dragon_Boss');
-assert.equal(isBossRef(bossRef), true, 'opaque creature ids must still expose boss templates');
+assert.equal(entityTemplate(bossRef), 'Dragon_Boss_Phase_1');
+assert.equal(isBossRef(bossRef), true, 'opaque creature ids with suffixed boss templates must still be recognized as bosses');
 assert.equal(isMobRef(mobRef), true, 'opaque creature ids must still expose mob templates');
 assert.equal(isPetRef(petRef), true, 'opaque creature ids must still expose pet templates');
 
@@ -30,8 +30,8 @@ assert.equal(player.combatTime, 14);
 const shadow = buildShadowReport(parsed.rows, { scopeType: 'session', scopeStart: 0, scopeEnd: 14 });
 const shadowPlayer = shadow.players.find(item => item.ref === playerRef);
 assert.ok(shadowPlayer);
-assert.equal(player.combatTime, shadowPlayer.combatTime, 'calculator and verifier combat clocks must agree for opaque ids');
-assert.equal(player.combatDps, shadowPlayer.combatDps, 'calculator and verifier combat DPS must agree for opaque ids');
-assert.equal(parsed.summary.activeCombatTime, shadow.activeCombatTime, 'party encounter clocks must agree for opaque ids');
+assert.equal(player.combatTime, shadowPlayer.combatTime, 'calculator and verifier combat clocks must agree when _Boss is followed by a template suffix');
+assert.equal(player.combatDps, shadowPlayer.combatDps, 'calculator and verifier combat DPS must agree when _Boss is followed by a template suffix');
+assert.equal(parsed.summary.activeCombatTime, shadow.activeCombatTime, 'party encounter clocks must agree for suffixed boss templates');
 
 console.log('Entity reference regression passed.');
