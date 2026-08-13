@@ -24,19 +24,19 @@ export async function startAmbient(root) {
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.25));
     root.appendChild(renderer.domElement);
 
-    const count = 140;
+    const count = 64;
     const positions = new Float32Array(count * 3);
     for (let index = 0; index < count; index += 1) {
-      const angle = index * 0.72;
-      const radius = 1.5 + (index % 17) * 0.16;
+      const angle = index * 0.91;
+      const radius = 1.8 + (index % 13) * 0.2;
       positions[index * 3] = Math.cos(angle) * radius;
-      positions[index * 3 + 1] = Math.sin(angle * 0.67) * radius * 0.55;
-      positions[index * 3 + 2] = ((index % 23) - 11) * 0.16;
+      positions[index * 3 + 1] = Math.sin(angle * 0.71) * radius * 0.5;
+      positions[index * 3 + 2] = ((index % 19) - 9) * 0.18;
     }
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const material = new THREE.PointsMaterial({ color: 0x65e4ff, size: 0.035, transparent: true, opacity: 0.55, depthWrite: false });
+    const material = new THREE.PointsMaterial({ color: 0x60a5fa, size: 0.032, transparent: true, opacity: 0.24, depthWrite: false });
     const points = new THREE.Points(geometry, material);
     scene.add(points);
 
@@ -56,19 +56,20 @@ export async function startAmbient(root) {
     };
 
     const onPointer = event => {
-      pointerX = (event.clientX / Math.max(1, innerWidth) - 0.5) * 0.2;
-      pointerY = (event.clientY / Math.max(1, innerHeight) - 0.5) * 0.12;
+      pointerX = (event.clientX / Math.max(1, innerWidth) - 0.5) * 0.08;
+      pointerY = (event.clientY / Math.max(1, innerHeight) - 0.5) * 0.05;
     };
 
     const frame = timestamp => {
       if (destroyed) return;
       raf = requestAnimationFrame(frame);
       if (document.hidden || timestamp - lastFrame < 33) return;
+      const delta = Math.min(0.05, Math.max(0, (timestamp - lastFrame) / 1000));
       lastFrame = timestamp;
-      const time = timestamp * 0.00008;
-      points.rotation.z = time;
-      points.rotation.x += (pointerY - points.rotation.x) * 0.03;
-      points.rotation.y += (pointerX - points.rotation.y) * 0.03;
+      points.rotation.z += delta * 0.045;
+      const settle = Math.min(1, delta * 2.2);
+      points.rotation.x += (pointerY - points.rotation.x) * settle;
+      points.rotation.y += (pointerX - points.rotation.y) * settle;
       renderer.render(scene, camera);
     };
 
@@ -83,6 +84,7 @@ export async function startAmbient(root) {
         cancelAnimationFrame(raf);
         removeEventListener('resize', resize);
         removeEventListener('pointermove', onPointer);
+        scene.remove(points);
         geometry.dispose();
         material.dispose();
         renderer.dispose();
