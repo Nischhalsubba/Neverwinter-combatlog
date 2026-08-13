@@ -25,6 +25,7 @@ function powerName(trigger) {
 }
 
 function closePopup(restoreFocus = true) {
+  const wasOpen = Boolean(dialog || backdrop);
   token += 1;
   detail = null;
   dialog?.remove();
@@ -33,7 +34,7 @@ function closePopup(restoreFocus = true) {
   backdrop = null;
   document.body.classList.remove('power-popup-open');
   if (appShell) appShell.inert = false;
-  window.scrollTo(scrollPoint.x, scrollPoint.y);
+  if (wasOpen) window.scrollTo(scrollPoint.x, scrollPoint.y);
   if (restoreFocus && opener?.isConnected) requestAnimationFrame(() => opener.focus({ preventScroll: true }));
   opener = null;
 }
@@ -85,7 +86,7 @@ async function openPopup(trigger) {
   const power = powerName(trigger);
   const playerRef = currentPlayerRef();
   if (!power || !playerRef) return;
-  closePopup(false);
+  if (dialog) closePopup(false);
   const localToken = ++token;
   opener = trigger;
   scrollPoint = { x: window.scrollX, y: window.scrollY };
@@ -155,7 +156,6 @@ function intercept(trigger, event) {
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation();
-  opener = trigger;
   openPopup(trigger);
 }
 
