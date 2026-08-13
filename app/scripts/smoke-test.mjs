@@ -10,6 +10,7 @@ const required = [
   'src/v3/motion.js',
   'src/v3/ambient.js',
   'src/engine/fast-parser-core.js',
+  'src/engine/scoped-combat-clock.js',
   'src/engine/power-taxonomy.js',
   'src/engine/verification-engine.js',
   'src/workers/fast-parse-worker.js'
@@ -43,6 +44,10 @@ for (const marker of [
   'renderTimelineChart',
   'bossTargetOnly',
   'compactHtml',
+  'Select 2–5 players',
+  'Verified active combat time',
+  'data-rotation-all',
+  'visible /',
   '1e9', '1e6', '1e3'
 ]) if (!app.includes(marker)) failures.push(`app missing ${marker}`);
 
@@ -52,13 +57,18 @@ for (const marker of ['uplot@1.6.32', 'MAX_POINTS = 1800', 'AXIS_FONT', 'ResizeO
 }
 
 const worker = await readFile('src/workers/fast-parse-worker.js', 'utf8');
-for (const marker of ['class CompactRowStore', 'Float64Array', 'buildEncounterIndex', 'lowerBound(', "message.type === 'scope-report'", "message.type === 'rotation-report'", 'verifyReport', 'verifyRotationReport', 'validDamageOnly', 'SCOPE_CACHE_LIMIT', 'targetOnly', 'partyCombatDps', 'combatDuration']) {
+for (const marker of ['class CompactRowStore', 'Float64Array', 'buildEncounterIndex', 'lowerBound(', "message.type === 'scope-report'", "message.type === 'rotation-report'", 'verifyReport', 'verifyRotationReport', 'validDamageOnly', 'SCOPE_CACHE_LIMIT', 'targetOnly', 'partyCombatDps', 'combatDuration', 'summarizeScopedCombat']) {
   if (!worker.includes(marker)) failures.push(`worker missing ${marker}`);
 }
 
 const core = await readFile('src/engine/fast-parser-core.js', 'utf8');
 for (const marker of ['CANONICAL_DAMAGE_TYPES', "new Set(['physical'])", 'KNOWN_DAMAGE_TYPES', 'recoverLegacyPayload', 'invalid_field_count', 'class CombatAccumulator', 'mergedPlayerEncounters', 'combatDuration', 'DATE_EPOCH_CACHE', 'nonCanonicalDamageTypes']) {
   if (!core.includes(marker)) failures.push(`parser missing ${marker}`);
+}
+
+const scopedClock = await readFile('src/engine/scoped-combat-clock.js', 'utf8');
+for (const marker of ['summarizeScopedCombat', 'DEFAULT_GAP_SECONDS = 5', 'DEFAULT_BOSS_MERGE_GAP_SECONDS = 15', 'mergeBossPhases']) {
+  if (!scopedClock.includes(marker)) failures.push(`scoped clock missing ${marker}`);
 }
 
 const verifier = await readFile('src/engine/verification-engine.js', 'utf8');
@@ -82,7 +92,7 @@ for (const marker of ['--muted:#b7c7d1', '--muted-2:#9fb4c1', 'body{font-size:14
 }
 
 const features = await readFile('src/v3/analysis-features.css', 'utf8');
-for (const marker of ['.verification-strip', '.reference-metrics', '.analysis-bars', '.raw-hits-panel', '.rotation-shell', '.class-badge']) {
+for (const marker of ['.verification-strip', '.reference-metrics', '.analysis-bars', '.raw-hits-panel', '.rotation-shell', '.class-badge', '.analysis-toolbar .field:has(#player-select)']) {
   if (!features.includes(marker)) failures.push(`analysis styles missing ${marker}`);
 }
 
@@ -100,4 +110,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('Smoke test passed. Dual-engine verification, reference combat clocks, raw-hit traceability, category analysis, party rotation, readable contrast, scoped reports, uPlot charts, Three.js budget, and GSAP motion contracts are present.');
+console.log('Smoke test passed. Dual-engine verification, scoped combat clocks, interactive comparison controls, live rotation counts, raw-hit traceability, category analysis, readable contrast, scoped reports, uPlot charts, Three.js budget, and GSAP motion contracts are present.');

@@ -133,6 +133,32 @@ const rotationMessage = await waitFor(message => message.type === 'rotation-repo
 assert.equal(rotationMessage.error, null);
 assert.equal(rotationMessage.report.verification.status, 'verified');
 
+const scopedClockLines = [
+  '26:04:15:01:00:00.000::Alice,P[1 Alice],Alice,P[1 Alice],Dragon,C[9 Dragon_Boss],Strike,Power_A,Physical,,100,100',
+  '26:04:15:01:00:04.000::Alice,P[1 Alice],Alice,P[1 Alice],Dragon,C[9 Dragon_Boss],Strike,Power_A,Physical,,100,100',
+  '26:04:15:01:00:12.000::Alice,P[1 Alice],Alice,P[1 Alice],Add,C[10 Goblin_Standard],Strike,Power_A,Physical,,100,100',
+  '26:04:15:01:00:16.000::Alice,P[1 Alice],Alice,P[1 Alice],Add,C[10 Goblin_Standard],Strike,Power_A,Physical,,100,100',
+  '26:04:15:01:00:20.000::Bob,P[2 Bob],Bob,P[2 Bob],Dragon,C[9 Dragon_Boss],Strike,Power_B,Physical,,200,200'
+];
+const scopedClockFile = new File([scopedClockLines.join('\n')], 'scoped-combat-clock.log', { type: 'text/plain' });
+self.onmessage({ data: { type: 'parse', file: scopedClockFile } });
+const scopedClockDone = await waitFor(message => message.type === 'done' && message.summary?.file?.name === 'scoped-combat-clock.log');
+assert.equal(scopedClockDone.summary.verification.status, 'verified');
+assert.equal(scopedClockDone.summary.encounters.length, 1, 'party boss phases should remain one encounter for the scoped clock fixture');
+
+self.onmessage({ data: { type: 'scope-report', requestId: 8, scope: { type: 'boss', id: 1, targetOnly: false } } });
+const scopedClockMessage = await waitFor(message => message.type === 'scope-report' && message.requestId === 8);
+assert.equal(scopedClockMessage.error, null);
+assert.equal(scopedClockMessage.report.verification.status, 'verified');
+const scopedAlice = scopedClockMessage.report.players.find(player => player.ref === 'P[1 Alice]');
+assert.ok(scopedAlice);
+assert.equal(scopedAlice.damage, 400);
+assert.equal(scopedAlice.duration, 16, 'scoped DPS should use first-to-last player hit time');
+assert.equal(scopedAlice.combatTime, 8, 'scoped Combat DPS should remove the eight-second idle gap');
+assert.equal(scopedAlice.dps, 25);
+assert.equal(scopedAlice.combatDps, 50);
+assert.ok(scopedAlice.combatDps > scopedAlice.dps, 'scoped Combat DPS must not be hard-coded to ordinary DPS');
+
 const unorderedPlayerRef = 'P[512839612@11543915 Nefarius@adminx999]';
 const unorderedMobRef = 'C[900000001@11543915 Training_Standard]';
 const unorderedLines = [

@@ -1,5 +1,6 @@
 import { CombatAccumulator, FLAG, isBossRef, isPlayerRef, parseLine } from '../engine/fast-parser-core.js';
 import { activationDedupeSeconds, classifyPowerCategory, inferPlayerClass, isRotationCategory, summarizeCategories } from '../engine/power-taxonomy.js';
+import { summarizeScopedCombat } from '../engine/scoped-combat-clock.js';
 import { verifyReport, verifyRotationReport } from '../engine/verification-engine.js';
 
 const CHUNK_ROWS = 32768;
@@ -385,7 +386,8 @@ function createScopedPlayer(ref, name) {
     firstDamage: null,
     lastDamage: null,
     powers: new Map(),
-    timeline: new Map()
+    timeline: new Map(),
+    damageSeries: []
   };
 }
 
@@ -400,7 +402,8 @@ function touchPower(player, powerName, powerRef) {
 
 function compactScopedPlayer(player, scopeDuration) {
   const duration = player.firstDamage == null || player.lastDamage == null ? 0 : Math.max(0, player.lastDamage - player.firstDamage);
-  const combatTime = duration;
+  const combat = summarizeScopedCombat(player.damageSeries);
+  const combatTime = combat.combatTime;
   const powers = Array.from(player.powers.values())
     .map(power => powerResult(power, player.damage, duration))
     .sort((a, b) => b.damage - a.damage || a.power.localeCompare(b.power));
@@ -418,7 +421,7 @@ function compactScopedPlayer(player, scopeDuration) {
     duration,
     scopeDuration,
     combatTime,
-    encounters: player.hits ? 1 : 0,
+    encounters: combat.encounters,
     crit: player.hits ? player.critHits / player.hits * 100 : 0,
     flank: player.hits ? player.flankHits / player.hits * 100 : 0,
     avgHit: player.hits ? player.damage / player.hits : 0,
@@ -509,6 +512,7 @@ function aggregateScope(scope) {
 
   const players = new Map();
   const partyTimeline = new Map();
+  const partyDamageSeries = [];
   let damage = 0;
   let hits = 0;
   let healing = 0;
@@ -568,6 +572,17 @@ function aggregateScope(scope) {
     owner.firstDamage = owner.firstDamage == null ? relativeTime : Math.min(owner.firstDamage, relativeTime);
     owner.lastDamage = owner.lastDamage == null ? relativeTime : Math.max(owner.lastDamage, relativeTime);
 
+    const targetRef = activeStore.pool.get(chunk.targetRef[slot]);
+    const combatPoint = {
+      time: relativeTime,
+      lineNo: chunk.lineNo[slot],
+      targetRef,
+      isBoss: isBossRef(targetRef),
+      amount
+    };
+    owner.damageSeries.push(combatPoint);
+    partyDamageSeries.push(combatPoint);
+
     const power = touchPower(owner, powerName, powerRef);
     power.damage += amount;
     power.hits += 1;
@@ -586,6 +601,7 @@ function aggregateScope(scope) {
     .filter(player => player.damage || player.healingDone || player.damageTaken || player.shielded)
     .sort((a, b) => b.damage - a.damage || a.name.localeCompare(b.name));
   for (const player of compactPlayers) player.damageShare = damage ? player.damage / damage * 100 : 0;
+  const partyCombat = summarizeScopedCombat(partyDamageSeries);
 
   const report = {
     scope: {
@@ -600,9 +616,9 @@ function aggregateScope(scope) {
     damage,
     hits,
     duration,
-    activeCombatTime: hits ? duration : 0,
+    activeCombatTime: partyCombat.combatTime,
     partyDps: damage / Math.max(1, duration),
-    partyCombatDps: damage / Math.max(1, hits ? duration : 0),
+    partyCombatDps: damage / Math.max(1, partyCombat.combatTime),
     healing,
     shielded,
     players: compactPlayers,

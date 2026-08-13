@@ -404,7 +404,7 @@ function selectedOverview(player, report) {
     <section class="reference-metrics">
       ${metric('Total Damage', compactHtml(player.damage))}
       ${metric('DPS', compactHtml(player.dps), 'First to last canonical hit')}
-      ${metric('Combat DPS', compactHtml(player.combatDps), 'Merged encounter time')}
+      ${metric('Combat DPS', compactHtml(player.combatDps), 'Verified active combat time')}
       ${metric('Duration', dur(player.duration))}
       ${metric('In-Combat Time', dur(player.combatTime))}
       ${metric('Total Hits', compactHtml(player.hits))}
@@ -430,8 +430,8 @@ async function renderOverview() {
     <section class="verification-strip">${verificationBadge(report.verification)}<span>Canonical damage: Physical · values remain local</span></section>
     <section class="metrics party-metrics">
       ${metric('Party damage', compactHtml(report.damage), scopeText)}
-      ${metric('Party DPS', compactHtml(report.partyDps), 'Combat span')}
-      ${metric('Party Combat DPS', compactHtml(report.partyCombatDps), 'Merged encounter time')}
+      ${metric('Party DPS', compactHtml(report.partyDps), 'Scope clock')}
+      ${metric('Party Combat DPS', compactHtml(report.partyCombatDps), 'Verified active combat time')}
       ${metric('Scope duration', dur(report.duration), `${compact(report.hits)} valid hits`)}
     </section>
     <section class="panel">
@@ -459,8 +459,9 @@ function compareDefaults(players) {
   const available = players || [];
   const allowed = new Set(available.map(player => player.ref));
   state.compareRefs = state.compareRefs.filter(ref => allowed.has(ref)).slice(0, 5);
+  const target = state.compareRefs.length ? Math.min(2, available.length) : Math.min(3, available.length);
   for (const player of available) {
-    if (state.compareRefs.length >= Math.min(3, available.length)) break;
+    if (state.compareRefs.length >= target) break;
     if (!state.compareRefs.includes(player.ref)) state.compareRefs.push(player.ref);
   }
 }
@@ -507,13 +508,14 @@ function renderComparison(report) {
   replaceRoot(`
     <section class="verification-strip">${verificationBadge(report.verification)}<span>${esc(report.scope?.label || scopeName())}</span></section>
     <section class="panel">
-      <div class="panel-head"><div><span class="eyebrow">Comparison set</span><h2>Players in identical scope</h2></div><span>${esc(report.scope?.label || scopeName())}</span></div>
+      <div class="panel-head"><div><span class="eyebrow">Comparison set</span><h2>Players in identical scope</h2></div><span>Select 2–5 players</span></div>
       ${compareSelector(report)}
+      <div class="view-note"><strong>DPS</strong> = damage divided by the time from that player's first to last valid hit. <strong>Combat DPS</strong> = damage divided by verified active combat time. Idle gaps over 5 seconds are excluded unless they belong to a merged boss phase. The values can legitimately match when there is no qualifying idle time.</div>
     </section>
     <section class="comparison-cards">${players.map(player => `<article class="compare-card" data-motion-card>
       <header><div><h3>${esc(player.name)}</h3><span class="class-badge">${esc(classLabel(player))}</span></div><span class="compare-rank">#${(report.players || []).findIndex(item => item.ref === player.ref) + 1}</span></header>
       <strong>${compactHtml(player.damage)}</strong><small>${pct(player.damageShare)} of scoped party damage</small>
-      <div class="mini-stats"><div><span>DPS</span><b>${compactHtml(player.dps)}</b></div><div><span>Combat DPS</span><b>${compactHtml(player.combatDps)}</b></div><div><span>Crit</span><b>${pct(player.crit)}</b></div><div><span>Flank / CA</span><b>${pct(player.flank)}</b></div></div>
+      <div class="mini-stats"><div><span title="Damage divided by first-to-last valid hit time">DPS</span><b>${compactHtml(player.dps)}</b></div><div><span title="Damage divided by verified active combat time">Combat DPS</span><b>${compactHtml(player.combatDps)}</b></div><div><span>Elapsed</span><b>${dur(player.duration)}</b></div><div><span>In combat</span><b>${dur(player.combatTime)}</b></div><div><span>Crit</span><b>${pct(player.crit)}</b></div><div><span>Flank / CA</span><b>${pct(player.flank)}</b></div></div>
     </article>`).join('')}</section>
     <section class="panel chart-panel"><div class="panel-head"><div><span class="eyebrow">Same clock, same scope</span><h2>Player damage over time</h2></div><span class="chart-note">2–5 player comparison</span></div><div class="chart-host" data-chart id="comparison-chart"></div></section>
     <section class="panel"><div class="panel-head"><div><span class="eyebrow">Exact metrics</span><h2>Comparison table</h2></div><span>${compact(players.length)} selected</span></div>${playerTable(players)}</section>`);
@@ -695,6 +697,29 @@ function rotationCanvasWidth(duration) {
   return Math.max(920, Math.min(4200, Math.ceil(Math.max(1, Number(duration) || 1) * 0.55)));
 }
 
+function visibleRotationCount(lane) {
+  return (lane?.activations || []).reduce((count, item) => count + (state.rotationFilters.has(item.category) ? 1 : 0), 0);
+}
+
+function updateRotationCounts(report) {
+  let visibleTotal = 0;
+  el.root.querySelectorAll('[data-rotation-count]').forEach(node => {
+    const lane = report.lanes.find(item => item.ref === node.dataset.rotationCount);
+    if (!lane) return;
+    const visible = visibleRotationCount(lane);
+    visibleTotal += visible;
+    node.textContent = `${lane.className || 'Unknown'} · ${compact(visible)} visible / ${compact(lane.activationCount)} total`;
+  });
+  const total = el.root.querySelector('[data-rotation-visible-total]');
+  if (total) total.textContent = `${compact(visibleTotal)} visible · ${compact(report.activationCount)} verified total`;
+  const all = el.root.querySelector('[data-rotation-all]');
+  if (all) {
+    const active = state.rotationFilters.size === ROTATION_CATEGORIES.length;
+    all.classList.toggle('is-active', active);
+    all.setAttribute('aria-pressed', active ? 'true' : 'false');
+  }
+}
+
 function drawRotation(report) {
   const filters = state.rotationFilters;
   const width = rotationCanvasWidth(report.duration);
@@ -746,8 +771,19 @@ function bindRotationFilters(report) {
     else state.rotationFilters.add(category);
     button.classList.toggle('is-active', state.rotationFilters.has(category));
     button.setAttribute('aria-pressed', state.rotationFilters.has(category) ? 'true' : 'false');
+    updateRotationCounts(report);
     drawRotation(report);
   }));
+  el.root.querySelector('[data-rotation-all]')?.addEventListener('click', () => {
+    state.rotationFilters.clear();
+    for (const category of ROTATION_CATEGORIES) state.rotationFilters.add(category);
+    el.root.querySelectorAll('[data-rotation-filter]').forEach(button => {
+      button.classList.add('is-active');
+      button.setAttribute('aria-pressed', 'true');
+    });
+    updateRotationCounts(report);
+    drawRotation(report);
+  });
 }
 
 async function renderRotation() {
@@ -756,14 +792,15 @@ async function renderRotation() {
   if (!report) return;
   const width = rotationCanvasWidth(report.duration);
   replaceRoot(`
-    <section class="verification-strip">${verificationBadge(report.verification)}<span>${compact(report.activationCount)} verified activation markers</span></section>
+    <section class="verification-strip">${verificationBadge(report.verification)}<span data-rotation-visible-total>${compact(report.activationCount)} visible · ${compact(report.activationCount)} verified total</span></section>
     <section class="panel rotation-panel"><div class="panel-head"><div><span class="eyebrow">Party rotation</span><h2>Activated damage powers on one clock</h2></div><span>${dur(report.duration)}</span></div>
-      <div class="rotation-help">Markers are inferred from canonical player damage rows. Passive procs, feats, class features and companion attacks are excluded; repeated multi-hit rows are collapsed by power type.</div>
-      <div class="rotation-filters" aria-label="Rotation categories">${ROTATION_CATEGORIES.map(category => `<button type="button" data-rotation-filter="${esc(category)}" aria-pressed="${state.rotationFilters.has(category) ? 'true' : 'false'}" class="${state.rotationFilters.has(category) ? 'is-active' : ''}">${esc(category)}</button>`).join('')}</div>
+      <div class="rotation-help">Markers are inferred from canonical player damage rows. Passive procs, feats, class features and companion attacks are excluded; repeated multi-hit rows are collapsed by power type. Category buttons are visibility filters, so each lane shows a live visible count beside its verified total.</div>
+      <div class="rotation-filters" aria-label="Rotation categories"><button type="button" data-rotation-all aria-pressed="${state.rotationFilters.size === ROTATION_CATEGORIES.length ? 'true' : 'false'}" class="${state.rotationFilters.size === ROTATION_CATEGORIES.length ? 'is-active' : ''}">All</button>${ROTATION_CATEGORIES.map(category => `<button type="button" data-rotation-filter="${esc(category)}" aria-pressed="${state.rotationFilters.has(category) ? 'true' : 'false'}" class="${state.rotationFilters.has(category) ? 'is-active' : ''}">${esc(category)}</button>`).join('')}</div>
       <div class="rotation-shell"><div class="rotation-label-spacer"></div><div class="rotation-scroll" id="rotation-scroll"><div class="rotation-timeline" style="width:${width}px">${rotationRuler(report.duration)}</div></div>
-      ${report.lanes.map(lane => `<div class="rotation-lane"><div class="rotation-lane-label"><strong>${esc(lane.name)}</strong><span>${esc(lane.className || 'Unknown')} · ${compact(lane.activationCount)} activations</span></div><div class="rotation-scroll"><canvas data-rotation-lane="${esc(lane.ref)}" aria-label="${esc(`${lane.name} power activation timeline`)}"></canvas></div></div>`).join('')}</div>
+      ${report.lanes.map(lane => `<div class="rotation-lane"><div class="rotation-lane-label"><strong>${esc(lane.name)}</strong><span data-rotation-count="${esc(lane.ref)}">${esc(lane.className || 'Unknown')} · ${compact(visibleRotationCount(lane))} visible / ${compact(lane.activationCount)} total</span></div><div class="rotation-scroll"><canvas data-rotation-lane="${esc(lane.ref)}" aria-label="${esc(`${lane.name} power activation timeline`)}"></canvas></div></div>`).join('')}</div>
     </section>`);
   bindRotationFilters(report);
+  updateRotationCounts(report);
   drawRotation(report);
   revealCards(el.root);
 }
