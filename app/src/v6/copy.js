@@ -215,6 +215,15 @@ function simplifyTableHeaders() {
   });
 }
 
+function simplifyDrawerCopy() {
+  document.querySelectorAll([
+    '.v6-widget-drawer .v6-drawer-head h2',
+    '.v6-widget-drawer .v6-drawer-head p',
+    '.v6-widget-drawer .v6-drawer-item-main strong',
+    '.v6-widget-drawer .v6-drawer-item-main span'
+  ].join(',')).forEach(replaceElementText);
+}
+
 function simplifyDynamicCopy() {
   if (!viewRoot) return;
 
@@ -229,14 +238,11 @@ function simplifyDynamicCopy() {
     '.v6-dashboard-toolbar-copy strong',
     '.v6-dashboard-toolbar-copy span',
     '.v6-dashboard-actions .button span',
-    '.v6-drawer-head h2',
-    '.v6-drawer-head p',
-    '.v6-drawer-item-main strong',
-    '.v6-drawer-item-main span',
     '.boss-summary span',
     '.verification-details span'
   ].join(',')).forEach(replaceElementText);
 
+  simplifyDrawerCopy();
   simplifyMetricNotes();
   simplifyVerification();
   simplifyTableHeaders();
@@ -339,6 +345,7 @@ if (viewRoot) new MutationObserver(scheduleCopy).observe(viewRoot, { childList: 
 if (workspaceTitle) new MutationObserver(scheduleCopy).observe(workspaceTitle, { childList: true, characterData: true, subtree: true });
 if (topbarStatus) new MutationObserver(scheduleCopy).observe(topbarStatus, { childList: true, characterData: true, subtree: true });
 if (parseState) new MutationObserver(scheduleCopy).observe(parseState, { childList: true, characterData: true, subtree: true });
+new MutationObserver(scheduleCopy).observe(document.body, { childList: true, subtree: false });
 nav?.addEventListener('click', scheduleCopy);
 
 scheduleCopy();
