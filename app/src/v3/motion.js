@@ -24,7 +24,7 @@ export async function revealView(root) {
   const gsap = await loadGsap();
   if (!gsap || !root.isConnected || isHeavyView(root)) return;
   gsap.killTweensOf(root);
-  gsap.fromTo(root, { y: 8, autoAlpha: .01 }, { y: 0, autoAlpha: 1, duration: .2, ease: 'power2.out', clearProps: 'transform,opacity,visibility', overwrite: 'auto' });
+  gsap.fromTo(root, { y: 8, autoAlpha: .01 }, { y: 0, autoAlpha: 1, duration: 0.28, ease: 'power2.out', clearProps: 'transform,opacity,visibility', overwrite: 'auto' });
 }
 
 export async function revealCards(root) {
