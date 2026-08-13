@@ -133,4 +133,21 @@ const rotationMessage = await waitFor(message => message.type === 'rotation-repo
 assert.equal(rotationMessage.error, null);
 assert.equal(rotationMessage.report.verification.status, 'verified');
 
+const unorderedPlayerRef = 'P[512839612@11543915 Nefarius@adminx999]';
+const unorderedMobRef = 'C[900000001@11543915 Training_Standard]';
+const unorderedLines = [
+  `26:08:13:10:00:00.000::Nefarius,${unorderedPlayerRef},Nefarius,${unorderedPlayerRef},Training,${unorderedMobRef},Strike,Power_Strike,Physical,,100,100`,
+  `26:08:13:10:00:10.000::Nefarius,${unorderedPlayerRef},Nefarius,${unorderedPlayerRef},Training,${unorderedMobRef},Strike,Power_Strike,Physical,,100,100`,
+  `26:08:13:10:00:05.000::Nefarius,${unorderedPlayerRef},Nefarius,${unorderedPlayerRef},Training,${unorderedMobRef},Strike,Power_Strike,Physical,,100,100`
+];
+const unorderedFile = new File([unorderedLines.join('\n')], 'unordered-real-shape.log', { type: 'text/plain' });
+self.onmessage({ data: { type: 'parse', file: unorderedFile } });
+const unorderedDone = await waitFor(message => message.type === 'done' && message.summary?.file?.name === 'unordered-real-shape.log');
+assert.equal(unorderedDone.summary.verification.status, 'verified', 'out-of-order source rows must not make calculator and verifier combat clocks disagree');
+assert.equal(unorderedDone.summary.activeCombatTime, 10, 'party combat time must be based on timestamp order, not source row order');
+const unorderedPlayer = unorderedDone.summary.players.find(player => player.ref === unorderedPlayerRef);
+assert.ok(unorderedPlayer);
+assert.equal(unorderedPlayer.combatTime, 10, 'player combat time must be order independent');
+assert.equal(unorderedPlayer.combatDps, 30, 'player combat DPS must use the verified 10-second combat clock');
+
 console.log('Scope regression passed.');
