@@ -113,9 +113,19 @@ for (const marker of ['.verification-strip', '.reference-metrics', '.analysis-ba
 }
 
 const powerDrilldownStyles = await readFile('src/v3/power-drilldown.css', 'utf8');
-for (const marker of ['.power-drilldown-trigger', '.power-drilldown-backdrop', 'body.power-drilldown-open .raw-hits-panel', '.power-hit-summary', 'min-width:44px', '@media(prefers-reduced-motion:reduce)']) {
-  if (!powerDrilldownStyles.includes(marker)) failures.push(`power drilldown styles missing ${marker}`);
-}
+for (const marker of [
+  '.power-drilldown-trigger',
+  '.power-drilldown-backdrop',
+  'body.power-drilldown-open .workspace{z-index:auto}',
+  'body.power-drilldown-open .view-root',
+  'backdrop-filter:none',
+  'body.power-drilldown-open .raw-hits-panel',
+  'background:#09141d',
+  '.power-hit-summary',
+  'min-width:44px',
+  '@media(prefers-reduced-motion:reduce)'
+]) if (!powerDrilldownStyles.includes(marker)) failures.push(`power drilldown styles missing ${marker}`);
+if (/backdrop-filter\s*:\s*blur\(/i.test(powerDrilldownStyles)) failures.push('Power drilldown must not blur its modal backdrop.');
 
 const ambient = await readFile('src/v3/ambient.js', 'utf8');
 for (const marker of ['three@0.185.1', 'renderer.dispose()', 'deviceMemory', '33']) {
@@ -131,4 +141,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('Smoke test passed. Dual-engine verification, scoped combat clocks, interactive comparison controls, live rotation counts, clickable power raw-hit drilldowns, raw-hit traceability, category analysis, readable contrast, scoped reports, uPlot charts, Three.js budget, and GSAP motion contracts are present.');
+console.log('Smoke test passed. Dual-engine verification, scoped combat clocks, interactive comparison controls, live rotation counts, crisp clickable power raw-hit drilldowns, raw-hit traceability, category analysis, readable contrast, scoped reports, uPlot charts, Three.js budget, and GSAP motion contracts are present.');
