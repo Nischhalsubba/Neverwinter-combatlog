@@ -1,14 +1,18 @@
-const DAMAGE_TYPES = new Set([
+const KNOWN_DAMAGE_TYPES = new Set([
   'physical', 'arcane', 'cold', 'fire', 'lightning', 'necrotic',
   'poison', 'psychic', 'radiant', 'thunder', 'force', 'untyped'
 ]);
+const CANONICAL_DAMAGE_TYPES = new Set(['physical']);
 
 export const FLAG = Object.freeze({
   CRITICAL: 1 << 0,
   FLANK: 1 << 1,
   COMBAT_ADVANTAGE: 1 << 2,
   SHOW_POWER_DISPLAY_NAME: 1 << 3,
-  IMMUNE: 1 << 4
+  IMMUNE: 1 << 4,
+  DEFLECT: 1 << 5,
+  KILL: 1 << 6,
+  SHIELD_BREAK: 1 << 7
 });
 
 const PET_RE = /pet_|companion|appointment|summon/i;
@@ -196,6 +200,9 @@ export function parseFlags(raw) {
     else if (value === 'combatadvantage') bits |= FLAG.COMBAT_ADVANTAGE;
     else if (value === 'showpowerdisplayname') bits |= FLAG.SHOW_POWER_DISPLAY_NAME;
     else if (value === 'immune') bits |= FLAG.IMMUNE;
+    else if (value === 'dodge' || value === 'deflect' || value === 'deflected') bits |= FLAG.DEFLECT;
+    else if (value === 'kill') bits |= FLAG.KILL;
+    else if (value === 'shieldbreak') bits |= FLAG.SHIELD_BREAK;
   }
   return bits;
 }
@@ -212,13 +219,14 @@ export function classifyEvent(row) {
   if (type === 'triggercomplex') return 'meta';
   if (type.includes('summon') || flagsText.includes('summon')) return 'summon';
   if (type.includes('control') || flagsText.includes('control')) return 'control';
-  if (row.amount > 0 && DAMAGE_TYPES.has(type)) return 'damage';
+  if (row.amount > 0 && KNOWN_DAMAGE_TYPES.has(type)) return 'damage';
   return 'unknown';
 }
 
 export function isValidDamage(row) {
   if (classifyEvent(row) !== 'damage') return false;
   if (row.amount <= 0) return false;
+  if (!CANONICAL_DAMAGE_TYPES.has(normalizeText(row.damageType).toLowerCase())) return false;
   if ((row.flags & FLAG.SHOW_POWER_DISPLAY_NAME) !== 0) return false;
   if (row.targetRef === '*' && !isCreatureRef(row.sourceRef)) return false;
   return true;
@@ -307,13 +315,15 @@ function createPlayer(ref, name) {
     maxPower: '',
     firstDamage: null,
     lastDamage: null,
-    activeCombatTime: 0,
     healingDone: 0,
     healingReceived: 0,
     damageTaken: 0,
     shielded: 0,
     powers: new Map(),
-    timeline: new Map()
+    timeline: new Map(),
+    encounterWindows: [],
+    currentEncounter: null,
+    lastEncounterDamageAt: null
   };
 }
 
@@ -322,6 +332,7 @@ function updatePower(player, row) {
   if (!power) {
     power = {
       power: row.powerName,
+      powerRef: row.powerRef || '',
       damage: 0,
       hits: 0,
       critHits: 0,
@@ -342,6 +353,7 @@ function updatePower(player, row) {
 function compactPower(power, totalDamage) {
   return {
     power: power.power,
+    powerRef: power.powerRef || '',
     damage: power.damage,
     hits: power.hits,
     share: totalDamage ? (power.damage / totalDamage) * 100 : 0,
@@ -351,6 +363,45 @@ function compactPower(power, totalDamage) {
     flank: power.hits ? (power.flankHits / power.hits) * 100 : 0,
     companionDamage: power.companionDamage
   };
+}
+
+function mergeMinimalWindows(source, bossMergeGapSeconds) {
+  const windows = source.map(window => ({
+    start: window.start,
+    end: window.end,
+    damage: window.damage || 0,
+    hits: window.hits || 0,
+    bossIds: new Set(window.bossIds || [])
+  }));
+  const merged = [];
+  const sameBoss = (a, b) => Array.from(a.bossIds).some(id => b.bossIds.has(id));
+  const mergeInto = (target, addition) => {
+    target.start = Math.min(target.start, addition.start);
+    target.end = Math.max(target.end, addition.end);
+    target.damage += addition.damage;
+    target.hits += addition.hits;
+    for (const id of addition.bossIds) target.bossIds.add(id);
+  };
+
+  for (let index = 0; index < windows.length; index += 1) {
+    const window = windows[index];
+    const previous = merged.at(-1);
+    if (previous?.bossIds.size && window.bossIds.size && sameBoss(previous, window) && window.start - previous.end <= bossMergeGapSeconds) {
+      mergeInto(previous, window);
+      continue;
+    }
+    if (previous?.bossIds.size && !window.bossIds.size) {
+      const next = windows[index + 1];
+      if (next?.bossIds.size && sameBoss(previous, next) && window.start - previous.end <= bossMergeGapSeconds && next.start - window.end <= bossMergeGapSeconds) {
+        mergeInto(previous, window);
+        mergeInto(previous, next);
+        index += 1;
+        continue;
+      }
+    }
+    merged.push(window);
+  }
+  return merged;
 }
 
 export class CombatAccumulator {
@@ -370,13 +421,13 @@ export class CombatAccumulator {
     this.players = new Map();
     this.eventTypes = new Map();
     this.unknownTypes = new Map();
+    this.nonCanonicalDamageTypes = new Map();
     this.rejectReasons = new Map();
     this.rejectedSamples = [];
     this.encounters = [];
     this.currentEncounter = null;
     this.firstPartyDamageAt = null;
     this.lastPartyDamageAt = null;
-    this.activeCombatTime = 0;
   }
 
   ensurePlayer(ref, name) {
@@ -401,6 +452,20 @@ export class CombatAccumulator {
     }
   }
 
+  updatePlayerEncounter(player, row) {
+    const needsNew = player.lastEncounterDamageAt == null || row.time - player.lastEncounterDamageAt > this.encounterGapSeconds;
+    if (needsNew) {
+      player.currentEncounter = { start: row.time, end: row.time, damage: 0, hits: 0, bossIds: new Set() };
+      player.encounterWindows.push(player.currentEncounter);
+    }
+    const encounter = player.currentEncounter;
+    encounter.end = row.time;
+    encounter.damage += row.amount;
+    encounter.hits += 1;
+    if (isBossRef(row.targetRef)) encounter.bossIds.add(row.targetRef);
+    player.lastEncounterDamageAt = row.time;
+  }
+
   ingest(row) {
     this.lines = Math.max(this.lines, row.lineNo || this.lines + 1);
     this.parsed += 1;
@@ -410,6 +475,10 @@ export class CombatAccumulator {
 
     addCount(this.eventTypes, row.damageType || 'Unknown');
     if (row.kind === 'unknown') addCount(this.unknownTypes, row.damageType || 'Unknown');
+    if (row.kind === 'damage' && row.amount > 0 && !row.validDamage) {
+      const type = normalizeText(row.damageType) || 'Unknown';
+      if (type.toLowerCase() !== 'physical') addCount(this.nonCanonicalDamageTypes, type);
+    }
 
     const ownerPlayer = this.ensurePlayer(row.ownerRef, row.ownerName);
     const targetPlayer = this.ensurePlayer(row.targetRef, row.targetName);
@@ -445,12 +514,9 @@ export class CombatAccumulator {
     }
 
     if (ownerPlayer.firstDamage == null || row.time < ownerPlayer.firstDamage) ownerPlayer.firstDamage = row.time;
-    if (ownerPlayer.lastDamage != null && row.time >= ownerPlayer.lastDamage) {
-      const gap = row.time - ownerPlayer.lastDamage;
-      if (gap <= this.encounterGapSeconds) ownerPlayer.activeCombatTime += gap;
-    }
     if (ownerPlayer.lastDamage == null || row.time > ownerPlayer.lastDamage) ownerPlayer.lastDamage = row.time;
     updatePower(ownerPlayer, row);
+    this.updatePlayerEncounter(ownerPlayer, row);
 
     const secondBucket = Math.floor(row.time);
     ownerPlayer.timeline.set(secondBucket, (ownerPlayer.timeline.get(secondBucket) || 0) + row.amount);
@@ -462,10 +528,6 @@ export class CombatAccumulator {
     const previousDamageAt = this.lastPartyDamageAt;
     const needsNew = previousDamageAt == null || row.time - previousDamageAt > this.encounterGapSeconds;
     if (this.firstPartyDamageAt == null) this.firstPartyDamageAt = row.time;
-    if (previousDamageAt != null) {
-      const gap = row.time - previousDamageAt;
-      if (gap >= 0 && gap <= this.encounterGapSeconds) this.activeCombatTime += gap;
-    }
 
     if (needsNew) {
       this.currentEncounter = {
@@ -490,6 +552,10 @@ export class CombatAccumulator {
     }
     if (isCreatureRef(row.targetRef) && !isPetRef(row.targetRef)) addCount(encounter.enemyNames, row.targetName || entityTemplate(row.targetRef) || row.targetRef, row.amount);
     this.lastPartyDamageAt = row.time;
+  }
+
+  mergedPlayerEncounters(player) {
+    return mergeMinimalWindows(player.encounterWindows || [], this.bossMergeGapSeconds);
   }
 
   mergedEncounters() {
@@ -564,7 +630,8 @@ export class CombatAccumulator {
 
   compactPlayer(player, { includePowers = false, includeTimeline = false } = {}) {
     const duration = player.firstDamage == null || player.lastDamage == null ? 0 : Math.max(0, player.lastDamage - player.firstDamage);
-    const combatTime = Math.max(0, player.activeCombatTime);
+    const mergedPlayerEncounters = this.mergedPlayerEncounters(player);
+    const combatTime = mergedPlayerEncounters.reduce((sum, encounter) => sum + Math.max(0, encounter.end - encounter.start), 0);
     const result = {
       ref: player.ref,
       name: player.name,
@@ -576,6 +643,7 @@ export class CombatAccumulator {
       combatDps: player.damage / Math.max(1, combatTime),
       duration,
       combatTime,
+      encounters: mergedPlayerEncounters.length,
       crit: player.hits ? (player.critHits / player.hits) * 100 : 0,
       flank: player.hits ? (player.flankHits / player.hits) * 100 : 0,
       maxHit: player.maxHit,
@@ -608,9 +676,13 @@ export class CombatAccumulator {
       .sort((a, b) => b.damage - a.damage || a.name.localeCompare(b.name));
     const combatStart = this.firstPartyDamageAt == null ? 0 : this.firstPartyDamageAt;
     const combatEnd = this.lastPartyDamageAt == null ? combatStart : this.lastPartyDamageAt;
+    const encounters = partial ? [] : this.mergedEncounters();
+    const activeCombatTime = partial
+      ? 0
+      : encounters.reduce((sum, encounter) => sum + Math.max(0, encounter.duration), 0);
 
     return {
-      version: 4,
+      version: 5,
       partial,
       lines: this.lines,
       parsed: this.parsed,
@@ -621,14 +693,15 @@ export class CombatAccumulator {
       combatStart,
       combatEnd,
       combatDuration: Math.max(0, combatEnd - combatStart),
-      activeCombatTime: Math.max(0, this.activeCombatTime),
+      activeCombatTime,
       damage: this.damage,
       healing: this.healing,
       shielded: this.shielded,
       players,
-      encounters: partial ? [] : this.mergedEncounters(),
+      encounters,
       eventTypes: mapToSortedEntries(this.eventTypes, 24),
       unknownTypes: mapToSortedEntries(this.unknownTypes, 24),
+      nonCanonicalDamageTypes: mapToSortedEntries(this.nonCanonicalDamageTypes, 24),
       rejectReasons: mapToSortedEntries(this.rejectReasons, 24),
       rejectedSamples: partial ? [] : this.rejectedSamples.slice()
     };
@@ -658,7 +731,8 @@ export function parseText(text, options = {}) {
 }
 
 export const FastParser = Object.freeze({
-  DAMAGE_TYPES,
+  KNOWN_DAMAGE_TYPES,
+  CANONICAL_DAMAGE_TYPES,
   parseTimestamp,
   tokenizeCsv,
   parseFlags,
