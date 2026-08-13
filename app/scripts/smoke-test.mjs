@@ -3,6 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 const required = [
   'index.html',
   'src/v3/styles.css',
+  'src/v3/readability.css',
   'src/v3/app.js',
   'src/v3/charts.js',
   'src/v3/motion.js',
@@ -17,7 +18,7 @@ for (const path of required) {
 }
 
 const index = await readFile('index.html', 'utf8');
-for (const marker of ['src/v3/styles.css', 'type="module" src="src/v3/app.js"', 'data-view="comparison"', 'data-view="boss"', 'id="encounter-select"', 'id="boss-target-only"']) {
+for (const marker of ['src/v3/styles.css', 'src/v3/readability.css', 'type="module" src="src/v3/app.js"', 'data-view="comparison"', 'data-view="boss"', 'id="encounter-select"', 'id="boss-target-only"']) {
   if (!index.includes(marker)) failures.push(`index missing ${marker}`);
 }
 if (index.includes('compact.css')) failures.push('Obsolete compact.css is still loaded.');
@@ -36,23 +37,28 @@ for (const marker of [
 ]) if (!app.includes(marker)) failures.push(`app missing ${marker}`);
 
 const charts = await readFile('src/v3/charts.js', 'utf8');
-for (const marker of ['uplot@1.6.32', 'MAX_POINTS = 1800', 'ResizeObserver', 'destroyChart', 'bucketTimeline']) {
+for (const marker of ['uplot@1.6.32', 'MAX_POINTS = 1800', 'AXIS_FONT', 'ResizeObserver', 'destroyChart', 'bucketTimeline']) {
   if (!charts.includes(marker)) failures.push(`charts missing ${marker}`);
 }
 
 const worker = await readFile('src/workers/fast-parse-worker.js', 'utf8');
-for (const marker of ['class CompactRowStore', 'Float64Array', 'buildEncounterIndex', 'lowerBound(', "message.type === 'scope-report'", 'SCOPE_CACHE_LIMIT', 'targetOnly']) {
+for (const marker of ['class CompactRowStore', 'Float64Array', 'buildEncounterIndex', 'lowerBound(', "message.type === 'scope-report'", 'SCOPE_CACHE_LIMIT', 'targetOnly', 'partyCombatDps', 'combatDuration']) {
   if (!worker.includes(marker)) failures.push(`worker missing ${marker}`);
 }
 
 const core = await readFile('src/engine/fast-parser-core.js', 'utf8');
-for (const marker of ["'arcane'", "'physical'", "'lightning'", 'recoverLegacyPayload', 'invalid_field_count', 'class CombatAccumulator', 'activeCombatTime']) {
+for (const marker of ["'arcane'", "'physical'", "'lightning'", 'recoverLegacyPayload', 'invalid_field_count', 'class CombatAccumulator', 'activeCombatTime', 'combatDuration', 'DATE_EPOCH_CACHE']) {
   if (!core.includes(marker)) failures.push(`parser missing ${marker}`);
 }
 
 const styles = await readFile('src/v3/styles.css', 'utf8');
 for (const marker of ['--cyan:#65e4ff', '--sidebar:232px', '.analysis-toolbar', '.comparison-cards', '.boss-grid', '.chart-host', 'min-height:44px', '@media(prefers-reduced-motion:reduce)']) {
   if (!styles.includes(marker)) failures.push(`styles missing ${marker}`);
+}
+
+const readability = await readFile('src/v3/readability.css', 'utf8');
+for (const marker of ['--muted:#b7c7d1', '--muted-2:#9fb4c1', 'body{font-size:14px', 'table{font-size:13px', '.eyebrow{font-size:11px', '.chart-host .u-legend{font-size:12px']) {
+  if (!readability.includes(marker)) failures.push(`readability styles missing ${marker}`);
 }
 
 const ambient = await readFile('src/v3/ambient.js', 'utf8');
@@ -69,4 +75,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('Smoke test passed. Scoped worker reports, boss/player comparison, uPlot charts, dense responsive UI, Three.js budget, and GSAP motion contracts are present.');
+console.log('Smoke test passed. Accuracy clocks, scoped worker reports, boss/player comparison, uPlot charts, readable contrast, responsive UI, Three.js budget, and GSAP motion contracts are present.');
