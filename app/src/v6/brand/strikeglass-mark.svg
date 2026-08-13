@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-labelledby="title desc">
+  <title id="title">Strikeglass</title>
+  <desc id="desc">A diamond-shaped glass pane crossed by a diagonal strike.</desc>
+  <path d="M12 2.75 21.25 12 12 21.25 2.75 12 12 2.75Z" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M5.6 15.45 18.4 8.55" fill="none" stroke="#0891b2" stroke-width="2.2" stroke-linecap="round"/>
+</svg>
