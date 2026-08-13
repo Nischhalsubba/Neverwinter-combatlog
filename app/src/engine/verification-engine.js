@@ -1,4 +1,4 @@
-import { classifyPowerCategory, inferPlayerClass, summarizeCategories } from './power-taxonomy.js';
+import { activationDedupeSeconds, classifyPowerCategory, inferPlayerClass, isRotationCategory, summarizeCategories } from './power-taxonomy.js';
 
 const VERIFY_DAMAGE_TYPE = 'physical';
 const EXPLICIT_NON_DAMAGE_TYPES = new Set(['hitpoints','shield','power','triggercomplex']);
@@ -311,6 +311,58 @@ export function buildShadowReport(rows, context = {}) {
   };
 }
 
+function rotationCandidates(rows, context = {}) {
+  const targetOnly = Boolean(context.targetOnly);
+  const bossTargets = context.bossTargets instanceof Set ? context.bossTargets : new Set(context.bossTargets || []);
+  const byPlayer = new Map();
+  for (const row of rows || []) {
+    if (!isPlayer(row.ownerRef) || !isCanonicalDamage(row) || isCompanion(row)) continue;
+    if (targetOnly && bossTargets.size && !bossTargets.has(row.targetRef)) continue;
+    const category = classifyPowerCategory(row.powerName, { companion: false, powerRef: row.powerRef });
+    if (!isRotationCategory(category)) continue;
+    let lane = byPlayer.get(row.ownerRef);
+    if (!lane) {
+      lane = { ref: row.ownerRef, name: text(row.ownerName) || row.ownerRef, rows: [] };
+      byPlayer.set(row.ownerRef, lane);
+    }
+    lane.rows.push({
+      time: Number(row.time) || 0,
+      lineNo: Number(row.lineNo) || 0,
+      power: text(row.powerName) || 'Unknown',
+      category,
+      amount: Number(row.amount) || 0
+    });
+  }
+  return byPlayer;
+}
+
+export function buildShadowRotation(rows, context = {}) {
+  const origin = Number(context.scopeStart) || 0;
+  const lanes = [];
+  let activationCount = 0;
+  for (const lane of rotationCandidates(rows, context).values()) {
+    lane.rows.sort((a, b) => a.time - b.time || a.lineNo - b.lineNo);
+    const lastByPower = new Map();
+    const activations = [];
+    for (const row of lane.rows) {
+      const previous = lastByPower.get(row.power);
+      const threshold = activationDedupeSeconds(row.category);
+      if (previous != null && row.time - previous < threshold) continue;
+      lastByPower.set(row.power, row.time);
+      activations.push({
+        time: Math.max(0, row.time - origin),
+        power: row.power,
+        category: row.category,
+        amount: row.amount
+      });
+    }
+    activationCount += activations.length;
+    lanes.push({ ref: lane.ref, name: lane.name, activations });
+  }
+  lanes.sort((a, b) => a.name.localeCompare(b.name) || a.ref.localeCompare(b.ref));
+  return { lanes, activationCount };
+}
+
 function nearlyEqual(a, b) {
   const left = Number(a) || 0;
   const right = Number(b) || 0;
@@ -363,6 +415,16 @@ function checksum(report) {
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
+function rotationChecksum(rotation) {
+  const source = (rotation.lanes || []).flatMap(lane => [lane.ref, ...(lane.activations || []).flatMap(item => [item.time, item.power, item.category, item.amount])]).join('|');
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
 export function verifyReport(primary, rows, context = {}) {
   const shadow = buildShadowReport(rows, context);
   const mismatches = [];
@@ -388,4 +450,45 @@ export function verifyReport(primary, rows, context = {}) {
   };
 }
 
-export const VERIFICATION_ENGINE_VERSION = 1;
+export function verifyRotationReport(primary, rows, context = {}) {
+  const shadow = buildShadowRotation(rows, context);
+  const mismatches = [];
+  if ((primary?.activationCount || 0) !== shadow.activationCount) {
+    mismatches.push({ path: 'activationCount', primary: primary?.activationCount || 0, verifier: shadow.activationCount });
+  }
+  const primaryByRef = new Map((primary?.lanes || []).map(lane => [lane.ref, lane]));
+  for (const lane of shadow.lanes) {
+    const actual = primaryByRef.get(lane.ref);
+    if (!actual) {
+      mismatches.push({ path: `lanes.${lane.ref}`, primary: 'missing', verifier: 'present' });
+      continue;
+    }
+    if ((actual.activations || []).length !== lane.activations.length) {
+      mismatches.push({ path: `lanes.${lane.ref}.activations.length`, primary: (actual.activations || []).length, verifier: lane.activations.length });
+      continue;
+    }
+    for (let index = 0; index < lane.activations.length; index += 1) {
+      const left = actual.activations[index];
+      const right = lane.activations[index];
+      if (!nearlyEqual(left?.time, right.time) || text(left?.power) !== right.power || text(left?.category) !== right.category || !nearlyEqual(left?.amount, right.amount)) {
+        mismatches.push({ path: `lanes.${lane.ref}.activations.${index}`, primary: left || null, verifier: right });
+        if (mismatches.length >= 40) break;
+      }
+    }
+    if (mismatches.length >= 40) break;
+  }
+  if ((primary?.lanes || []).length !== shadow.lanes.length) mismatches.push({ path: 'lanes.length', primary: (primary?.lanes || []).length, verifier: shadow.lanes.length });
+  const ok = mismatches.length === 0;
+  return {
+    ok,
+    status: ok ? 'verified' : 'mismatch',
+    engine: 'shadow-verifier-v1',
+    checkedActivations: shadow.activationCount,
+    checkedLanes: shadow.lanes.length,
+    checksum: rotationChecksum(shadow),
+    mismatches: mismatches.slice(0, 40),
+    warnings: []
+  };
+}
+
+export const VERIFICATION_ENGINE_VERSION = 2;
