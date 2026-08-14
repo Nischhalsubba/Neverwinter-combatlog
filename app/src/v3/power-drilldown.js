@@ -20,3 +20,4 @@ async function ensureQolStyle() {
 await ensureQolStyle();
 await import('./power-popup/index.js');
 await import('../v8/index.js');
+await import('../v9/encounter-power-icons.js');

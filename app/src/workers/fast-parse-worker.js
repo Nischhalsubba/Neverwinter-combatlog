@@ -1,5 +1,6 @@
 import { CombatAccumulator, FLAG, isBossRef, isPlayerRef, parseLine } from '../engine/fast-parser-core.js';
 import { activationDedupeSeconds, classifyPowerCategory, inferPlayerClass, isRotationCategory, summarizeCategories } from '../engine/power-taxonomy.js';
+import { encounterPowerClasses, isKnownEncounterPowerName } from '../data/encounter-power-icons.js';
 import { summarizeScopedCombat } from '../engine/scoped-combat-clock.js';
 import { verifyReport, verifyRotationReport } from '../engine/verification-engine.js';
 
@@ -707,8 +708,6 @@ async function buildRotationReport(scope = { type: 'session' }, requestId = 0) {
     const { chunk, slot } = location;
     const rowTime = chunk.time[slot];
     if (rowTime < info.start || rowTime > info.end) continue;
-    if (!chunk.validDamage[slot] || chunk.companion[slot]) continue;
-    if (info.targetOnly && info.bossTargetIds.size && !info.bossTargetIds.has(chunk.targetRef[slot])) continue;
 
     const ownerRef = store.pool.get(chunk.ownerRef[slot]);
     if (!isPlayerRef(ownerRef)) continue;
@@ -717,26 +716,48 @@ async function buildRotationReport(scope = { type: 'session' }, requestId = 0) {
     const category = classifyPowerCategory(power, { companion: false, powerRef });
     if (!isRotationCategory(category)) continue;
 
+    const catalogEncounter = category === 'Encounter' && isKnownEncounterPowerName(power);
+    const encounterMarker = catalogEncounter && !info.targetOnly &&
+      (CODE_TO_KIND[chunk.kind[slot]] || 'unknown') === 'resource' &&
+      chunk.amount[slot] < 0 &&
+      store.pool.get(chunk.sourceRef[slot]) === '*' &&
+      !chunk.companion[slot];
+    const damageCandidate = Boolean(chunk.validDamage[slot]) && !chunk.companion[slot];
+
+    if (catalogEncounter && !info.targetOnly) {
+      if (!encounterMarker) continue;
+    } else {
+      if (!damageCandidate) continue;
+      if (info.targetOnly && info.bossTargetIds.size && !info.bossTargetIds.has(chunk.targetRef[slot])) continue;
+    }
+
     let lane = lanes.get(ownerRef);
     if (!lane) {
       const known = sessionPlayers.get(ownerRef);
+      const trustedClass = known?.classConfidence > 0 ? known.className : 'Unknown';
       lane = {
         ref: ownerRef,
         name: store.pool.get(chunk.ownerName[slot]) || ownerRef,
-        className: known?.className || 'Unknown',
-        classConfidence: known?.classConfidence || 0,
+        className: trustedClass || 'Unknown',
+        classConfidence: trustedClass && trustedClass !== 'Unknown' ? known?.classConfidence || 0 : 0,
+        classVotes: new Map(),
         damage: 0,
         rows: []
       };
       lanes.set(ownerRef, lane);
     }
-    lane.damage += chunk.amount[slot];
+    if (catalogEncounter) {
+      const classes = encounterPowerClasses(power);
+      const vote = classes.length ? 1 / classes.length : 0;
+      for (const className of classes) lane.classVotes.set(className, (lane.classVotes.get(className) || 0) + vote);
+    }
+    if (damageCandidate) lane.damage += chunk.amount[slot];
     lane.rows.push({
       time: rowTime,
       lineNo: chunk.lineNo[slot],
       power,
       category,
-      amount: chunk.amount[slot]
+      amount: encounterMarker ? 0 : chunk.amount[slot]
     });
   }
 
@@ -763,11 +784,14 @@ async function buildRotationReport(scope = { type: 'session' }, requestId = 0) {
       categoryCounts[row.category] = (categoryCounts[row.category] || 0) + 1;
     }
     activationCount += activations.length;
+    const classRanking = Array.from(lane.classVotes.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    const votedClass = classRanking[0] && (classRanking[1]?.[1] || 0) < classRanking[0][1] ? classRanking[0][0] : 'Unknown';
+    const resolvedClass = lane.className && lane.className !== 'Unknown' ? lane.className : votedClass;
     compactLanes.push({
       ref: lane.ref,
       name: lane.name,
-      className: lane.className,
-      classConfidence: lane.classConfidence,
+      className: resolvedClass,
+      classConfidence: lane.className && lane.className !== 'Unknown' ? lane.classConfidence : (resolvedClass !== 'Unknown' ? 1 : 0),
       activationCount: activations.length,
       categoryCounts,
       activations,

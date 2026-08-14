@@ -1,4 +1,5 @@
 import { activationDedupeSeconds, classifyPowerCategory, inferPlayerClass, isRotationCategory, summarizeCategories } from './power-taxonomy.js';
+import { isKnownEncounterPowerName } from '../data/encounter-power-icons.js';
 
 const VERIFY_DAMAGE_TYPE = 'physical';
 const EXPLICIT_NON_DAMAGE_TYPES = new Set(['hitpoints','shield','power','triggercomplex']);
@@ -248,13 +249,35 @@ function rotationCandidates(rows, context = {}, onProgress = null) {
   let processed = 0;
   for (const row of rows || []) {
     processed += 1; reportProgress(onProgress, processed, totalRows);
-    if (!isPlayer(row.ownerRef) || !isCanonicalDamage(row) || isCompanion(row)) continue;
-    if (targetOnly && bossTargets.size && !bossTargets.has(row.targetRef)) continue;
-    const category = classifyPowerCategory(row.powerName, { companion: false, powerRef: row.powerRef });
+    if (!isPlayer(row.ownerRef)) continue;
+    const power = text(row.powerName) || 'Unknown';
+    const category = classifyPowerCategory(power, { companion: false, powerRef: row.powerRef });
     if (!isRotationCategory(category)) continue;
+
+    const catalogEncounter = category === 'Encounter' && isKnownEncounterPowerName(power);
+    const encounterMarker = catalogEncounter && !targetOnly &&
+      text(row.damageType).toLowerCase() === 'power' &&
+      Number(row.amount) < 0 &&
+      text(row.sourceRef) === '*' &&
+      !isCompanion(row);
+    const damageCandidate = isCanonicalDamage(row) && !isCompanion(row);
+
+    if (catalogEncounter && !targetOnly) {
+      if (!encounterMarker) continue;
+    } else {
+      if (!damageCandidate) continue;
+      if (targetOnly && bossTargets.size && !bossTargets.has(row.targetRef)) continue;
+    }
+
     let lane = byPlayer.get(row.ownerRef);
     if (!lane) { lane = { ref: row.ownerRef, name: text(row.ownerName) || row.ownerRef, rows: [] }; byPlayer.set(row.ownerRef, lane); }
-    lane.rows.push({ time: Number(row.time) || 0, lineNo: Number(row.lineNo) || 0, power: text(row.powerName) || 'Unknown', category, amount: Number(row.amount) || 0 });
+    lane.rows.push({
+      time: Number(row.time) || 0,
+      lineNo: Number(row.lineNo) || 0,
+      power,
+      category,
+      amount: encounterMarker ? 0 : Number(row.amount) || 0
+    });
   }
   onProgress?.(1);
   return byPlayer;
