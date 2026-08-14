@@ -29,9 +29,14 @@ assert.equal(thorn.critHits, 1);
 assert.equal(thorn.caHits, 1);
 
 const ui = fs.readFileSync(new URL('../src/v10/power-timing-interactions.js', import.meta.url), 'utf8');
-for (const token of ['data-pt-zoom-in','data-pt-zoom-out','data-pt-fit','Combat Adv.','Deflected','Debuff applied','Debuff active','wheel','pointerdown','categoryTooltipMarkup','loadEncounterPowerIconSprite','buildTeamDebuffTiming','raw-page','MAX_ZOOM = 12','MAX_TIMELINE_WIDTH = 30000','maxZoomForReport','32760','60000']) assert.ok(ui.includes(token), token);
+for (const token of ['data-pt-zoom-in','data-pt-zoom-out','data-pt-fit','Combat Adv.','Deflected','Debuff applied','Debuff active','wheel','pointerdown','categoryTooltipMarkup','loadEncounterPowerIconSprite','loadTeamDebuffTiming','effect-intelligence-report','MAX_ZOOM = 12','MAX_TIMELINE_WIDTH = 30000','maxZoomForReport','32760']) assert.ok(ui.includes(token), token);
+assert.ok(!ui.includes('buildTeamDebuffTiming'), 'Power Timing must not rebuild the effect timeline in the browser');
+assert.ok(!ui.includes("workerRequest('raw-page'"), 'Power Timing must consume Engine 3 output instead of paging raw rows for debuffs');
+assert.ok(!ui.includes('analyzeCombatEffects'), 'Power Timing must not run combat-effect classification in the frontend');
+assert.ok(!ui.includes('analyzeBossEffects'), 'Power Timing must not run boss-effect calculations in the frontend');
+
 const drilldown = fs.readFileSync(new URL('../src/v3/power-drilldown.js', import.meta.url), 'utf8');
 assert.ok(drilldown.includes("../v10/power-timing-interactions.js"));
 const worker = fs.readFileSync(new URL('../src/workers/fast-parse-worker.js', import.meta.url), 'utf8');
-for (const token of ['applyRotationActivationDetails','critHits','caHits','deflectedHits','maxHit']) assert.ok(worker.includes(token), token);
+for (const token of ['applyRotationActivationDetails','critHits','caHits','deflectedHits','maxHit','effect-intelligence-report','buildEffectIntelligenceReport','analyzeEffectIntelligence']) assert.ok(worker.includes(token), token);
 console.log('Power timing interaction regression passed.');
