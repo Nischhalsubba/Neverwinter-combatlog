@@ -43,11 +43,24 @@ const appAt = index.indexOf('src/v3/app.js');
 assert.ok(bridgeAt >= 0 && bridgeAt < appAt, 'worker bridge must load before the combat app creates its worker');
 assert.match(index, /src\/v7\/boss-effects\.css/);
 assert.match(index, /src\/v7\/boss-effects\.js/);
+
 const ui = readFileSync(new URL('../src/v7/boss-effects.js', import.meta.url), 'utf8');
+assert.match(ui, /dataset\.view = 'debuffs'/);
+assert.match(ui, />Debuff Uptime</);
+assert.match(ui, /What does uptime mean\?/);
+assert.match(ui, /Who applied it/);
+assert.match(ui, /Helps everyone/);
+assert.match(ui, /Only helps that player/);
+assert.match(ui, /Effects found but not timed yet/);
 assert.match(ui, /limit: 500/);
 assert.match(ui, /targetOnly: true/);
-assert.match(ui, /Checked twice/);
-assert.match(ui, /Gaps longer than 5 seconds/);
+assert.doesNotMatch(ui, />Team debuffs</);
+assert.doesNotMatch(ui, />Personal target effects</);
+assert.doesNotMatch(ui, /boss-target rows/);
+
 const css = readFileSync(new URL('../src/v7/boss-effects.css', import.meta.url), 'utf8');
+assert.match(css, /min-height:64px/);
+assert.match(css, /focus-visible/);
 assert.match(css, /prefers-reduced-motion/);
+assert.match(css, /max-width:700px/);
 console.log('Boss effect regression passed.');
