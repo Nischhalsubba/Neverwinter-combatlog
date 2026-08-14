@@ -1,3 +1,5 @@
+import { encounterPowerClasses, isKnownEncounterPowerName } from '../data/encounter-power-icons.js';
+
 const CATEGORY_BY_POWER = new Map([
   ['Chilling Cloud','At-Will'],['Magic Missile','At-Will'],['Electric Shot','At-Will'],['Rapid Shot','At-Will'],['Sly Flourish','At-Will'],['Cleave','At-Will'],['Brash Strike','At-Will'],['Lance of Faith','At-Will'],['Arpeggio','At-Will'],['Eldritch Blast','At-Will'],
   ['Icy Rays','Encounter'],['Chill Strike','Encounter'],['Repel','Encounter'],['Entangling Force','Encounter'],['Fanning the Flame','Encounter'],['Fanned Flame','Encounter'],['Gathering Flame','Encounter'],['Fireball','Encounter'],['Icy Terrain','Encounter'],['Thorn Ward','Encounter'],['Thorn Strike','Encounter'],['Hindering Strike','Encounter'],['Split the Sky','Encounter'],['Throw Caution','Encounter'],['Hindering Shot','Encounter'],['Dazing Strike','Encounter'],['Lashing Blade','Encounter'],['Assassinate','Encounter'],['Anvil of Doom','Encounter'],['Not so Fast','Encounter'],['Bloodletter','Encounter'],['Duet','Encounter'],['Volti Subito','Encounter'],['Blaze Flamenco','Encounter'],['Phantasmal Concerto','Encounter'],['Ray of Enfeeblement','Encounter'],['Killing Flames','Encounter'],['Pillar of Power','Encounter'],
@@ -30,6 +32,7 @@ export function classifyPowerCategory(powerName, { companion = false, powerRef =
   if (companion) return 'Pet / Companion';
   const direct = CATEGORY_BY_POWER.get(name);
   if (direct) return direct;
+  if (isKnownEncounterPowerName(name)) return 'Encounter';
   const lower = name.toLowerCase();
   const ref = String(powerRef || '').toLowerCase();
   if (ARTIFACT_NAMES.has(lower) || /artifact|sigil_of_|storyteller|journal/.test(ref)) return 'Artifact';
@@ -61,9 +64,13 @@ export function summarizeCategories(powers = []) {
 export function inferPlayerClass(powers = []) {
   const scores = new Map();
   const evidence = new Map();
+  const ensureClass = className => {
+    if (!scores.has(className)) scores.set(className, 0);
+    if (!evidence.has(className)) evidence.set(className, []);
+  };
+
   for (const [className, hints] of Object.entries(CLASS_HINTS)) {
-    scores.set(className, 0);
-    evidence.set(className, []);
+    ensureClass(className);
     const hintSet = new Set(hints);
     for (const power of powers) {
       if (!hintSet.has(power.power)) continue;
@@ -72,12 +79,24 @@ export function inferPlayerClass(powers = []) {
       evidence.get(className).push(power.power);
     }
   }
-  const ranked = Array.from(scores.entries()).sort((a, b) => b[1] - a[1]);
+
+  for (const power of powers) {
+    const classes = encounterPowerClasses(power.power);
+    if (!classes.length) continue;
+    const weight = Math.max(1, Math.log10(Math.max(10, Number(power.damage) || 0))) / classes.length;
+    for (const className of classes) {
+      ensureClass(className);
+      scores.set(className, scores.get(className) + weight);
+      evidence.get(className).push(power.power);
+    }
+  }
+
+  const ranked = Array.from(scores.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   const [bestName = 'Unknown', bestScore = 0] = ranked[0] || [];
   const secondScore = ranked[1]?.[1] || 0;
-  if (bestScore <= 0) return { name: 'Unknown', confidence: 0, evidence: [] };
+  if (bestScore <= 0 || Math.abs(bestScore - secondScore) < 1e-9) return { name: 'Unknown', confidence: 0, evidence: [] };
   const confidence = Math.max(0, Math.min(1, (bestScore - secondScore) / Math.max(1, bestScore)));
-  return { name: bestName, confidence, evidence: evidence.get(bestName).slice(0, 5) };
+  return { name: bestName, confidence, evidence: Array.from(new Set(evidence.get(bestName) || [])).slice(0, 5) };
 }
 
 export function isRotationCategory(category) {
