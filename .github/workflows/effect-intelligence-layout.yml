@@ -1,0 +1,44 @@
+name: Integrate effect intelligence layout
+
+on:
+  push:
+    branches: [feat/effect-intelligence-layout]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: ${{ !contains(github.event.head_commit.message, 'Finalize effect intelligence layout') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/effect-intelligence-layout
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@9.15.0 --activate
+      - name: Apply integration patch
+        working-directory: app
+        run: node scripts/apply-effect-intelligence-layout.mjs
+      - name: Install dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+      - name: Run full validation
+        working-directory: app
+        run: pnpm check
+      - name: Check patch hygiene
+        run: git diff --check -- app/index.html app/src/v3/app.js app/src/v10/power-timing-interactions.js app/src/workers/fast-parse-worker.js app/src/engine/effect-intelligence-engine.js app/src/v7/boss-effects.js app/src/v11/navigation-shell.js app/src/v11/navigation-shell.css app/scripts/effect-intelligence-regression.mjs app/package.json
+      - name: Commit validated integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/index.html app/src/v3/app.js app/src/v10/power-timing-interactions.js app/src/workers/fast-parse-worker.js
+          git rm app/scripts/apply-effect-intelligence-layout.mjs .github/workflows/effect-intelligence-layout.yml
+          git commit -m "Finalize effect intelligence layout"
+          git push origin HEAD:feat/effect-intelligence-layout
