@@ -5,8 +5,19 @@ import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 
 const ROOT = 'https://nw-hub.com';
+const WIKI_API = 'https://neverwinter.fandom.com/api.php';
 const CLASSES = ['barbarian','bard','cleric','fighter','paladin','ranger','rogue','warlock','wizard'];
 const OUTPUT = process.env.OUTPUT_DIR || path.resolve('nw-hub-power-icons-fixed');
+const RELATED_FALLBACKS = Object.freeze({
+  'Bard|Con Fuoco': { url: `${ROOT}/assets/powers/con-elemento.webp`, note: 'Con Fuoco is the Blaze Flamenco form of Con Elemento; NW Hub\'s dedicated PNG is missing.' },
+  'Bard|Con Moto': { url: `${ROOT}/assets/powers/con-elemento.webp`, note: 'Con Moto is the Tailwind Mambo form of Con Elemento; NW Hub\'s dedicated PNG is missing.' },
+  'Bard|Con Brio': { url: `${ROOT}/assets/powers/con-elemento.webp`, note: 'Con Brio is the Steel March form of Con Elemento; NW Hub\'s dedicated PNG is missing.' },
+  "Bard|Hero's Finale": { url: `${ROOT}/assets/powers/ballad-of-the-hero.webp`, note: 'Hero\'s Finale is the finale state of Ballad of the Hero; NW Hub\'s dedicated PNG is missing.' }
+});
+const WIKI_FALLBACKS = Object.freeze({
+  'Bard|Mystify': { title: 'Mystifying Strikes', note: 'NW Hub\'s Mystify PNG is missing; use the Official Neverwinter Wiki image for Mystifying Strikes, the effect that produces Mystify.' },
+  'Bard|Curtain Call': { title: 'Curtain Call', note: 'NW Hub\'s Curtain Call PNG is missing; use the Official Neverwinter Wiki page image.' }
+});
 const executableCandidates = [
   process.env.CHROME_BIN,
   '/usr/bin/google-chrome',
@@ -61,6 +72,51 @@ async function fetchImage(url) {
   };
 }
 
+async function wikiPageImage(title) {
+  const api = new URL(WIKI_API);
+  api.searchParams.set('action', 'query');
+  api.searchParams.set('format', 'json');
+  api.searchParams.set('origin', '*');
+  api.searchParams.set('prop', 'pageimages');
+  api.searchParams.set('piprop', 'original|thumbnail');
+  api.searchParams.set('pithumbsize', '256');
+  api.searchParams.set('titles', title);
+  const response = await fetch(api, { headers: { 'user-agent': 'Mozilla/5.0 StrikeglassResearch/1.1' } });
+  if (!response.ok) throw new Error(`Wiki API HTTP ${response.status}`);
+  const data = await response.json();
+  const page = Object.values(data?.query?.pages || {})[0];
+  const url = page?.original?.source || page?.thumbnail?.source || '';
+  if (!url) throw new Error(`Official Neverwinter Wiki has no page image for ${title}.`);
+  return url;
+}
+
+const assetCache = new Map();
+async function cachedImage(url) {
+  if (!assetCache.has(url)) assetCache.set(url, fetchImage(url));
+  return assetCache.get(url);
+}
+
+async function resolveAsset(record) {
+  try {
+    const asset = await cachedImage(record.iconUrl);
+    return { asset, resolvedUrl: record.iconUrl, fallback: null };
+  } catch (primaryError) {
+    const key = `${record.className}|${record.name}`;
+    const related = RELATED_FALLBACKS[key];
+    if (related) {
+      const asset = await cachedImage(related.url);
+      return { asset, resolvedUrl: related.url, fallback: { type: 'related-nw-hub-power', note: related.note, primaryError: primaryError.message || String(primaryError) } };
+    }
+    const wiki = WIKI_FALLBACKS[key];
+    if (wiki) {
+      const url = await wikiPageImage(wiki.title);
+      const asset = await cachedImage(url);
+      return { asset, resolvedUrl: url, fallback: { type: 'official-wiki-page-image', pageTitle: wiki.title, note: wiki.note, primaryError: primaryError.message || String(primaryError) } };
+    }
+    throw primaryError;
+  }
+}
+
 await mkdir(OUTPUT, { recursive: true });
 const browser = await puppeteer.launch({ executablePath, headless: 'new', args: ['--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage'] });
 const page = await browser.newPage();
@@ -71,7 +127,6 @@ page.setDefaultTimeout(20000);
 
 const entries = [];
 const failures = [];
-const downloadedByUrl = new Map();
 
 try {
   for (const classSlug of CLASSES) {
@@ -105,11 +160,8 @@ try {
       const record = { className: classSlug[0].toUpperCase() + classSlug.slice(1), sourcePage: pageUrl, ...power };
       try {
         if (power.iconUrl.includes('/classes/assets/')) throw new Error(`Browser returned an invalid class-relative icon URL: ${power.iconUrl}`);
-        let asset = downloadedByUrl.get(power.iconUrl);
-        if (!asset) {
-          asset = await fetchImage(power.iconUrl);
-          downloadedByUrl.set(power.iconUrl, asset);
-        }
+        const resolved = await resolveAsset(record);
+        const asset = resolved.asset;
         const categoryDir = power.category === 'At-Wills' ? 'at-wills' : power.category.toLowerCase();
         const dir = path.join(OUTPUT, 'icons', classSlug, categoryDir);
         await mkdir(dir, { recursive: true });
@@ -117,6 +169,8 @@ try {
         const localPath = path.join(dir, filename);
         await writeFile(localPath, asset.buffer);
         Object.assign(record, {
+          resolvedIconUrl: resolved.resolvedUrl,
+          fallback: resolved.fallback,
           localFile: path.relative(OUTPUT, localPath).replaceAll(path.sep, '/'),
           bytes: asset.buffer.length,
           sha256: asset.sha256,
@@ -151,7 +205,7 @@ for (const classSlug of CLASSES) {
 const map = {};
 for (const item of entries.filter(item => item.downloaded)) {
   map[item.name] ||= [];
-  map[item.name].push({ className: item.className, category: item.category, paragon: item.paragon, icon: item.localFile, sha256: item.sha256 });
+  map[item.name].push({ className: item.className, category: item.category, paragon: item.paragon, icon: item.localFile, sha256: item.sha256, fallback: item.fallback || null });
 }
 
 const summary = {
@@ -160,6 +214,7 @@ const summary = {
   entries: entries.length,
   downloaded: entries.filter(item => item.downloaded).length,
   failed: failures.length,
+  fallbackCount: entries.filter(item => item.fallback).length,
   uniqueSourceUrls: new Set(entries.map(item => item.iconUrl)).size,
   uniqueImageHashes: new Set(entries.filter(item => item.sha256).map(item => item.sha256)).size,
   counts
@@ -167,15 +222,15 @@ const summary = {
 
 const csvCell = value => `"${String(value ?? '').replaceAll('"', '""')}"`;
 const csv = [
-  ['Class','Category','Paragon','Power','Icon URL','Local file','Bytes','SHA-256'].map(csvCell).join(','),
-  ...entries.map(item => [item.className,item.category,item.paragon,item.name,item.iconUrl,item.localFile || '',item.bytes || '',item.sha256 || ''].map(csvCell).join(','))
+  ['Class','Category','Paragon','Power','NW Hub icon URL','Resolved icon URL','Fallback','Local file','Bytes','SHA-256'].map(csvCell).join(','),
+  ...entries.map(item => [item.className,item.category,item.paragon,item.name,item.iconUrl,item.resolvedIconUrl || '',item.fallback?.type || '',item.localFile || '',item.bytes || '',item.sha256 || ''].map(csvCell).join(','))
 ].join('\n');
 
 await writeFile(path.join(OUTPUT, 'powers.json'), JSON.stringify({ summary, powers: entries, failures }, null, 2), 'utf8');
 await writeFile(path.join(OUTPUT, 'strikeglass-power-map.json'), JSON.stringify(map, null, 2), 'utf8');
 await writeFile(path.join(OUTPUT, 'powers.csv'), csv, 'utf8');
 await writeFile(path.join(OUTPUT, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
-await writeFile(path.join(OUTPUT, 'README.md'), `# NW Hub class power icons\n\nSource: ${ROOT}/classes\n\nThis export contains the rendered At-Will, Encounter, and Daily power icons for the nine Neverwinter classes. Icon URLs are taken from the browser-resolved \`currentSrc\`, which respects NW Hub's \`<base href="/">\`. Every saved asset is validated by file signature before it is accepted.\n\nEntries: ${summary.entries}\nDownloaded: ${summary.downloaded}\nFailed: ${summary.failed}\nUnique image hashes: ${summary.uniqueImageHashes}\n`, 'utf8');
+await writeFile(path.join(OUTPUT, 'README.md'), `# NW Hub class power icons\n\nSource: ${ROOT}/classes\n\nThis export contains the rendered At-Will, Encounter, and Daily power icons for the nine Neverwinter classes. Icon URLs are taken from the browser-resolved \`currentSrc\`, which respects NW Hub's \`<base href="/">\`. Every saved asset is validated by file signature before it is accepted.\n\nNW Hub currently references six missing Bard PNG files. Transformed powers use their related NW Hub parent-power icon, while standalone missing effects use an Official Neverwinter Wiki page image when available. Each fallback is recorded in \`powers.json\`, \`powers.csv\`, and \`strikeglass-power-map.json\`.\n\nEntries: ${summary.entries}\nDownloaded: ${summary.downloaded}\nFailed: ${summary.failed}\nFallbacks: ${summary.fallbackCount}\nUnique image hashes: ${summary.uniqueImageHashes}\n`, 'utf8');
 
 const structuralFailures = [];
 if (entries.length < 250) structuralFailures.push(`Only ${entries.length} class power entries were found; expected at least 250.`);
