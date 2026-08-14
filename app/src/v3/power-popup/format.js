@@ -28,7 +28,7 @@ export function summaryMarkup(summary) {
   if (!summary) return '';
   const entries = [
     ['Total damage', compact(summary.damage)], ['Hits', compact(summary.hits)], ['Average hit', compact(summary.average)],
-    ['Biggest hit', compact(summary.max)], ['Critical hit rate', pct(summary.crit)], ['Combat Advantage', pct(summary.flank)]
+    ['Biggest hit', compact(summary.max)], ['Critical hit rate', pct(summary.crit)], ['Flank / CA', pct(summary.flank)]
   ];
   return entries.map(([label, value]) => `<article><span>${esc(label)}</span><strong>${esc(value)}</strong></article>`).join('');
 }

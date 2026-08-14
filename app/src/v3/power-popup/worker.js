@@ -18,7 +18,7 @@ export function currentScope() {
 }
 
 export function workerRequest(type, payload = {}, timeoutMs = 30000) {
-  const worker = window.__strikeglassWorker || null;
+  const worker = window.__strikeglassWorker || window.StrikeglassWorkerBridge?.mainWorker || null;
   if (!worker) return Promise.reject(new Error('The combat-data worker is not ready yet.'));
   const requestId = `power-popup:${Date.now()}:${++requestSequence}`;
   return new Promise((resolve, reject) => {

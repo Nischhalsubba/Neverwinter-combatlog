@@ -8,6 +8,9 @@ const required = [
   'src/v3/power-drilldown.css',
   'src/v3/app.js',
   'src/v3/power-drilldown.js',
+  'src/v3/power-popup/index.js',
+  'src/v3/power-popup/view.js',
+  'src/v3/power-popup/worker.js',
   'src/v3/charts.js',
   'src/v3/motion.js',
   'src/v3/ambient.js',
@@ -18,6 +21,10 @@ const required = [
   'src/v6/dashboard-interactions.js',
   'src/v6/copy.js',
   'src/v6/drawer-copy.js',
+  'src/v8/index.js',
+  'src/v8/core.js',
+  'src/v8/navigation.js',
+  'src/v8/qol.css',
   'src/engine/fast-parser-core.js',
   'src/engine/scoped-combat-clock.js',
   'src/engine/power-taxonomy.js',
@@ -129,17 +136,44 @@ for (const marker of [
 
 const powerDrilldown = await readFile('src/v3/power-drilldown.js', 'utf8');
 for (const marker of [
-  'POWER_BAR_SELECTOR',
-  'Open raw hit details',
-  'Total damage',
+  "import './power-popup/index.js'",
+  "import '../v8/index.js'"
+]) if (!powerDrilldown.includes(marker)) failures.push(`power drilldown loader missing ${marker}`);
+if (/powersNav\.click|returnToOrigin|originView/.test(powerDrilldown)) failures.push('power drilldown loader reintroduced route-changing drilldown state.');
+
+const powerPopup = await readFile('src/v3/power-popup/index.js', 'utf8');
+for (const marker of [
+  'data-power-popup-trigger',
+  'powerPopupPlayer',
+  'currentScope()',
+  "kind: 'damage'",
+  'validDamageOnly: true',
+  'aria-haspopup',
+  'MutationObserver',
+  'focusTrap',
+  'closePopup'
+]) if (!powerPopup.includes(marker)) failures.push(`in-place power popup missing ${marker}`);
+
+const powerPopupView = await readFile('src/v3/power-popup/view.js', 'utf8');
+for (const marker of [
+  'aria-modal',
+  'Power details',
+  'Verified hits from the current player and fight.',
   'Average hit',
   'Flank / CA',
-  'power-drilldown-backdrop',
-  'aria-modal',
-  "[data-view=\"powers\"]",
-  'raw-hits-panel',
-  'MutationObserver'
-]) if (!powerDrilldown.includes(marker)) failures.push(`power drilldown missing ${marker}`);
+  'power-popup-backdrop',
+  'Load 250 more'
+]) if (!powerPopupView.includes(marker)) failures.push(`power popup view missing ${marker}`);
+
+const powerPopupWorker = await readFile('src/v3/power-popup/worker.js', 'utf8');
+for (const marker of ['StrikeglassWorkerBridge?.mainWorker', 'workerRequest', 'currentPlayerRef', 'currentScope']) {
+  if (!powerPopupWorker.includes(marker)) failures.push(`power popup worker missing ${marker}`);
+}
+
+const qolIndex = await readFile('src/v8/index.js', 'utf8');
+for (const marker of ['./navigation.js','./insights.js','./player-actions.js','./attempts.js','./events.js','./tables.js','./command.js']) {
+  if (!qolIndex.includes(marker)) failures.push(`QoL entrypoint missing ${marker}`);
+}
 
 const charts = await readFile('src/v3/charts.js', 'utf8');
 for (const marker of ['uplot@1.6.32', 'MAX_POINTS = 1800', 'AXIS_FONT', 'ResizeObserver', 'destroyChart', 'bucketTimeline']) {
@@ -236,4 +270,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('Smoke test passed. V6 light design tokens, persistent widget controls, plain-language analytics, dual-engine verification, scoped combat clocks, player comparison, live rotation counts, crisp raw-hit drilldowns, uPlot charts, Three.js idle budget, and GSAP motion contracts are present.');
+console.log('Smoke test passed. V6 light design tokens, persistent widget controls, plain-language analytics, dual-engine verification, scoped combat clocks, player comparison, live rotation counts, in-place raw-hit drilldowns, QoL navigation, uPlot charts, Three.js idle budget, and GSAP motion contracts are present.');
