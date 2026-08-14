@@ -1,0 +1,68 @@
+name: Apply Encounter icon integration
+
+on:
+  push:
+    branches:
+      - feat/encounter-power-icons
+    paths:
+      - app/scripts/apply-encounter-icon-integration.mjs
+      - app/scripts/generate-encounter-icon-assets.py
+      - .github/workflows/apply-encounter-icon-integration.yml
+
+permissions:
+  contents: write
+
+env:
+  ICON_ARTIFACT_ID: '9212243205'
+  ICON_ARTIFACT_SHA256: 'c0cba2f621ff774b4e5f0a9f9f90f4adf0b1bb007cba05be47bdc1b798191a69'
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/encounter-power-icons
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@9.15.0 --activate
+      - name: Install icon tooling
+        run: python -m pip install --disable-pip-version-check pillow==11.3.0
+      - name: Download validated icon source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/nw-hub-icons
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ICON_ARTIFACT_ID}/zip" > /tmp/nw-hub-icons.zip
+          echo "${ICON_ARTIFACT_SHA256}  /tmp/nw-hub-icons.zip" | sha256sum -c -
+          unzip -q /tmp/nw-hub-icons.zip -d /tmp/nw-hub-icons
+      - name: Generate Encounter icon assets
+        env:
+          ICON_PACK_DIR: /tmp/nw-hub-icons
+        run: python app/scripts/generate-encounter-icon-assets.py
+      - name: Apply integration patch
+        run: node app/scripts/apply-encounter-icon-integration.mjs
+      - name: Install dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+      - name: Run complete validation
+        working-directory: app
+        run: pnpm check
+      - name: Commit validated integration
+        run: |
+          git config user.name "Nischhal Raj Subba"
+          git config user.email "hinischalsubba@gmail.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat(rotation): map Encounter power icons"
+          git push origin HEAD:feat/encounter-power-icons
