@@ -29,7 +29,7 @@ assert.equal(thorn.critHits, 1);
 assert.equal(thorn.caHits, 1);
 
 const ui = fs.readFileSync(new URL('../src/v10/power-timing-interactions.js', import.meta.url), 'utf8');
-for (const token of ['data-pt-zoom-in','data-pt-zoom-out','data-pt-fit','Combat Adv.','Deflected','wheel','pointerdown','categoryTooltipMarkup','loadEncounterPowerIconSprite']) assert.ok(ui.includes(token), token);
+for (const token of ['data-pt-zoom-in','data-pt-zoom-out','data-pt-fit','Combat Adv.','Deflected','Debuff applied','Debuff active','wheel','pointerdown','categoryTooltipMarkup','loadEncounterPowerIconSprite','buildTeamDebuffTiming','raw-page','MAX_ZOOM = 12','MAX_TIMELINE_WIDTH = 30000']) assert.ok(ui.includes(token), token);
 const drilldown = fs.readFileSync(new URL('../src/v3/power-drilldown.js', import.meta.url), 'utf8');
 assert.ok(drilldown.includes("../v10/power-timing-interactions.js"));
 const worker = fs.readFileSync(new URL('../src/workers/fast-parse-worker.js', import.meta.url), 'utf8');

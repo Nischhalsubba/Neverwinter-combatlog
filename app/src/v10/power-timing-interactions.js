@@ -1,5 +1,9 @@
 import { currentPlayerRef, currentScope, workerRequest } from '../v3/power-popup/worker.js';
 import { findEncounterPowerIcon, loadEncounterPowerIconSprite } from '../data/encounter-power-icons.js';
+import { analyzeCombatEffects } from '../engine/combat-effects.js';
+import { analyzeBossEffects } from '../engine/boss-effects.js';
+import { isBossRef } from '../engine/fast-parser-core.js';
+import { isTeamDamageSupportEffect } from '../data/support-effect-catalog.js';
 
 const root = document.getElementById('view-root');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -12,7 +16,8 @@ const CATEGORY_COLORS = Object.freeze({
 });
 const CATEGORY_LABELS = Object.freeze({ 'At-Will': 'AW', Encounter: 'E', Daily: 'D', Artifact: 'AR', Mount: 'M' });
 const MIN_ZOOM = .4;
-const MAX_ZOOM = 5;
+const MAX_ZOOM = 12;
+const MAX_TIMELINE_WIDTH = 30000;
 const BASE_PX_PER_SECOND = 3;
 let zoom = 1;
 let report = null;
@@ -22,6 +27,8 @@ let repaintPending = false;
 let scopeReportCache = null;
 let drag = null;
 const laneHitboxes = new Map();
+let debuffTiming = { windows: [], applications: [] };
+const debuffTimingCache = new Map();
 
 function ensureStyle() {
   if (document.querySelector('link[data-power-timing-v10-style]')) return;
@@ -109,7 +116,104 @@ function timelineViewport(panel) {
 }
 
 function timelineWidth(panel) {
-  return Math.max(timelineViewport(panel), Math.min(12000, Math.ceil(Math.max(1, Number(report?.duration) || 1) * BASE_PX_PER_SECOND * zoom)));
+  return Math.max(timelineViewport(panel), Math.min(MAX_TIMELINE_WIDTH, Math.ceil(Math.max(1, Number(report?.duration) || 1) * BASE_PX_PER_SECOND * zoom)));
+}
+
+function mergeDebuffWindows(intervals) {
+  const ordered = intervals.filter(item => item.end > item.start).sort((a, b) => a.start - b.start || a.end - b.end);
+  const merged = [];
+  for (const interval of ordered) {
+    const previous = merged.at(-1);
+    if (!previous || interval.start > previous.end) merged.push({ ...interval });
+    else previous.end = Math.max(previous.end, interval.end);
+  }
+  return merged;
+}
+
+async function readVerifiedScopeRows(scope) {
+  const rows = [];
+  let cursor = null;
+  do {
+    const page = await workerRequest('raw-page', { options: { cursor, limit: 500, scope } }, 45000);
+    if (!page?.verification || page.verification.status !== 'verified') throw new Error('Debuff timing is available only after both combat checks pass.');
+    rows.push(...(page.rows || []));
+    cursor = page.nextCursor;
+    if (rows.length && rows.length % 2500 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+  } while (cursor != null);
+  return rows;
+}
+
+function buildTeamDebuffTiming(rows, nextReport, scope) {
+  const combat = analyzeCombatEffects(rows);
+  if (!combat.verification?.ok) return { windows: [], applications: [] };
+  const origin = Number(nextReport?.scope?.start) || 0;
+  const fightDuration = Math.max(0, Number(nextReport?.duration) || 0);
+  const applications = [];
+  const windows = [];
+  const register = (effect, canTime) => {
+    for (const event of effect.timeline || []) {
+      const time = Math.max(0, Math.min(fightDuration, Number(event.time) - origin));
+      applications.push({ time, name: effect.name, sourceRef: event.sourceRef || '', sourceName: event.sourceName || '' });
+      if (canTime && Number.isFinite(effect.duration) && effect.duration > 0) {
+        windows.push({ start: time, end: Math.min(fightDuration, time + effect.duration), name: effect.name });
+      }
+    }
+  };
+
+  const teamCatalog = [
+    ...(combat.debuffsOnEnemies || []),
+    ...(combat.targetAdvantageEffects || [])
+  ].filter(effect => effect.family !== 'boss' && isTeamDamageSupportEffect(effect));
+  for (const effect of teamCatalog) {
+    const canTime = effect.classification === 'enemy-debuff' && (effect.timedTargets || []).some(target => target.verified);
+    register(effect, canTime);
+  }
+
+  if (scope?.type === 'boss') {
+    const bossRows = rows.filter(row => isBossRef(row.targetRef));
+    const boss = analyzeBossEffects(bossRows);
+    if (boss.verification?.ok) {
+      for (const effect of boss.effects || []) if (effect.audience === 'team') register(effect, true);
+    }
+  }
+
+  applications.sort((a, b) => a.time - b.time || a.name.localeCompare(b.name));
+  return { windows: mergeDebuffWindows(windows), applications };
+}
+
+function debuffsNearActivation(lane, item) {
+  const at = Number(item.time) || 0;
+  const names = new Set();
+  for (const application of debuffTiming.applications || []) {
+    if (Math.abs(application.time - at) > .9) continue;
+    const sameSource = application.sourceRef ? application.sourceRef === lane.ref : application.sourceName && application.sourceName === lane.name;
+    if (sameSource) names.add(application.name);
+  }
+  return Array.from(names);
+}
+
+function drawDebuffWindows(ctx, width, height) {
+  const duration = Math.max(1, Number(report?.duration) || 1);
+  ctx.save();
+  ctx.fillStyle = 'rgba(83, 128, 76, .20)';
+  for (const window of debuffTiming.windows || []) {
+    const left = Math.max(0, Math.min(width, window.start / duration * width));
+    const right = Math.max(left, Math.min(width, window.end / duration * width));
+    if (right > left) ctx.fillRect(left, 0, Math.max(1, right - left), height);
+  }
+  ctx.restore();
+}
+
+function drawDebuffGlow(ctx, x, y, size) {
+  ctx.save();
+  ctx.strokeStyle = '#c96ce7';
+  ctx.shadowColor = 'rgba(201,108,231,.9)';
+  ctx.shadowBlur = 13;
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.roundRect(x - size / 2 - 4, y - size / 2 - 4, size + 8, size + 8, 6);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function syncScroll(panel, value, source = null) {
@@ -171,6 +275,8 @@ function controlsMarkup() {
       '<span><i class="is-ca"></i>Combat Adv.</span>' +
       '<span><i class="is-crit"></i>Crit</span>' +
       '<span><i class="is-deflect"></i>Deflected</span>' +
+      '<span><i class="is-debuff-apply"></i>Debuff applied</span>' +
+      '<span><i class="is-debuff-window"></i>Debuff active</span>' +
       '<span><i class="is-size"></i>Bigger = more damage</span>' +
     '</div>' +
     '<div class="pt-zoom" aria-label="Timeline zoom controls">' +
@@ -185,7 +291,7 @@ function controlsMarkup() {
 function enhanceHelp(panel) {
   const help = panel.querySelector('.rotation-help');
   if (!help) return;
-  help.textContent = 'Every verified player power use shares one clock. Drag to pan, wheel to zoom, and Shift + wheel to scroll. Blue, yellow, and gray marks show Combat Advantage, Critical, and Deflected hits. Hover a power use for verified details.';
+  help.textContent = 'Every verified player power use shares one clock. Drag to pan, wheel to zoom, and Shift + wheel to scroll. Purple glow marks a cast that applied a team damage debuff; green bands show verified timed debuff windows. Hover a power use for details.';
 }
 
 function ensureControls(panel) {
@@ -273,7 +379,8 @@ function activationTooltip(hit) {
     ? '<div class="pt-tooltip-grid"><span>Damage</span><b>' + formatNumber(item.damage) + '</b><span>Hits</span><b>' + formatNumber(item.hits) + '</b><span>Highest hit</span><b>' + formatNumber(item.maxHit) + '</b></div>'
     : '<p class="pt-tooltip-note">No direct damage was logged near this activation.</p>';
   const flags = '<div class="pt-tooltip-flags"><span class="is-crit">Crit ' + formatNumber(item.critHits) + '</span><span class="is-ca">Combat Adv. ' + formatNumber(item.caHits) + '</span><span class="is-deflect">Deflected ' + formatNumber(item.deflectedHits) + '</span></div>';
-  return '<strong class="pt-tooltip-title">' + escapeHtml(item.power) + '</strong><span class="pt-tooltip-meta">' + escapeHtml(hit.lane.name) + ' · ' + escapeHtml(item.category) + ' · ' + formatTime(item.time) + '</span>' + details + flags;
+  const debuffs = hit.debuffNames?.length ? '<div class="pt-tooltip-debuff"><strong>Team debuff applied</strong><span>' + hit.debuffNames.map(escapeHtml).join(', ') + '</span></div>' : '';
+  return '<strong class="pt-tooltip-title">' + escapeHtml(item.power) + '</strong><span class="pt-tooltip-meta">' + escapeHtml(hit.lane.name) + ' · ' + escapeHtml(item.category) + ' · ' + formatTime(item.time) + '</span>' + details + flags + debuffs;
 }
 
 function nearestHit(canvas, lane, event) {
@@ -348,6 +455,7 @@ function drawLane(panel, baseCanvas, lane, hoveredKey = '') {
   const visible = (lane.activations || []).filter(item => categories.has(item.category));
   const maxDamage = Math.max(1, ...visible.map(item => Number(item.damage) || 0));
   const hitboxes = [];
+  drawDebuffWindows(ctx, width, height);
   ctx.strokeStyle = 'rgba(120,145,162,.22)';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, 50.5); ctx.lineTo(width, 50.5); ctx.stroke();
@@ -372,8 +480,10 @@ function drawLane(panel, baseCanvas, lane, hoveredKey = '') {
         ctx.restore();
       } else drawFallbackMarker(ctx, item.category, x, y, size, hovered);
     } else drawFallbackMarker(ctx, item.category, x, y, size, hovered);
+    const debuffNames = debuffsNearActivation(lane, item);
+    if (debuffNames.length) drawDebuffGlow(ctx, x, y, size);
     drawIndicators(ctx, item, x, y, size);
-    hitboxes.push({ x, y, radius: Math.max(16, size * .62), item, lane, key });
+    hitboxes.push({ x, y, radius: Math.max(16, size * .62), item, lane, key, debuffNames });
   });
   laneHitboxes.set(lane.ref, hitboxes);
   bindCanvasInteractions(panel, overlay, lane);
@@ -428,16 +538,34 @@ async function enhanceRotation(panel) {
   try {
     ensureControls(panel);
     enhanceHelp(panel);
+    const scope = currentScope();
     const [nextReport, sprite] = await Promise.all([
-      workerRequest('rotation-report', { scope: currentScope() }, 45000),
+      workerRequest('rotation-report', { scope }, 45000),
       loadEncounterPowerIconSprite().catch(() => null)
     ]);
     if (generation !== reportGeneration || !panel.isConnected) return;
     if (nextReport?.verification?.status !== 'verified') return;
     report = nextReport;
     iconSprite = sprite;
+    debuffTiming = { windows: [], applications: [] };
     fitZoom(panel);
     paintRotation(panel);
+
+    const cacheKey = JSON.stringify(scope);
+    const cached = debuffTimingCache.get(cacheKey);
+    if (cached) {
+      debuffTiming = cached;
+      scheduleRepaint();
+    } else {
+      readVerifiedScopeRows(scope).then(rows => {
+        if (generation !== reportGeneration || !panel.isConnected) return;
+        const timing = buildTeamDebuffTiming(rows, nextReport, scope);
+        debuffTimingCache.set(cacheKey, timing);
+        if (debuffTimingCache.size > 6) debuffTimingCache.delete(debuffTimingCache.keys().next().value);
+        debuffTiming = timing;
+        scheduleRepaint();
+      }).catch(() => {});
+    }
   } finally {
     panel.dataset.ptEnhancing = 'false';
   }

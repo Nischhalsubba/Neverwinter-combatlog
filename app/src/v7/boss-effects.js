@@ -2,6 +2,7 @@ import { analyzeBossEffects } from '../engine/boss-effects.js';
 import { analyzeCombatEffects } from '../engine/combat-effects.js';
 import { isBossRef } from '../engine/fast-parser-core.js';
 import { ENCOUNTER_POWER_ICON_SPRITE, findEncounterPowerIcon } from '../data/encounter-power-icons.js';
+import { isTeamDamageSupportEffect } from '../data/support-effect-catalog.js';
 
 const root = document.getElementById('view-root');
 const scopeSelect = document.getElementById('encounter-select');
@@ -39,7 +40,7 @@ function ensureDebuffNav() {
   button.id = 'debuff-uptime-nav';
   button.dataset.view = 'debuffs';
   button.disabled = bossButton.disabled;
-  button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M4.2 7.5l3.5 2M16.3 14.5l3.5 2M4.2 16.5l3.5-2M16.3 9.5l3.5-2M9 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0Z"/></svg><span>Debuff Uptime</span>';
+  button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M4.2 7.5l3.5 2M16.3 14.5l3.5 2M4.2 16.5l3.5-2M16.3 9.5l3.5-2M9 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0Z"/></svg><span>Team Debuffs</span>';
   bossButton.insertAdjacentElement('afterend', button);
   return button;
 }
@@ -265,10 +266,57 @@ function catalogTimedDetails(effect) {
   </details>`;
 }
 
+function teamDebuffSource(effect) {
+  if (effect?.sourceType || effect?.sourceName) return { type: effect.sourceType || 'Gear', name: effect.sourceName || '' };
+  if (effect?.id === 'midnights-malady') return { type: 'Ring', name: "Eilistraee's Grace" };
+  const family = String(effect?.family || '');
+  if (family === 'companion-enhancement') return { type: 'Enhancement', name: '' };
+  if (family === 'class-power') return { type: 'Class power', name: '' };
+  if (family === 'class-feat' || family === 'class-effect') return { type: 'Class effect', name: '' };
+  if (family === 'companion') return { type: 'Companion', name: '' };
+  if (family === 'mount') return { type: 'Mount', name: '' };
+  if (family === 'artifact') return { type: 'Artifact', name: '' };
+  return { type: 'Team debuff', name: '' };
+}
+
+function teamDebuffChanges(effect) {
+  if (effect?.id === 'midnights-malady') return 'Defense -3.5% · Awareness -3.5%';
+  return changeCopy(effect);
+}
+
+function teamDebuffTiming(effect, showTiming = true) {
+  if (!showTiming) return null;
+  if (effect?.audience === 'team' && Number.isFinite(effect.uptime)) {
+    return { uptime: effect.uptime, seconds: effect.seconds, activeTime: null };
+  }
+  return effect?.timedTargets?.find(target => target.verified) || null;
+}
+
+function teamDebuffDetails(effect, showTiming = true) {
+  const source = teamDebuffSource(effect);
+  const timing = teamDebuffTiming(effect, showTiming);
+  const changes = teamDebuffChanges(effect);
+  const sourceText = source.name ? `${source.type} · ${source.name}` : source.type;
+  const result = timing ? percent(timing.uptime) : `${effect.applications || 0}x`;
+  const resultLabel = timing ? 'uptime' : 'seen';
+  return `<details class="debuff-item debuff-inventory-item">
+    <summary>
+      <div class="debuff-item-identity">${effectIcon(effect)}<div class="debuff-item-name"><span>${esc(sourceText)}</span><strong>${esc(effect.name)}</strong><small>${esc(effect.description || 'Helps the party deal more damage to the target.')}</small></div></div>
+      <div class="debuff-item-result"><strong>${esc(result)}</strong><span>${esc(resultLabel)}</span></div>
+    </summary>
+    <div class="debuff-item-body">
+      ${changes ? `<p class="debuff-time-copy"><strong>Damage help:</strong> ${esc(changes)}</p>` : ''}
+      <p class="debuff-time-copy"><strong>Source:</strong> ${esc(sourceText)}</p>
+      ${Number.isFinite(effect.duration) && effect.duration > 0 ? `<p class="debuff-time-copy"><strong>Duration:</strong> ${duration(effect.duration)} per application.</p>` : '<p class="debuff-time-copy">This effect is detected, but Strikeglass does not guess an uptime until its duration is safe to time.</p>'}
+      <div class="debuff-who"><h4>Who applied it</h4>${inventorySources(effect)}</div>
+    </div>
+  </details>`;
+}
+
 function pageFrame(content, { busy = false } = {}) {
   return `<section class="debuff-page" data-debuff-page ${busy ? 'aria-busy="true"' : ''}>
     <section class="panel debuff-page-intro">
-      <div><span class="eyebrow">${esc(selectedFightLabel())}</span><h2>Debuffs</h2><p>Actual enemy debuffs are listed first. Party buffs, personal target effects, enemy mechanics, and unknown status signals are kept separate so they are not mislabeled as debuffs.</p></div>
+      <div><span class="eyebrow">${esc(selectedFightLabel())}</span><h2>Team Debuffs</h2><p>Only effects that help your party deal more damage to the boss are shown here: enhancements, support gear, class powers, companions, mounts, artifacts, and other verified team damage debuffs.</p></div>
       <div class="debuff-meaning"><strong>What does uptime mean?</strong><span>50% uptime means the timed debuff was active for half of that target's active combat time.</span></div>
     </section>
     ${content}
@@ -300,55 +348,40 @@ function section(title, eyebrow, effects, empty) {
   return `<section class="panel debuff-results"><div class="panel-head"><div><span class="eyebrow">${esc(eyebrow)}</span><h2>${esc(title)}</h2></div><span>${effects.length} found</span></div>${effects.length ? `<div class="debuff-list">${effects.map(inventoryDetails).join('')}</div>` : `<div class="empty-block">${esc(empty)}</div>`}</section>`;
 }
 
-function renderAnalysis({ bossResult, combatResult, scope }) {
+function renderAnalysis({ bossResult, combatResult }) {
   const bossVerified = !bossResult || bossResult.verification?.ok;
   const catalogVerified = combatResult.verification?.ok;
   const bossDebuffs = bossVerified ? (bossResult?.effects || []).filter(effect => effect.audience === 'team') : [];
-  const bossPersonal = bossVerified ? (bossResult?.effects || []).filter(effect => effect.audience !== 'team') : [];
-  const catalogDebuffs = combatResult.debuffsOnEnemies.filter(effect => effect.family !== 'boss');
-  const timedCatalog = catalogDebuffs.filter(effect => effect.timedTargets?.some(target => target.verified));
-  const timedCount = bossDebuffs.length + timedCatalog.length;
-  const debuffCount = bossDebuffs.length + catalogDebuffs.length;
-  const personalInventory = combatResult.personalTargetEffects.filter(effect => effect.family !== 'boss');
-  const personalCount = bossPersonal.length + personalInventory.length;
-  const checkOk = bossVerified && catalogVerified;
-  const actualDebuffHtml = debuffCount
-    ? `<div class="debuff-list">${bossDebuffs.map(bossEffectDetails).join('')}${catalogDebuffs.map(inventoryDetails).join('')}</div>`
-    : '<div class="empty-block">No verified enemy debuff application was found in this fight. That is different from finding no status events.</div>';
-  const timedHtml = timedCount
-    ? `<div class="debuff-list">${bossDebuffs.map(bossEffectDetails).join('')}${timedCatalog.map(catalogTimedDetails).join('')}</div>`
-    : '<div class="empty-block">No actual debuff with a safely timed duration was found in this fight.</div>';
-  const personalHtml = personalCount
-    ? `<div class="debuff-list">${bossPersonal.map(bossEffectDetails).join('')}${personalInventory.map(inventoryDetails).join('')}</div>`
-    : '<div class="empty-block">No personal target effects were recorded in this fight.</div>';
-  const immuneCount = combatResult.immuneEffects.reduce((sum, effect) => sum + Number(effect.applications || 0), 0);
+  const catalogDebuffs = [
+    ...(combatResult.debuffsOnEnemies || []),
+    ...(combatResult.targetAdvantageEffects || [])
+  ].filter(effect => effect.family !== 'boss' && isTeamDamageSupportEffect(effect));
+  const sourceOrder = { Enhancement: 0, Ring: 1, 'Class power': 2, 'Class effect': 3, Companion: 4, Mount: 5, Artifact: 6, 'Team debuff': 7 };
+  const teamEffects = [...bossDebuffs, ...catalogDebuffs].sort((left, right) => {
+    const a = teamDebuffSource(left).type;
+    const b = teamDebuffSource(right).type;
+    return (sourceOrder[a] ?? 20) - (sourceOrder[b] ?? 20) || left.name.localeCompare(right.name);
+  });
+  const checksMatch = bossVerified && catalogVerified;
+  const timedCount = teamEffects.filter(effect => teamDebuffTiming(effect, checksMatch)).length;
+  const totalApplications = teamEffects.reduce((sum, effect) => sum + Number(effect.applications || 0), 0);
+  const list = teamEffects.length
+    ? `<div class="debuff-list">${teamEffects.map(effect => teamDebuffDetails(effect, checksMatch)).join('')}</div>`
+    : '<div class="empty-block">No party damage debuff was found in this fight. Personal-only procs, defensive boss mechanics, and unrelated status effects are intentionally not shown here.</div>';
 
   replacePage(pageFrame(`
-    <section class="debuff-summary" aria-label="Debuff summary">
-      <article><span>Actual debuffs</span><strong>${debuffCount}</strong><small>Enemy debuffs identified by known effect rules or negative stat metadata.</small></article>
-      <article><span>Timed debuffs</span><strong>${timedCount}</strong><small>Only effects with safe timing rules.</small></article>
-      <article><span>Personal target effects</span><strong>${personalCount}</strong><small>Useful effects that are not shared enemy debuffs.</small></article>
-      <article><span>Uptime check</span><strong class="${checkOk ? 'good-text' : 'bad-text'}">${checkOk ? 'Matched' : 'Hidden'}</strong><small>${checkOk ? 'Independent calculations agreed.' : 'Calculated uptime is hidden where checks disagree.'}</small></article>
+    <section class="debuff-summary" aria-label="Team debuff summary">
+      <article><span>Team debuffs</span><strong>${teamEffects.length}</strong><small>Effects that help the party damage the target.</small></article>
+      <article><span>With uptime</span><strong>${timedCount}</strong><small>Only safely timed effects get a percentage.</small></article>
+      <article><span>Times applied</span><strong>${totalApplications}</strong><small>Duplicate metadata at the same moment is merged.</small></article>
+      <article><span>Uptime check</span><strong class="${checksMatch ? 'good-text' : 'bad-text'}">${checksMatch ? 'Matched' : 'Hidden'}</strong><small>${checksMatch ? 'Independent calculations agreed.' : 'Uptime stays hidden until both calculations agree.'}</small></article>
     </section>
     <section class="panel debuff-results">
-      <div class="panel-head"><div><span class="eyebrow">Enemy debuffs only</span><h2>Actual debuffs on enemies</h2></div><span>${debuffCount}</span></div>
-      <p class="debuff-results-help">This section no longer treats every small status row as a debuff. Known companion enhancements, support companions and mounts, current class debuffs, and strong negative stat rows can appear here.</p>
-      ${actualDebuffHtml}
+      <div class="panel-head"><div><span class="eyebrow">Party damage only</span><h2>What made the boss take more damage?</h2></div><span>${teamEffects.length}</span></div>
+      <p class="debuff-results-help">Enhancements, Eilistraee's Grace / Midnight's Malady, class debuffs, support companions, mounts, artifacts, and other verified effects appear here only when they help party damage.</p>
+      ${list}
     </section>
-    <section class="panel debuff-results">
-      <div class="panel-head"><div><span class="eyebrow">Safe to time</span><h2>Verified debuff uptime</h2></div><span>${timedCount}</span></div>
-      <p class="debuff-results-help">Uptime is published only when the duration rule is locked down and the independent calculation agrees.</p>
-      ${timedHtml}
-    </section>
-    ${combatResult.targetAdvantageEffects.length ? section('Combat Advantage effects', 'Target advantage', combatResult.targetAdvantageEffects, '') : ''}
-    <section class="panel debuff-results"><div class="panel-head"><div><span class="eyebrow">Not shared debuffs</span><h2>Personal target effects</h2></div><span>${personalCount}</span></div>${personalHtml}</section>
-    ${section('Party / player buffs', 'Not debuffs', [...combatResult.allyBuffs, ...combatResult.supportWindows], 'No catalogued party/player support buffs were exposed as status rows in this fight.')}
-    ${section('Enemy buffs & mechanics', scope.type === 'boss' ? 'Boss state' : 'Encounter state', combatResult.enemyMechanics, 'No enemy-origin status mechanics were recorded in this fight.')}
-    ${section('Other status signals', 'Not classified as debuffs', combatResult.unclassifiedEnemyEffects, 'No unclassified enemy-target status signals were recorded in this fight.')}
-    ${section('Effects on players', 'Encounter mechanics', combatResult.playerEffects, 'No successful player-target status effects were recorded in this fight.')}
-    ${immuneCount ? `<details class="panel debuff-untimed debuff-immune"><summary>Immune / resisted effect attempts <span>${immuneCount}</span></summary><p>These were recorded as Immune, so Strikeglass shows the attempts but does not count them as applied debuffs.</p><div>${combatResult.immuneEffects.map(effect => `<span><strong>${esc(effect.name)}</strong><small>${effect.applications} immune event${effect.applications === 1 ? '' : 's'}</small></span>`).join('')}</div></details>` : ''}
-    ${!bossVerified ? '<section class="panel verification-blocked"><div class="panel-head"><div><span class="eyebrow">Boss uptime check</span><h2>Boss uptime hidden</h2></div></div><div class="empty-block bad-text">The two boss-uptime calculations did not match. Observed status events remain visible, but unverified uptime percentages are not published.</div></section>' : ''}
-    ${!catalogVerified ? '<section class="panel verification-blocked"><div class="panel-head"><div><span class="eyebrow">Debuff uptime check</span><h2>Target uptime hidden</h2></div></div><div class="empty-block bad-text">The two target-uptime calculations did not match. Application, source, and target details remain visible because they come directly from verified log rows.</div></section>' : ''}
+    ${!checksMatch ? '<section class="panel verification-blocked"><div class="empty-block bad-text">Effect applications are still listed from the verified combat rows, but uptime percentages are hidden because the two uptime calculations did not agree.</div></section>' : ''}
   `));
 }
 
@@ -361,13 +394,13 @@ function replacePage(html) {
   observer?.disconnect();
   root.innerHTML = html;
   observeRoot();
-  if (workspaceTitle) workspaceTitle.textContent = 'Debuffs';
+  if (workspaceTitle) workspaceTitle.textContent = 'Team Debuffs';
   setToolbarMode(true);
 }
 
 async function refresh() {
   if (!isDebuffView() || !root) return;
-  if (workspaceTitle) workspaceTitle.textContent = 'Debuffs';
+  if (workspaceTitle) workspaceTitle.textContent = 'Team Debuffs';
   setToolbarMode(true);
   const scope = currentFightScope();
   if (!scope) {

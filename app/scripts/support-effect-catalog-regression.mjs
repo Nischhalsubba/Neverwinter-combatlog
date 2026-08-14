@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import { SUPPORT_EFFECT_CATALOG, SUPPORT_EFFECT_CATALOG_VERSION, findSupportEffect, isCataloguedEnemyDebuff } from '../src/data/support-effect-catalog.js';
+import { SUPPORT_EFFECT_CATALOG, SUPPORT_EFFECT_CATALOG_VERSION, findSupportEffect, isCataloguedEnemyDebuff, isTeamDamageSupportEffect } from '../src/data/support-effect-catalog.js';
 
-assert.equal(SUPPORT_EFFECT_CATALOG_VERSION, 1);
+assert.equal(SUPPORT_EFFECT_CATALOG_VERSION, 2);
 assert.ok(SUPPORT_EFFECT_CATALOG.length >= 70, 'support catalog should retain the workbook and current class-effect coverage');
 
 const armor = findSupportEffect('Armor Break');
@@ -37,6 +37,12 @@ assert.equal(findSupportEffect('Diamond Blessing').classification, 'ally-buff');
 assert.equal(findSupportEffect('Controlled Momentum').classification, 'ally-buff');
 assert.equal(isCataloguedEnemyDebuff('Controlled Momentum'), false);
 assert.equal(isCataloguedEnemyDebuff('Armor Break'), true);
+assert.equal(isTeamDamageSupportEffect('Armor Break'), true);
+assert.equal(isTeamDamageSupportEffect('Vulnerability'), true);
+assert.equal(isTeamDamageSupportEffect('Black Death Scorpion'), true, 'Combat Advantage target effects help party damage');
+assert.equal(isTeamDamageSupportEffect('Weapon Break'), false, 'defensive-only enemy Critical Severity reduction is not a party damage debuff');
+assert.equal(isTeamDamageSupportEffect('Advantage Nullification'), false, 'enemy Combat Advantage reduction is defensive, not party damage support');
+assert.equal(isTeamDamageSupportEffect('Controlled Momentum'), false, 'party buffs stay off the Debuff page');
 assert.equal(findSupportEffect('Definitely Not A Real Effect'), null);
 
 console.log('Support effect catalog regression passed.');
