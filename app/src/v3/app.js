@@ -474,13 +474,13 @@ function selectedOverview(player, report) {
 }
 
 async function renderOverview(epoch = renderEpoch) {
-  replaceRoot(taskLoading('Loading summary', 'Calculating the selected fight and checking the values before display.', 'scope-report'));
+  if (!state.report || state.reportKey !== scopeKey()) replaceRoot(taskLoading('Loading summary', 'Calculating the selected fight and checking the values before display.', 'scope-report'));
   const report = await getScopeReport();
   if (!report || epoch !== renderEpoch || state.view !== 'overview') return;
   const player = currentPlayer(report);
   const scopeText = report.scope?.label || scopeName();
   replaceRoot(`
-    <section class="verification-strip">${verificationBadge(report.verification)}<span>Canonical damage: Physical · values remain local</span></section>
+    <section class="verification-strip">${verificationBadge(report.verification)}<span>Canonical damage: Physical · values remain local</span><button class="button" type="button" data-dashboard-customize>Customize overview</button></section>
     <section class="metrics party-metrics">
       ${metric('Party damage', compactHtml(report.damage), scopeText)}
       ${metric('Party DPS', compactHtml(report.partyDps), 'Scope clock')}
@@ -579,7 +579,7 @@ function renderComparison(report) {
 }
 
 async function renderComparisonView(epoch = renderEpoch) {
-  replaceRoot(taskLoading('Loading comparison', 'Preparing the same fight for the selected players.', 'scope-report'));
+  if (!state.report || state.reportKey !== scopeKey()) replaceRoot(taskLoading('Loading comparison', 'Preparing the same fight for the selected players.', 'scope-report'));
   const report = await getScopeReport();
   if (!report || epoch !== renderEpoch || state.view !== 'comparison') return;
   renderComparison(report);
@@ -592,7 +592,7 @@ async function renderBoss(epoch = renderEpoch) {
   }
   fillScopeControl();
   updateScopeControls();
-  replaceRoot(taskLoading('Loading boss fight', 'Calculating this boss fight and checking the values before display.', 'scope-report'));
+  if (!state.report || state.reportKey !== scopeKey()) replaceRoot(taskLoading('Loading boss fight', 'Calculating this boss fight and checking the values before display.', 'scope-report'));
   const report = await getScopeReport();
   if (!report || epoch !== renderEpoch || state.view !== 'boss') return;
   const encounter = encounterById(state.scope.id);
@@ -627,7 +627,7 @@ async function renderEncounters() {
 }
 
 async function renderPlayers(epoch = renderEpoch) {
-  replaceRoot(taskLoading('Loading player results', 'Calculating player totals for the selected fight.', 'scope-report'));
+  if (!state.report || state.reportKey !== scopeKey()) replaceRoot(taskLoading('Loading player results', 'Calculating player totals for the selected fight.', 'scope-report'));
   const report = await getScopeReport();
   if (!report || epoch !== renderEpoch || state.view !== 'players') return;
   replaceRoot(`<section class="verification-strip">${verificationBadge(report.verification)}<span>${esc(report.scope?.label || scopeName())}</span></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">${esc(report.scope?.label || scopeName())}</span><h2>Player performance</h2></div><span>${compact(report.players.length)} players</span></div>${playerTable(report.players)}</section>`);
@@ -781,6 +781,7 @@ function updateRotationCounts(report) {
 }
 
 function drawRotation(report) {
+  if (window.StrikeglassViewportTimeline) return;
   const filters = state.rotationFilters;
   const width = rotationCanvasWidth(report.duration);
   const css = getComputedStyle(document.documentElement);
@@ -862,7 +863,7 @@ function bindRotationFilters(report) {
 }
 
 async function renderRotation(epoch = renderEpoch) {
-  replaceRoot(taskLoading('Loading power timing', 'Reading damaging power uses and checking them before display.', 'rotation-report'));
+  if (!state.rotation || state.rotationKey !== scopeKey()) replaceRoot(taskLoading('Loading power timing', 'Reading damaging power uses and checking them before display.', 'rotation-report'));
   const report = await getRotationReport();
   if (!report || epoch !== renderEpoch || state.view !== 'rotation') return;
   const width = rotationCanvasWidth(report.duration);
@@ -955,10 +956,12 @@ async function render() {
     else if (state.view === 'encounters') await renderEncounters();
     else if (state.view === 'players') await renderPlayers(epoch);
     else if (state.view === 'powers') await renderPowers(epoch);
+    else if (state.view === 'debuffs') replaceRoot(taskLoading('Loading team debuffs', 'Reconstructing verified effect timing for the selected fight.', 'effect-intelligence-report'));
     else if (state.view === 'events') renderEvents();
     else renderDiagnostics();
     if (epoch !== renderEpoch) return;
     if (!el.root.querySelector('[data-task-loading],.rotation-panel,.raw-hits-panel') && el.root.querySelectorAll('tr').length < 100) revealView(el.root);
+    document.dispatchEvent(new CustomEvent('strikeglass:view-rendered', { detail: { view: state.view, epoch } }));
   } catch (error) {
     if (epoch !== renderEpoch) return;
     replaceRoot(`<section class="panel verification-blocked"><div class="panel-head"><h2>Analytics blocked</h2></div><div class="empty-block bad-text">${esc(error.message || error)}</div><div class="view-note">Strikeglass does not publish calculated values when the primary and verifier engines disagree.</div></section>`);
@@ -989,6 +992,7 @@ function finish(summary) {
   el.eye.textContent = `${summary.file?.name || 'Loaded log'} · ${bytes(summary.file?.size || 0)}`;
   status('Combat verified · Effect Engine ready', 'good');
   warmCharts();
+  document.dispatchEvent(new CustomEvent('strikeglass:analysis-ready', { detail: { parsed: summary.parsed || 0 } }));
   render();
   toast(`Parsed and verified ${compact(summary.parsed)} events in ${(summary.parseMs / 1000).toFixed(2)}s`, 'good');
 }

@@ -73,7 +73,7 @@ function loadDashboard() {
 function loadForView(view, { background = false } = {}) {
   const run = () => {
     if (view === 'rotation') return loadRotation();
-    if (view === 'powers') return Promise.all([loadPowerTools(), loadQol()]);
+    if (view === 'powers') return Promise.all([loadPowerTools(), loadQol(), loadOnce('power-interactions', () => import('./power-timing-viewport.js'))]);
     if (view === 'debuffs') return loadDebuffs();
     if (view === 'overview' && localStorage.getItem('strikeglass.dashboard.v1')) return loadDashboard();
     return loadQol();

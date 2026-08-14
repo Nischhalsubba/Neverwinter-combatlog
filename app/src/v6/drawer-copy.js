@@ -28,5 +28,20 @@ function simplifyDrawer() {
   });
 }
 
-new MutationObserver(simplifyDrawer).observe(document.body, { childList: true, subtree: true });
+let copyFrame = 0;
+function scheduleDrawerCopy() {
+  if (copyFrame) return;
+  copyFrame = requestAnimationFrame(() => {
+    copyFrame = 0;
+    simplifyDrawer();
+  });
+}
+
+document.addEventListener('click', event => {
+  if (event.target.closest('[data-v6-add],.v6-widget-drawer')) scheduleDrawerCopy();
+}, { passive: true });
+document.addEventListener('change', event => {
+  if (event.target.closest('.v6-widget-drawer')) scheduleDrawerCopy();
+}, { passive: true });
+document.addEventListener('strikeglass:dashboard-ready', scheduleDrawerCopy);
 simplifyDrawer();

@@ -202,9 +202,7 @@ function renderAnalysis(report) {
 
 function replacePage(html) {
   if (!root) return;
-  observer?.disconnect();
   root.innerHTML = html;
-  observer?.observe(root, { childList: true, subtree: false });
   if (workspaceTitle) workspaceTitle.textContent = 'Team Debuffs';
   setToolbarMode(true);
 }
@@ -240,10 +238,9 @@ function scheduleRefresh() {
   scheduled = requestAnimationFrame(refresh);
 }
 
-observer = new MutationObserver(() => {
-  if (isDebuffView() && !root?.querySelector('[data-debuff-page]')) scheduleRefresh();
+document.addEventListener('strikeglass:view-rendered', event => {
+  if (event.detail?.view === 'debuffs') scheduleRefresh();
 });
-if (root) observer.observe(root, { childList: true, subtree: false });
 
 nav?.addEventListener('click', event => {
   const button = event.target.closest('[data-view]');
@@ -260,3 +257,5 @@ scopeSelect?.addEventListener('change', () => {
 });
 
 window.addEventListener('strikeglass:worker-ready', () => cache.clear());
+
+if (isDebuffView()) scheduleRefresh();

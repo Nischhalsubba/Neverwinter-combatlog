@@ -37,8 +37,8 @@ if (!navigation.includes("label: 'Analyze'")) failures.push('navigation is missi
 if (!navigation.includes("label: 'Advanced'")) failures.push('navigation is missing the Advanced group');
 if (!navigation.includes("title.textContent = active.textContent")) failures.push('workspace title must follow the active navigation item');
 
-assert.ok(copy.includes("observe(viewRoot, { childList: true, subtree: false })"), 'copy observer must only watch top-level view swaps');
-assert.ok(!copy.includes("observe(viewRoot, { childList: true, subtree: true })"), 'copy observer must not rescan the whole UI for chart mutations');
+assert.ok(copy.includes("strikeglass:view-rendered"), 'copy layer must refresh from explicit view lifecycle events');
+assert.ok(!copy.includes('new MutationObserver'), 'copy layer must not observe DOM mutations in the hot path');
 
 if (failures.length) {
   console.error('Copy regression failed:');

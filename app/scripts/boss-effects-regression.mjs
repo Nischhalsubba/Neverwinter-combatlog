@@ -65,7 +65,9 @@ const bridgeAt = index.indexOf('src/v7/worker-bridge.js');
 const appAt = index.indexOf('src/v3/app.js');
 assert.ok(bridgeAt >= 0 && bridgeAt < appAt, 'worker bridge must load before the combat app creates its worker');
 assert.match(index, /src\/v7\/boss-effects\.css/);
-assert.match(index, /src\/v7\/boss-effects\.js/);
+const runtime = readFileSync(new URL('../src/v12/runtime.js', import.meta.url), 'utf8');
+assert.match(runtime, /import\('..\/v7\/boss-effects\.js'\)/, 'Team Debuffs must load boss-effects UI on demand');
+assert.doesNotMatch(index, /type=\"module\" src=\"src\/v7\/boss-effects\.js\"/, 'Team Debuffs must not load eagerly');
 
 const engine = readFileSync(new URL('../src/engine/boss-effects.js', import.meta.url), 'utf8');
 assert.match(engine, /id: 'storm-conduit'/);
