@@ -5,7 +5,8 @@ import { appendRows, createPopup, ensureStyles, loadedStatus, renderSummary, set
 const TRIGGERS = [
   '.player-overview-panel .panel-subsection .analysis-bar-row',
   '.boss-grid aside .analysis-bars .analysis-bar-row',
-  'tr[data-power-row]'
+  'tr[data-power-row]',
+  '[data-power-popup-trigger]'
 ].join(',');
 const root = document.getElementById('view-root');
 const appShell = document.querySelector('.app-shell');
@@ -20,6 +21,7 @@ let detail = null;
 ensureStyles();
 
 function powerName(trigger) {
+  if (trigger?.dataset?.powerPopupTrigger) return trigger.dataset.powerPopupTrigger;
   if (trigger?.matches('tr[data-power-row]')) return trigger.dataset.powerRow || '';
   return trigger?.querySelector('strong')?.textContent?.trim() || '';
 }
@@ -84,7 +86,7 @@ async function loadMore() {
 
 async function openPopup(trigger) {
   const power = powerName(trigger);
-  const playerRef = currentPlayerRef();
+  const playerRef = trigger?.dataset?.powerPopupPlayer || currentPlayerRef();
   if (!power || !playerRef) return;
   if (dialog) closePopup(false);
   const localToken = ++token;
@@ -143,8 +145,10 @@ function enhanceTriggers() {
     if (!power) return;
     trigger.dataset.powerPopupReady = 'true';
     trigger.classList.add('power-drilldown-trigger');
-    trigger.setAttribute('role', 'button');
-    trigger.setAttribute('tabindex', '0');
+    if (!trigger.matches('button,a')) {
+      trigger.setAttribute('role', 'button');
+      trigger.setAttribute('tabindex', '0');
+    }
     trigger.setAttribute('aria-haspopup', 'dialog');
     trigger.setAttribute('aria-label', `Open hit details for ${power}`);
     trigger.setAttribute('title', 'Open hit details');
@@ -193,4 +197,5 @@ if (root) {
   }).observe(root, { childList: true });
 }
 
+document.addEventListener('strikeglass:power-popup-refresh', enhanceTriggers);
 enhanceTriggers();
