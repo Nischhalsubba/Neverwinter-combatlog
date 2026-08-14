@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - perf/120hz-runtime
-    paths:
-      - .github/workflows/perf-integration.yml
 
 permissions:
   contents: write
