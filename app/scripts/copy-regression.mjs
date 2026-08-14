@@ -36,6 +36,9 @@ if (!navigation.includes("label: 'Analyze'")) failures.push('navigation is missi
 if (!navigation.includes("label: 'Advanced'")) failures.push('navigation is missing the Advanced group');
 if (!navigation.includes("title.textContent = active.textContent")) failures.push('workspace title must follow the active navigation item');
 
+assert.ok(copy.includes("observe(viewRoot, { childList: true, subtree: false })"), 'copy observer must only watch top-level view swaps');
+assert.ok(!copy.includes("observe(viewRoot, { childList: true, subtree: true })"), 'copy observer must not rescan the whole UI for chart mutations');
+
 if (failures.length) {
   console.error('Copy regression failed:');
   for (const failure of failures) console.error(`- ${failure}`);
