@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 
 for (const path of ['src/v6/copy.js', 'src/v6/drawer-copy.js', 'src/v6/stability.css', 'src/v6/COPY.md', 'src/v11/navigation-shell.js']) await access(path);
