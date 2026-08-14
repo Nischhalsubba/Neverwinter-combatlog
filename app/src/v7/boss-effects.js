@@ -1,8 +1,5 @@
-import { analyzeBossEffects } from '../engine/boss-effects.js';
-import { analyzeCombatEffects } from '../engine/combat-effects.js';
-import { isBossRef } from '../engine/fast-parser-core.js';
 import { ENCOUNTER_POWER_ICON_SPRITE, findEncounterPowerIcon } from '../data/encounter-power-icons.js';
-import { isTeamDamageSupportEffect } from '../data/support-effect-catalog.js';
+import { workerRequest } from '../v3/power-popup/worker.js';
 
 const root = document.getElementById('view-root');
 const scopeSelect = document.getElementById('encounter-select');
@@ -11,11 +8,7 @@ const playerSelect = document.getElementById('player-select');
 const workspaceTitle = document.getElementById('workspace-title');
 const nav = document.getElementById('app-nav');
 const cache = new Map();
-const pending = new Map();
-let worker = window.StrikeglassWorkerBridge?.mainWorker || null;
-let requestSequence = 880000000;
 let renderToken = 0;
-let observedWorker = null;
 let observer = null;
 let scheduled = 0;
 
@@ -24,8 +17,8 @@ const percent = value => `${(Number(value) || 0).toFixed(1)}%`;
 const duration = value => {
   const seconds = Math.max(0, Number(value) || 0);
   const minutes = Math.floor(seconds / 60);
-  const remainder = Math.floor(seconds % 60);
-  return minutes ? `${minutes}m ${String(remainder).padStart(2, '0')}s` : `${seconds.toFixed(1)}s`;
+  const remainder = seconds % 60;
+  return minutes ? `${minutes}m ${remainder.toFixed(1).padStart(4, '0')}s` : `${seconds.toFixed(1)}s`;
 };
 
 function ensureDebuffNav() {
@@ -53,18 +46,20 @@ function isDebuffView() {
 
 function currentFightScope() {
   const value = scopeSelect?.value || '';
+  if (value === 'session') return { type: 'session' };
   const match = value.match(/^(boss|encounter):(\d+)$/);
   if (!match) return null;
   return { type: match[1], id: Number(match[2]), targetOnly: false };
 }
 
 function scopeKey(scope) {
-  return scope ? `${scope.type}:${scope.id}:window` : '';
+  if (!scope || scope.type === 'session') return 'session';
+  return `${scope.type}:${scope.id}:window`;
 }
 
 function selectedFightLabel() {
   const option = scopeSelect?.selectedOptions?.[0];
-  return option?.textContent?.trim() || 'Choose a fight';
+  return option?.textContent?.trim() || 'Selected fight';
 }
 
 function setToolbarMode(active) {
@@ -74,241 +69,93 @@ function setToolbarMode(active) {
   if (bossField) bossField.hidden = active || !String(scopeSelect?.value || '').startsWith('boss:');
 }
 
-function attachWorker(nextWorker) {
-  if (!nextWorker || nextWorker === observedWorker) return;
-  worker = nextWorker;
-  observedWorker = nextWorker;
-  worker.addEventListener('message', event => {
-    const message = event.data || {};
-    const item = pending.get(message.requestId);
-    if (item && message.type === 'raw-page') {
-      pending.delete(message.requestId);
-      if (message.error) item.reject(new Error(message.error));
-      else item.resolve(message.page);
-    }
-    if (message.type === 'done') {
-      cache.clear();
-      renderToken += 1;
-    }
-  });
-}
-
-attachWorker(worker);
-window.addEventListener('strikeglass:worker-ready', event => attachWorker(event.detail?.worker));
-
-function rawPage(options) {
-  return new Promise((resolve, reject) => {
-    if (!worker) {
-      reject(new Error('The combat log reader is not ready yet.'));
-      return;
-    }
-    const requestId = ++requestSequence;
-    pending.set(requestId, { resolve, reject });
-    worker.postMessage({ type: 'raw-page', requestId, options });
-    setTimeout(() => {
-      if (!pending.has(requestId)) return;
-      pending.delete(requestId);
-      reject(new Error('Debuff details took too long to load.'));
-    }, 45000);
-  });
-}
-
-async function readFightRows(scope, token) {
-  const rows = [];
-  let cursor = null;
-  do {
-    const page = await rawPage({ cursor, limit: 500, scope });
-    if (token !== renderToken) return null;
-    if (!page?.verification || page.verification.status !== 'verified') {
-      throw new Error('Debuffs are shown only after the combat log passes both checks.');
-    }
-    rows.push(...(page.rows || []));
-    cursor = page.nextCursor;
-    updateLoading(rows.length);
-    if (rows.length && rows.length % 2000 === 0) await new Promise(resolve => setTimeout(resolve, 0));
-  } while (cursor != null);
-  return rows;
-}
-
-function simpleDescription(effect) {
-  if (effect.id === 'midnights-malady') return "Lowers the boss's Defense and Awareness by 3.5%.";
-  if (effect.id === 'blood-lust') return 'Only increases damage from the player who applied it.';
-  return String(effect.description || 'A debuff found on the boss.');
-}
-
-function simpleSourceName(source) {
-  const name = String(source?.name || '').trim();
-  if (!name || name === 'Source not recorded' || name === 'Unknown player' || name === 'Unknown source') return 'Source not recorded in the log';
-  return name;
-}
-
-function sourceRows(effect) {
-  if (!effect.sources?.length) return '<div class="debuff-empty">The log did not record who applied this effect.</div>';
-  const teamEffect = effect.audience === 'team';
-  return `<div class="debuff-source-list">${effect.sources.map(source => `<div class="debuff-source-row">
-    <div><strong>${esc(simpleSourceName(source))}</strong><span>Applied ${source.applications} time${source.applications === 1 ? '' : 's'}</span></div>
-    <div class="debuff-source-result">${teamEffect ? `<strong>${duration(source.seconds)}</strong><span>from their applications</span>` : `<strong>${percent(source.uptime)}</strong><span>${duration(source.seconds)} active</span>`}</div>
-  </div>`).join('')}</div>`;
-}
-
-function bossEffectDetails(effect) {
-  const teamEffect = effect.audience === 'team';
-  const uptimeLabel = teamEffect ? percent(effect.uptime) : `${effect.sources?.length || 0} player${effect.sources?.length === 1 ? '' : 's'}`;
-  return `<details class="debuff-item">
-    <summary>
-      <div class="debuff-item-name"><span>${teamEffect ? 'Helps everyone' : 'Only helps that player'}</span><strong>${esc(effect.name)}</strong><small>${esc(simpleDescription(effect))}</small></div>
-      <div class="debuff-item-result"><strong>${esc(uptimeLabel)}</strong><span>${teamEffect ? 'boss uptime' : 'tracked'}</span></div>
-    </summary>
-    <div class="debuff-item-body">
-      ${teamEffect ? `<div class="debuff-meter" aria-label="${esc(effect.name)} uptime ${percent(effect.uptime)}"><i style="--debuff-uptime:${Math.max(0, Math.min(100, Number(effect.uptime) || 0))}%"></i></div>
-        <p class="debuff-time-copy">This debuff stayed on the boss for <strong>${duration(effect.seconds)}</strong> of the active boss fight. It was applied <strong>${effect.applications}</strong> time${effect.applications === 1 ? '' : 's'}.</p>` : '<p class="debuff-time-copy">This debuff only helps the player who applied it, so each player has their own uptime.</p>'}
-      <div class="debuff-who"><h4>Who applied it</h4>${sourceRows(effect)}</div>
-    </div>
-  </details>`;
-}
-
-function targetTiming(effect, target) {
-  return effect.timedTargets?.find(item => item.ref === target.ref && item.verified) || null;
-}
-
-function inventorySources(effect) {
-  if (!effect.sources?.length) return '<div class="debuff-empty">Source not recorded in the log.</div>';
-  return `<div class="debuff-source-list">${effect.sources.map(source => `<div class="debuff-source-row"><div><strong>${esc(simpleSourceName(source))}</strong><span>Applied ${source.applications} time${source.applications === 1 ? '' : 's'}</span></div></div>`).join('')}</div>`;
-}
-
-function inventoryTargets(effect) {
-  if (!effect.targets?.length) return '<div class="debuff-empty">Target not recorded in the log.</div>';
-  return `<div class="debuff-source-list">${effect.targets.map(target => {
-    const timing = targetTiming(effect, target);
-    return `<div class="debuff-source-row"><div><strong>${esc(target.name)}</strong><span>${target.kind === 'boss' ? 'Boss' : target.kind === 'player' ? 'Player' : 'Enemy'} · Applied ${target.applications} time${target.applications === 1 ? '' : 's'}</span></div><div class="debuff-source-result">${timing ? `<strong>${percent(timing.uptime)}</strong><span>${duration(timing.seconds)} of ${duration(timing.activeTime)}</span>` : `<strong>${target.applications}</strong><span>applications</span>`}</div></div>`;
-  }).join('')}</div>`;
-}
-
 function effectIcon(effect) {
-  if (!effect || !['class-power', 'class-feat'].includes(effect.family)) return '';
+  if (!effect || !['class-power', 'class-feat', 'class-effect'].includes(effect.family)) return '';
   const icon = findEncounterPowerIcon(effect.name);
   if (!icon) return '';
-  const scale = 0.5;
+  const scale = .5;
   const style = [
-    "background-image:url('" + ENCOUNTER_POWER_ICON_SPRITE.url + "')",
-    'background-size:' + (ENCOUNTER_POWER_ICON_SPRITE.width * scale) + 'px ' + (ENCOUNTER_POWER_ICON_SPRITE.height * scale) + 'px',
-    'background-position:-' + (icon.x * scale) + 'px -' + (icon.y * scale) + 'px'
+    `background-image:url('${ENCOUNTER_POWER_ICON_SPRITE.url}')`,
+    `background-size:${ENCOUNTER_POWER_ICON_SPRITE.width * scale}px ${ENCOUNTER_POWER_ICON_SPRITE.height * scale}px`,
+    `background-position:-${icon.x * scale}px -${icon.y * scale}px`
   ].join(';');
-  return '<span class="debuff-power-icon" style="' + esc(style) + '" aria-hidden="true"></span>';
-}
-
-function classificationLabel(effect) {
-  if (effect.classification === 'enemy-debuff') return 'Actual debuff';
-  if (effect.classification === 'target-advantage') return 'Combat Advantage effect';
-  if (effect.classification === 'personal-target-effect') return 'Personal target effect';
-  if (effect.classification === 'ally-buff') return 'Party / player buff';
-  if (effect.classification === 'support-window') return 'Support window';
-  if (effect.classification === 'enemy-mechanic') return 'Enemy mechanic';
-  if (effect.classification === 'player-effect') return 'Player effect';
-  return 'Unclassified status';
-}
-
-function sourceCopy(effect) {
-  const source = effect.source;
-  if (!source?.label) return '';
-  const detail = [source.section, source.updated].filter(Boolean).join(' · ');
-  return detail ? `${source.label} · ${detail}` : source.label;
+  return `<span class="debuff-power-icon" style="${esc(style)}" aria-hidden="true"></span>`;
 }
 
 function changeCopy(effect) {
-  const changes = effect.changes || [];
-  if (!changes.length) return '';
-  return changes.map(change => {
+  return (effect.changes || []).map(change => {
     const value = change.unit === 'percent' ? `${change.value}%` : String(change.value);
     return change.direction === 'up' ? `${change.stat} +${value}` : `${change.stat} -${value}`;
   }).join(' · ');
 }
 
-function inventoryDetails(effect) {
-  const known = effect.family !== 'unknown';
-  const timed = effect.timedTargets?.some(target => target.verified);
-  const description = effect.description || 'The combat log recorded this status signal, but its exact gameplay meaning has not been safely mapped yet.';
-  const source = sourceCopy(effect);
+function sourceLabel(effect) {
+  return effect.sourceName ? `${effect.sourceType} · ${effect.sourceName}` : (effect.sourceType || 'Team debuff');
+}
+
+function empiricalLabel(empirical) {
+  const value = empirical?.status || 'unavailable';
+  return ({
+    matched: 'Matched',
+    supported: 'Supported',
+    'evidence-only': 'Timeline evidence',
+    'no-baseline': 'No clean baseline',
+    limited: 'Limited samples',
+    mismatch: 'Needs review',
+    'not-timed': 'Not timed'
+  })[value] || value;
+}
+
+function confidenceClass(confidence) {
+  return confidence === 'UNRESOLVED' ? 'bad-text' : confidence === 'MEDIUM' ? 'warn-text' : 'good-text';
+}
+
+function effectTiming(effect) {
+  const timed = (effect.targets || []).filter(target => Number.isFinite(Number(target.uptime)) && target.verified);
+  if (!timed.length || effect.verification?.publishUptime === false) return null;
+  if (timed.length === 1) return { label: percent(timed[0].uptime), detail: `${duration(timed[0].seconds)} active` };
+  return { label: `${timed.length} targets`, detail: 'timed separately' };
+}
+
+function sourceRows(effect) {
+  if (!effect.sources?.length) return '<div class="debuff-empty">The log did not record who applied this effect.</div>';
+  return `<div class="debuff-source-list">${effect.sources.map(source => `<div class="debuff-source-row"><div><strong>${esc(source.name || 'Unknown source')}</strong><span>${source.applications} application${source.applications === 1 ? '' : 's'}</span></div></div>`).join('')}</div>`;
+}
+
+function targetRows(effect) {
+  if (!effect.targets?.length) return '<div class="debuff-empty">No target timing was available.</div>';
+  return `<div class="debuff-source-list">${effect.targets.map(target => {
+    const show = effect.verification?.publishUptime !== false && target.verified && Number.isFinite(Number(target.uptime));
+    return `<div class="debuff-source-row"><div><strong>${esc(target.name || target.ref)}</strong><span>${target.applications} application${target.applications === 1 ? '' : 's'}</span></div><div class="debuff-source-result">${show ? `<strong>${percent(target.uptime)}</strong><span>${duration(target.seconds)} active</span>` : '<strong>Review</strong><span>uptime not published</span>'}</div></div>`;
+  }).join('')}</div>`;
+}
+
+function effectRow(effect) {
+  const timing = effectTiming(effect);
+  const result = timing?.label || (effect.verification?.empirical?.status === 'mismatch' ? 'Review' : `${effect.applications}x`);
+  const resultDetail = timing?.detail || (effect.duration ? 'applications / timing' : 'applications');
   const changes = changeCopy(effect);
-  return `<details class="debuff-item debuff-inventory-item">
+  const empirical = effect.verification?.empirical || {};
+  const uplift = Number.isFinite(Number(empirical.medianUplift)) ? `${(Number(empirical.medianUplift) * 100).toFixed(1)}%` : '—';
+  const agreement = Number.isFinite(Number(empirical.directionAgreement)) ? percent(Number(empirical.directionAgreement) * 100) : '—';
+  return `<details class="debuff-item debuff-inventory-item team-debuff-row">
     <summary>
-      <div class="debuff-item-identity">${effectIcon(effect)}<div class="debuff-item-name"><span>${esc(classificationLabel(effect))}</span><strong>${esc(effect.name)}</strong><small>${esc(description)}</small></div></div>
-      <div class="debuff-item-result"><strong>${effect.applications}</strong><span>${effect.applications === 1 ? 'application' : 'applications'}${timed ? ' · uptime available' : ''}</span></div>
+      <div class="debuff-item-identity">${effectIcon(effect)}<div class="debuff-item-name"><span><b class="debuff-source-badge">${esc(sourceLabel(effect))}</b></span><strong>${esc(effect.name)}</strong><small>${esc(effect.description || 'Helps the party deal more damage to the target.')}</small></div></div>
+      <div class="debuff-item-result"><strong>${esc(result)}</strong><span>${esc(resultDetail)}</span></div>
     </summary>
     <div class="debuff-item-body">
-      ${changes ? `<p class="debuff-time-copy"><strong>What it changes:</strong> ${esc(changes)}</p>` : ''}
-      ${source ? `<p class="debuff-time-copy"><strong>Reference:</strong> ${esc(source)}</p>` : ''}
-      ${effect.notes ? `<p class="debuff-time-copy"><strong>Note:</strong> ${esc(effect.notes)}</p>` : ''}
-      ${Number.isFinite(effect.duration) && effect.duration > 0 ? `<p class="debuff-time-copy">Known duration: <strong>${duration(effect.duration)}</strong> per application. Uptime is calculated separately for each target when enough verified damage activity exists.</p>` : '<p class="debuff-time-copy">Uptime is not guessed because a safe fixed duration is not locked down for this effect.</p>'}
-      <div class="debuff-detail-columns">
-        <div class="debuff-who"><h4>Who applied it</h4>${inventorySources(effect)}</div>
-        <div class="debuff-who"><h4>Who it affected</h4>${inventoryTargets(effect)}</div>
+      ${changes ? `<p class="debuff-time-copy"><strong>What helps damage:</strong> ${esc(changes)}</p>` : ''}
+      ${effect.duration ? `<p class="debuff-time-copy"><strong>Known duration:</strong> ${duration(effect.duration)} per application${effect.refreshes ? ', refreshed by another valid trigger' : ''}.</p>` : '<p class="debuff-time-copy">A safe fixed duration is not locked down, so Strikeglass does not invent uptime.</p>'}
+      <div class="effect-verification" aria-label="Effect verification">
+        <div><span>Timeline</span><strong class="${effect.verification?.timelineVerified ? 'good-text' : 'bad-text'}">${effect.verification?.timelineVerified ? 'Matched' : 'Needs review'}</strong></div>
+        <div><span>Damage check</span><strong>${esc(empiricalLabel(empirical))}${empirical.comparableHits ? ` · ${empirical.comparableHits} hits` : ''}</strong></div>
+        <div><span>Confidence</span><strong class="${confidenceClass(effect.verification?.confidence)}">${esc(effect.verification?.confidence || 'MEDIUM')}</strong></div>
       </div>
-    </div>
-  </details>`;
-}
-
-function catalogTimedDetails(effect) {
-  const targets = (effect.timedTargets || []).filter(target => target.verified);
-  if (!targets.length) return '';
-  const summary = targets.length === 1 ? percent(targets[0].uptime) : `${targets.length} targets`;
-  return `<details class="debuff-item">
-    <summary>
-      <div class="debuff-item-identity">${effectIcon(effect)}<div class="debuff-item-name"><span>Verified debuff</span><strong>${esc(effect.name)}</strong><small>${esc(effect.description)}</small></div></div>
-      <div class="debuff-item-result"><strong>${esc(summary)}</strong><span>${targets.length === 1 ? 'uptime' : 'timed separately'}</span></div>
-    </summary>
-    <div class="debuff-item-body">
-      <p class="debuff-time-copy">Each application lasts <strong>${duration(effect.duration)}</strong>. Overlapping refreshes are merged before uptime is shown.</p>
-      ${sourceCopy(effect) ? `<p class="debuff-time-copy"><strong>Reference:</strong> ${esc(sourceCopy(effect))}</p>` : ''}
-      <div class="debuff-who"><h4>Uptime by target</h4><div class="debuff-source-list">${targets.map(target => `<div class="debuff-source-row"><div><strong>${esc(target.name)}</strong><span>${target.kind === 'boss' ? 'Boss' : 'Enemy'} · Applied ${target.applications} time${target.applications === 1 ? '' : 's'}</span></div><div class="debuff-source-result"><strong>${percent(target.uptime)}</strong><span>${duration(target.seconds)} active</span></div></div>`).join('')}</div></div>
-      <div class="debuff-who"><h4>Who applied it</h4>${inventorySources(effect)}</div>
-    </div>
-  </details>`;
-}
-
-function teamDebuffSource(effect) {
-  if (effect?.sourceType || effect?.sourceName) return { type: effect.sourceType || 'Gear', name: effect.sourceName || '' };
-  if (effect?.id === 'midnights-malady') return { type: 'Ring', name: "Eilistraee's Grace" };
-  const family = String(effect?.family || '');
-  if (family === 'companion-enhancement') return { type: 'Enhancement', name: '' };
-  if (family === 'class-power') return { type: 'Class power', name: '' };
-  if (family === 'class-feat' || family === 'class-effect') return { type: 'Class effect', name: '' };
-  if (family === 'companion') return { type: 'Companion', name: '' };
-  if (family === 'mount') return { type: 'Mount', name: '' };
-  if (family === 'artifact') return { type: 'Artifact', name: '' };
-  return { type: 'Team debuff', name: '' };
-}
-
-function teamDebuffChanges(effect) {
-  if (effect?.id === 'midnights-malady') return 'Defense -3.5% · Awareness -3.5%';
-  return changeCopy(effect);
-}
-
-function teamDebuffTiming(effect, showTiming = true) {
-  if (!showTiming) return null;
-  if (effect?.audience === 'team' && Number.isFinite(effect.uptime)) {
-    return { uptime: effect.uptime, seconds: effect.seconds, activeTime: null };
-  }
-  return effect?.timedTargets?.find(target => target.verified) || null;
-}
-
-function teamDebuffDetails(effect, showTiming = true) {
-  const source = teamDebuffSource(effect);
-  const timing = teamDebuffTiming(effect, showTiming);
-  const changes = teamDebuffChanges(effect);
-  const sourceText = source.name ? `${source.type} · ${source.name}` : source.type;
-  const result = timing ? percent(timing.uptime) : `${effect.applications || 0}x`;
-  const resultLabel = timing ? 'uptime' : 'seen';
-  return `<details class="debuff-item debuff-inventory-item">
-    <summary>
-      <div class="debuff-item-identity">${effectIcon(effect)}<div class="debuff-item-name"><span>${esc(sourceText)}</span><strong>${esc(effect.name)}</strong><small>${esc(effect.description || 'Helps the party deal more damage to the target.')}</small></div></div>
-      <div class="debuff-item-result"><strong>${esc(result)}</strong><span>${esc(resultLabel)}</span></div>
-    </summary>
-    <div class="debuff-item-body">
-      ${changes ? `<p class="debuff-time-copy"><strong>Damage help:</strong> ${esc(changes)}</p>` : ''}
-      <p class="debuff-time-copy"><strong>Source:</strong> ${esc(sourceText)}</p>
-      ${Number.isFinite(effect.duration) && effect.duration > 0 ? `<p class="debuff-time-copy"><strong>Duration:</strong> ${duration(effect.duration)} per application.</p>` : '<p class="debuff-time-copy">This effect is detected, but Strikeglass does not guess an uptime until its duration is safe to time.</p>'}
-      <div class="debuff-who"><h4>Who applied it</h4>${inventorySources(effect)}</div>
+      ${empirical.mode === 'damage-baseline' && empirical.comparableHits ? `<p class="debuff-time-copy"><strong>Observed vs clean baseline:</strong> median ${esc(uplift)} higher · ${esc(agreement)} of comparable hits moved in the expected direction · ${empirical.players || 0} player${empirical.players === 1 ? '' : 's'}.</p>` : ''}
+      <div class="debuff-detail-columns">
+        <div class="debuff-who"><h4>Who applied it</h4>${sourceRows(effect)}</div>
+        <div class="debuff-who"><h4>Target uptime</h4>${targetRows(effect)}</div>
+      </div>
     </div>
   </details>`;
 }
@@ -316,116 +163,72 @@ function teamDebuffDetails(effect, showTiming = true) {
 function pageFrame(content, { busy = false } = {}) {
   return `<section class="debuff-page" data-debuff-page ${busy ? 'aria-busy="true"' : ''}>
     <section class="panel debuff-page-intro">
-      <div><span class="eyebrow">${esc(selectedFightLabel())}</span><h2>Team Debuffs</h2><p>Only effects that help your party deal more damage to the boss are shown here: enhancements, support gear, class powers, companions, mounts, artifacts, and other verified team damage debuffs.</p></div>
-      <div class="debuff-meaning"><strong>What does uptime mean?</strong><span>50% uptime means the timed debuff was active for half of that target's active combat time.</span></div>
+      <div><span class="eyebrow">${esc(selectedFightLabel())}</span><h2>What made the boss take more damage?</h2><p>Only shared offensive effects are shown: enhancements, class debuffs, rings and gear, companions, mounts, artifacts, and other effects that help the team damage the target.</p></div>
+      <div class="debuff-meaning"><strong>How Strikeglass checks this</strong><span>Known effect timing is reconstructed from the log, then comparable damage is checked against clean amount/baseAmount baselines when enough samples exist.</span></div>
     </section>
     ${content}
   </section>`;
 }
 
 function loadingPage() {
-  return pageFrame(`<section class="panel debuff-loading">
-    <div class="panel-head"><div><span class="eyebrow">Checking the fight</span><h2>Finding debuffs and effects</h2></div><strong data-effects-progress>Starting…</strong></div>
-    <p>Strikeglass is reading the selected fight, including boss, add, and player status events.</p>
-    <div class="debuff-skeleton" aria-hidden="true"><i></i><i></i><i></i></div>
-  </section>`, { busy: true });
-}
-
-function updateLoading(events) {
-  const label = root?.querySelector('[data-effects-progress]');
-  if (label) label.textContent = `${events.toLocaleString()} events checked`;
+  return pageFrame(`<section class="panel debuff-loading"><div class="panel-head"><div><span class="eyebrow">Effect Engine</span><h2>Reconstructing the selected fight</h2></div><strong>Working…</strong></div><p>Finding applications, refreshes, target states, and comparable clean hits inside the worker.</p><div class="debuff-skeleton" aria-hidden="true"><i></i><i></i><i></i></div></section>`, { busy: true });
 }
 
 function noFightPage() {
-  return pageFrame('<section class="panel"><div class="panel-head"><div><span class="eyebrow">Choose a fight</span><h2>No fight selected</h2></div></div><div class="empty-block">Choose a boss fight or encounter from the Fight menu above. Strikeglass will show effects from that exact combat window.</div></section>');
+  return pageFrame('<section class="panel"><div class="panel-head"><div><span class="eyebrow">Choose a fight</span><h2>No fight selected</h2></div></div><div class="empty-block">Choose a boss fight or combat window above.</div></section>');
 }
 
 function errorPage(message) {
-  return pageFrame(`<section class="panel"><div class="panel-head"><div><span class="eyebrow">Debuffs & effects</span><h2>Could not show this fight</h2></div></div><div class="empty-block bad-text">${esc(message)}</div></section>`);
+  return pageFrame(`<section class="panel verification-blocked"><div class="panel-head"><h2>Effect analysis unavailable</h2></div><div class="empty-block bad-text">${esc(message)}</div></section>`);
 }
 
-function section(title, eyebrow, effects, empty) {
-  return `<section class="panel debuff-results"><div class="panel-head"><div><span class="eyebrow">${esc(eyebrow)}</span><h2>${esc(title)}</h2></div><span>${effects.length} found</span></div>${effects.length ? `<div class="debuff-list">${effects.map(inventoryDetails).join('')}</div>` : `<div class="empty-block">${esc(empty)}</div>`}</section>`;
+function unexplainedSection(report) {
+  const windows = report.unexplainedAmplification || [];
+  if (!windows.length) return '';
+  return `<details class="panel"><summary class="panel-head"><div><span class="eyebrow">Research signal</span><h2>Unexplained damage windows</h2></div><span>${windows.length}</span></summary><p class="debuff-results-help">The party's normalized damage rose together, but no known team effect currently explains these windows. Strikeglass does not assign a debuff name without matching log evidence.</p><div class="unexplained-window-list">${windows.map(window => `<div class="unexplained-window"><div><strong>${duration(window.start)} → ${duration(window.end)}</strong><span>${window.hits} comparable hits · ${window.players} players</span></div><b>~+${(Number(window.medianUplift || 0) * 100).toFixed(1)}%</b></div>`).join('')}</div></details>`;
 }
 
-function renderAnalysis({ bossResult, combatResult }) {
-  const bossVerified = !bossResult || bossResult.verification?.ok;
-  const catalogVerified = combatResult.verification?.ok;
-  const bossDebuffs = bossVerified ? (bossResult?.effects || []).filter(effect => effect.audience === 'team') : [];
-  const catalogDebuffs = [
-    ...(combatResult.debuffsOnEnemies || []),
-    ...(combatResult.targetAdvantageEffects || [])
-  ].filter(effect => effect.family !== 'boss' && isTeamDamageSupportEffect(effect));
-  const sourceOrder = { Enhancement: 0, Ring: 1, 'Class power': 2, 'Class effect': 3, Companion: 4, Mount: 5, Artifact: 6, 'Team debuff': 7 };
-  const teamEffects = [...bossDebuffs, ...catalogDebuffs].sort((left, right) => {
-    const a = teamDebuffSource(left).type;
-    const b = teamDebuffSource(right).type;
-    return (sourceOrder[a] ?? 20) - (sourceOrder[b] ?? 20) || left.name.localeCompare(right.name);
-  });
-  const checksMatch = bossVerified && catalogVerified;
-  const timedCount = teamEffects.filter(effect => teamDebuffTiming(effect, checksMatch)).length;
-  const totalApplications = teamEffects.reduce((sum, effect) => sum + Number(effect.applications || 0), 0);
-  const list = teamEffects.length
-    ? `<div class="debuff-list">${teamEffects.map(effect => teamDebuffDetails(effect, checksMatch)).join('')}</div>`
-    : '<div class="empty-block">No party damage debuff was found in this fight. Personal-only procs, defensive boss mechanics, and unrelated status effects are intentionally not shown here.</div>';
-
+function renderAnalysis(report) {
+  const effects = report.teamEffects || [];
+  const verification = report.verification || {};
+  const statusClass = verification.status === 'verified' ? 'is-good' : verification.status === 'attention' ? 'is-review' : 'bad-text';
+  const list = effects.length ? `<div class="debuff-list">${effects.map(effectRow).join('')}</div>` : '<div class="empty-block">No shared offensive debuff was found in this fight. Personal-only procs, defensive effects, and enemy mechanics are intentionally left out.</div>';
   replacePage(pageFrame(`
-    <section class="debuff-summary" aria-label="Team debuff summary">
-      <article><span>Team debuffs</span><strong>${teamEffects.length}</strong><small>Effects that help the party damage the target.</small></article>
-      <article><span>With uptime</span><strong>${timedCount}</strong><small>Only safely timed effects get a percentage.</small></article>
-      <article><span>Times applied</span><strong>${totalApplications}</strong><small>Duplicate metadata at the same moment is merged.</small></article>
-      <article><span>Uptime check</span><strong class="${checksMatch ? 'good-text' : 'bad-text'}">${checksMatch ? 'Matched' : 'Hidden'}</strong><small>${checksMatch ? 'Independent calculations agreed.' : 'Uptime stays hidden until both calculations agree.'}</small></article>
-    </section>
-    <section class="panel debuff-results">
-      <div class="panel-head"><div><span class="eyebrow">Party damage only</span><h2>What made the boss take more damage?</h2></div><span>${teamEffects.length}</span></div>
-      <p class="debuff-results-help">Enhancements, Eilistraee's Grace / Midnight's Malady, class debuffs, support companions, mounts, artifacts, and other verified effects appear here only when they help party damage.</p>
-      ${list}
-    </section>
-    ${!checksMatch ? '<section class="panel verification-blocked"><div class="empty-block bad-text">Effect applications are still listed from the verified combat rows, but uptime percentages are hidden because the two uptime calculations did not agree.</div></section>' : ''}
+    <div class="effect-health-strip" role="status"><strong>${effects.length} team debuff${effects.length === 1 ? '' : 's'} found</strong><span>${report.summary?.timedEffects || 0} with known timing</span><span>${report.baseline?.comparableBuckets || 0} clean comparison groups</span><span class="${statusClass}">Effect engine: ${esc(verification.status || 'unavailable')}</span></div>
+    <section class="panel debuff-results"><div class="panel-head"><div><span class="eyebrow">Party damage only</span><h2>Team debuffs</h2></div><span>${effects.length}</span></div><p class="debuff-results-help">Open an effect to see who applied it, its known mechanic, reconstructed uptime, and whether observed damage supported that timing.</p>${list}</section>
+    ${unexplainedSection(report)}
   `));
-}
-
-function observeRoot() {
-  if (observer && root) observer.observe(root, { childList: true, subtree: false });
 }
 
 function replacePage(html) {
   if (!root) return;
   observer?.disconnect();
   root.innerHTML = html;
-  observeRoot();
+  observer?.observe(root, { childList: true, subtree: false });
   if (workspaceTitle) workspaceTitle.textContent = 'Team Debuffs';
   setToolbarMode(true);
 }
 
 async function refresh() {
   if (!isDebuffView() || !root) return;
-  if (workspaceTitle) workspaceTitle.textContent = 'Team Debuffs';
-  setToolbarMode(true);
   const scope = currentFightScope();
   if (!scope) {
     replacePage(noFightPage());
     return;
   }
-
   const key = scopeKey(scope);
   const token = ++renderToken;
   replacePage(loadingPage());
   try {
-    let result = cache.get(key);
-    if (!result) {
-      const rows = await readFightRows(scope, token);
-      if (!rows || token !== renderToken) return;
-      const bossRows = scope.type === 'boss' ? rows.filter(row => isBossRef(row.targetRef)) : [];
-      result = {
-        scope,
-        combatResult: analyzeCombatEffects(rows),
-        bossResult: scope.type === 'boss' ? analyzeBossEffects(bossRows) : null
-      };
-      cache.set(key, result);
+    let report = cache.get(key);
+    if (!report) {
+      report = await workerRequest('effect-intelligence-report', { scope }, 90000);
+      if (report?.verification?.status === 'blocked') throw new Error('The deterministic effect checks did not agree, so Strikeglass blocked the effect timeline.');
+      cache.set(key, report);
+      if (cache.size > 8) cache.delete(cache.keys().next().value);
     }
     if (token !== renderToken || !isDebuffView() || scopeKey(currentFightScope()) !== key) return;
-    renderAnalysis(result);
+    renderAnalysis(report);
   } catch (error) {
     if (token !== renderToken || !isDebuffView()) return;
     replacePage(errorPage(error.message || String(error)));
@@ -434,13 +237,13 @@ async function refresh() {
 
 function scheduleRefresh() {
   cancelAnimationFrame(scheduled);
-  scheduled = requestAnimationFrame(() => refresh());
+  scheduled = requestAnimationFrame(refresh);
 }
 
 observer = new MutationObserver(() => {
   if (isDebuffView() && !root?.querySelector('[data-debuff-page]')) scheduleRefresh();
 });
-observeRoot();
+if (root) observer.observe(root, { childList: true, subtree: false });
 
 nav?.addEventListener('click', event => {
   const button = event.target.closest('[data-view]');
@@ -455,3 +258,5 @@ scopeSelect?.addEventListener('change', () => {
   renderToken += 1;
   scheduleRefresh();
 });
+
+window.addEventListener('strikeglass:worker-ready', () => cache.clear());
