@@ -676,6 +676,38 @@ function selectPlayers(report, playerRefs = []) {
   return { ...report, players: report.players.filter(player => wanted.has(player.ref)) };
 }
 
+function applyRotationActivationDetails(activations, damageRows) {
+  const byPower = new Map();
+  for (const activation of activations) {
+    Object.assign(activation, { damage: 0, hits: 0, critHits: 0, caHits: 0, deflectedHits: 0, maxHit: 0 });
+    const list = byPower.get(activation.power) || [];
+    list.push(activation);
+    byPower.set(activation.power, list);
+  }
+  for (const row of damageRows) {
+    const candidates = byPower.get(row.power);
+    if (!candidates) continue;
+    let selected = null;
+    for (let index = candidates.length - 1; index >= 0; index -= 1) {
+      const candidate = candidates[index];
+      const delta = row.time - candidate._absoluteTime;
+      if (delta < -0.15) continue;
+      if (delta > activationDedupeSeconds(candidate.category)) break;
+      selected = candidate;
+      break;
+    }
+    if (!selected) continue;
+    const amount = Number(row.amount) || 0;
+    selected.damage += amount;
+    selected.hits += 1;
+    if ((row.flags & FLAG.CRITICAL) !== 0) selected.critHits += 1;
+    if ((row.flags & (FLAG.FLANK | FLAG.COMBAT_ADVANTAGE)) !== 0) selected.caHits += 1;
+    if ((row.flags & FLAG.DEFLECT) !== 0) selected.deflectedHits += 1;
+    selected.maxHit = Math.max(selected.maxHit, amount);
+  }
+  for (const activation of activations) delete activation._absoluteTime;
+}
+
 async function buildRotationReport(scope = { type: 'session' }, requestId = 0) {
   const key = scopeKey(scope);
   const cached = rotationCache.get(key);
@@ -722,14 +754,9 @@ async function buildRotationReport(scope = { type: 'session' }, requestId = 0) {
       chunk.amount[slot] < 0 &&
       store.pool.get(chunk.sourceRef[slot]) === '*' &&
       !chunk.companion[slot];
-    const damageCandidate = Boolean(chunk.validDamage[slot]) && !chunk.companion[slot];
-
-    if (catalogEncounter && !info.targetOnly) {
-      if (!encounterMarker) continue;
-    } else {
-      if (!damageCandidate) continue;
-      if (info.targetOnly && info.bossTargetIds.size && !info.bossTargetIds.has(chunk.targetRef[slot])) continue;
-    }
+    const targetAccepted = !info.targetOnly || !info.bossTargetIds.size || info.bossTargetIds.has(chunk.targetRef[slot]);
+    const damageCandidate = Boolean(chunk.validDamage[slot]) && !chunk.companion[slot] && targetAccepted;
+    if (!encounterMarker && !damageCandidate) continue;
 
     let lane = lanes.get(ownerRef);
     if (!lane) {
@@ -742,7 +769,8 @@ async function buildRotationReport(scope = { type: 'session' }, requestId = 0) {
         classConfidence: trustedClass && trustedClass !== 'Unknown' ? known?.classConfidence || 0 : 0,
         classVotes: new Map(),
         damage: 0,
-        rows: []
+        rows: [],
+        damageRows: []
       };
       lanes.set(ownerRef, lane);
     }
@@ -751,7 +779,13 @@ async function buildRotationReport(scope = { type: 'session' }, requestId = 0) {
       const vote = classes.length ? 1 / classes.length : 0;
       for (const className of classes) lane.classVotes.set(className, (lane.classVotes.get(className) || 0) + vote);
     }
-    if (damageCandidate) lane.damage += chunk.amount[slot];
+    if (damageCandidate) {
+      lane.damage += chunk.amount[slot];
+      lane.damageRows.push({ time: rowTime, lineNo: chunk.lineNo[slot], power, category, amount: chunk.amount[slot], flags: chunk.flags[slot] });
+    }
+    if (catalogEncounter && !info.targetOnly) {
+      if (!encounterMarker) continue;
+    } else if (!damageCandidate) continue;
     lane.rows.push({
       time: rowTime,
       lineNo: chunk.lineNo[slot],
@@ -766,6 +800,7 @@ async function buildRotationReport(scope = { type: 'session' }, requestId = 0) {
   const compactLanes = [];
   let laneIndex = 0;
   for (const lane of lanes.values()) {
+    if (!lane.rows.length) continue;
     lane.rows.sort((a, b) => a.time - b.time || a.lineNo - b.lineNo);
     const lastByPower = new Map();
     const activations = [];
@@ -779,10 +814,12 @@ async function buildRotationReport(scope = { type: 'session' }, requestId = 0) {
         time: Math.max(0, row.time - origin),
         power: row.power,
         category: row.category,
-        amount: row.amount
+        amount: row.amount,
+        _absoluteTime: row.time
       });
       categoryCounts[row.category] = (categoryCounts[row.category] || 0) + 1;
     }
+    applyRotationActivationDetails(activations, lane.damageRows);
     activationCount += activations.length;
     const classRanking = Array.from(lane.classVotes.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     const votedClass = classRanking[0] && (classRanking[1]?.[1] || 0) < classRanking[0][1] ? classRanking[0][0] : 'Unknown';

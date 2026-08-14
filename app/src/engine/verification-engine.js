@@ -8,6 +8,7 @@ const FLAG_FLANK = 1 << 1;
 const FLAG_CA = 1 << 2;
 const FLAG_DISPLAY = 1 << 3;
 const FLAG_IMMUNE = 1 << 4;
+const FLAG_DEFLECT = 1 << 5;
 const ENCOUNTER_GAP_SECONDS = 5;
 const BOSS_MERGE_GAP_SECONDS = 15;
 const PROGRESS_ROWS = 4096;
@@ -260,17 +261,16 @@ function rotationCandidates(rows, context = {}, onProgress = null) {
       Number(row.amount) < 0 &&
       text(row.sourceRef) === '*' &&
       !isCompanion(row);
-    const damageCandidate = isCanonicalDamage(row) && !isCompanion(row);
-
-    if (catalogEncounter && !targetOnly) {
-      if (!encounterMarker) continue;
-    } else {
-      if (!damageCandidate) continue;
-      if (targetOnly && bossTargets.size && !bossTargets.has(row.targetRef)) continue;
-    }
+    const targetAccepted = !targetOnly || !bossTargets.size || bossTargets.has(row.targetRef);
+    const damageCandidate = isCanonicalDamage(row) && !isCompanion(row) && targetAccepted;
+    if (!encounterMarker && !damageCandidate) continue;
 
     let lane = byPlayer.get(row.ownerRef);
-    if (!lane) { lane = { ref: row.ownerRef, name: text(row.ownerName) || row.ownerRef, rows: [] }; byPlayer.set(row.ownerRef, lane); }
+    if (!lane) { lane = { ref: row.ownerRef, name: text(row.ownerName) || row.ownerRef, rows: [], damageRows: [] }; byPlayer.set(row.ownerRef, lane); }
+    if (damageCandidate) lane.damageRows.push({ time: Number(row.time) || 0, lineNo: Number(row.lineNo) || 0, power, category, amount: Number(row.amount) || 0, flags: Number(row.flags) || 0, flagsRaw: text(row.flagsRaw) });
+    if (catalogEncounter && !targetOnly) {
+      if (!encounterMarker) continue;
+    } else if (!damageCandidate) continue;
     lane.rows.push({
       time: Number(row.time) || 0,
       lineNo: Number(row.lineNo) || 0,
@@ -283,11 +283,45 @@ function rotationCandidates(rows, context = {}, onProgress = null) {
   return byPlayer;
 }
 
+function applyShadowRotationDetails(activations, damageRows) {
+  const byPower = new Map();
+  for (const activation of activations) {
+    Object.assign(activation, { damage: 0, hits: 0, critHits: 0, caHits: 0, deflectedHits: 0, maxHit: 0 });
+    const list = byPower.get(activation.power) || [];
+    list.push(activation);
+    byPower.set(activation.power, list);
+  }
+  for (const row of damageRows) {
+    const candidates = byPower.get(row.power);
+    if (!candidates) continue;
+    let selected = null;
+    for (let index = candidates.length - 1; index >= 0; index -= 1) {
+      const candidate = candidates[index];
+      const delta = row.time - candidate._absoluteTime;
+      if (delta < -0.15) continue;
+      if (delta > activationDedupeSeconds(candidate.category)) break;
+      selected = candidate;
+      break;
+    }
+    if (!selected) continue;
+    const amount = Number(row.amount) || 0;
+    selected.damage += amount;
+    selected.hits += 1;
+    const raw = text(row.flagsRaw);
+    if ((row.flags & FLAG_CRITICAL) !== 0 || /(?:^|\|)critical(?:\||$)/i.test(raw)) selected.critHits += 1;
+    if ((row.flags & (FLAG_FLANK | FLAG_CA)) !== 0 || /(?:^|\|)(?:flank|combatadvantage)(?:\||$)/i.test(raw)) selected.caHits += 1;
+    if ((row.flags & FLAG_DEFLECT) !== 0 || /(?:^|\|)deflect(?:ed)?(?:\||$)/i.test(raw)) selected.deflectedHits += 1;
+    selected.maxHit = Math.max(selected.maxHit, amount);
+  }
+  for (const activation of activations) delete activation._absoluteTime;
+}
+
 export function buildShadowRotation(rows, context = {}, onProgress = null) {
   const origin = Number(context.scopeStart) || 0;
   const lanes = [];
   let activationCount = 0;
   for (const lane of rotationCandidates(rows, context, onProgress).values()) {
+    if (!lane.rows.length) continue;
     const ordered = orderedSeries(lane.rows);
     const lastByPower = new Map();
     const activations = [];
@@ -296,8 +330,9 @@ export function buildShadowRotation(rows, context = {}, onProgress = null) {
       const threshold = activationDedupeSeconds(row.category);
       if (previous != null && row.time - previous < threshold) continue;
       lastByPower.set(row.power, row.time);
-      activations.push({ time: Math.max(0, row.time - origin), power: row.power, category: row.category, amount: row.amount });
+      activations.push({ time: Math.max(0, row.time - origin), power: row.power, category: row.category, amount: row.amount, _absoluteTime: row.time });
     }
+    applyShadowRotationDetails(activations, lane.damageRows);
     activationCount += activations.length;
     lanes.push({ ref: lane.ref, name: lane.name, activations });
   }
@@ -348,7 +383,7 @@ function rotationChecksum(rotation) {
   let hash = 2166136261;
   for (const lane of rotation.lanes || []) {
     hash = hashText(hash, lane.ref);
-    for (const item of lane.activations || []) for (const value of [item.time, item.power, item.category, item.amount]) hash = hashText(hash, value);
+    for (const item of lane.activations || []) for (const value of [item.time, item.power, item.category, item.amount, item.damage, item.hits, item.critHits, item.caHits, item.deflectedHits, item.maxHit]) hash = hashText(hash, value);
   }
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
@@ -383,6 +418,10 @@ export function verifyRotationReport(primary, rows, context = {}, onProgress = n
       const left = actual.activations[index], right = lane.activations[index];
       if (!nearlyEqual(left?.time, right.time) || text(left?.power) !== right.power || text(left?.category) !== right.category || !nearlyEqual(left?.amount, right.amount)) {
         mismatches.push({ path: `lanes.${lane.ref}.activations.${index}`, primary: left || null, verifier: right });
+        if (mismatches.length >= 40) break;
+      }
+      for (const field of ['damage','hits','critHits','caHits','deflectedHits','maxHit']) {
+        compareNumber(mismatches, `lanes.${lane.ref}.activations.${index}.${field}`, left?.[field], right[field]);
         if (mismatches.length >= 40) break;
       }
     }
