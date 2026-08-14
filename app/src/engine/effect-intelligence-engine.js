@@ -228,23 +228,24 @@ function groupApplications(applications, definitions) {
   return groups;
 }
 
-function shadowUnionSeconds(times, duration) {
+function shadowUnionSeconds(times, duration, scopeStart, scopeEnd) {
   const ordered = times.slice().sort((a, b) => a - b);
   if (!ordered.length || !duration) return 0;
+  const clippedSeconds = (start, end) => Math.max(0, Math.min(scopeEnd, end) - Math.max(scopeStart, start));
   let start = ordered[0];
   let end = ordered[0] + duration;
   let seconds = 0;
   for (let index = 1; index < ordered.length; index += 1) {
     const time = ordered[index];
     if (time > end) {
-      seconds += end - start;
+      seconds += clippedSeconds(start, end);
       start = time;
       end = time + duration;
     } else {
       end = Math.max(end, time + duration);
     }
   }
-  return seconds + Math.max(0, end - start);
+  return seconds + clippedSeconds(start, end);
 }
 
 function activeWindowsForTarget(rows, targetRef) {
@@ -282,7 +283,9 @@ function buildIntervals(groups, rows, scopeStart, scopeEnd) {
       const rawSeconds = intervalSeconds(merged);
       const shadow = shadowUnionSeconds(
         group.applications.filter(item => item.targetRef === targetRef).map(item => number(item.time) + (item.postHit ? EPSILON : 0)),
-        duration
+        duration,
+        scopeStart,
+        scopeEnd
       );
       const independentMatch = Math.abs(rawSeconds - shadow) <= 1e-5;
       if (!independentMatch) mismatches.push(`${group.definition.name} interval reconstruction on ${targetRef}`);
@@ -547,7 +550,7 @@ function teamWindows(effects, scopeStart, scopeEnd) {
       windows.push({
         start: cursor - scopeStart,
         end: time - scopeStart,
-        effectIds: Array.from(active.keys()).sort(),
+        effectIds: Array.from(new Set(Array.from(active.values()).map(value => value.effectId))).sort(),
         names: Array.from(new Set(Array.from(active.values()).map(value => value.name))).sort()
       });
     }

@@ -58,6 +58,7 @@ rows.push({
 });
 rows.push(hit(18, { amount: 100, baseAmount: 100 }));
 rows.push(hit(20, { amount: 101, baseAmount: 100 }));
+rows.push(hit(21, { powerName: 'Commanding Shot', amount: 110, baseAmount: 100 }));
 
 const report = analyzeEffectIntelligence(rows, { scope: { type: 'boss', id: 1 }, scopeStart: 0, scopeEnd: 22 });
 assert.equal(report.verification.ok, true);
@@ -80,6 +81,11 @@ assert.notEqual(thorn.verification.confidence, 'UNRESOLVED');
 
 assert.ok(report.timing.windows.length > 0, 'verified timed effects should produce Party Rotation windows');
 assert.ok(report.timing.applications.some(item => item.name === 'Thorn Ward'));
+const commanding = report.teamEffects.find(effect => effect.name === 'Commanding Shot');
+assert.ok(commanding, 'a known class debuff near the fight boundary should still be reconstructed');
+assert.equal(commanding.targets[0].verified, true, 'independent interval verification must clip to the selected fight boundary');
+assert.ok(commanding.targets[0].intervals[0].end <= 22 + 1e-6, 'timed effects must not extend beyond the selected scope');
+assert.ok(report.timing.windows.every(window => window.effectIds.every(id => !id.includes('|'))), 'timeline windows expose canonical effect ids, not internal interval keys');
 assert.ok(report.states.definitions.some(state => state.effectIds.includes(thorn.id)), 'target-state interning should include the active Thorn Ward state');
 assert.ok(!report.teamEffects.some(effect => effect.name === 'Vulnerability Up'), 'creature-origin Vulnerability Up must remain an enemy mechanic, not a team debuff');
 assert.ok(report.baseline.cleanObservations >= 3);
