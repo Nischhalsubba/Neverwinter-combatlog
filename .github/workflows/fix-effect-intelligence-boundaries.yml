@@ -1,0 +1,44 @@
+name: Fix effect intelligence boundaries
+
+on:
+  push:
+    branches: [feat/effect-intelligence-layout]
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: ${{ !contains(github.event.head_commit.message, 'Finalize effect boundary correctness') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/effect-intelligence-layout
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@9.15.0 --activate
+      - name: Apply correctness fix
+        working-directory: app
+        run: node scripts/fix-effect-intelligence-boundaries.mjs
+      - name: Install dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+      - name: Run full validation
+        working-directory: app
+        run: pnpm check
+      - name: Check patch hygiene
+        run: git diff --check -- app/src/engine/effect-intelligence-engine.js app/scripts/effect-intelligence-regression.mjs
+      - name: Commit validated fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/engine/effect-intelligence-engine.js app/scripts/effect-intelligence-regression.mjs
+          git rm app/scripts/fix-effect-intelligence-boundaries.mjs .github/workflows/fix-effect-intelligence-boundaries.yml
+          git commit -m "Finalize effect boundary correctness"
+          git push origin HEAD:feat/effect-intelligence-layout
