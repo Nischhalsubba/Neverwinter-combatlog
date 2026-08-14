@@ -63,6 +63,7 @@ jobs:
           git config user.name "Nischhal Raj Subba"
           git config user.email "hinischalsubba@gmail.com"
           git add -A
+          git reset -- app/public
           git diff --cached --check
           git commit -m "feat(rotation): map Encounter power icons"
           git push origin HEAD:feat/encounter-power-icons
