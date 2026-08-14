@@ -1,9 +1,5 @@
 import { currentPlayerRef, currentScope, workerRequest } from '../v3/power-popup/worker.js';
 import { findEncounterPowerIcon, loadEncounterPowerIconSprite } from '../data/encounter-power-icons.js';
-import { analyzeCombatEffects } from '../engine/combat-effects.js';
-import { analyzeBossEffects } from '../engine/boss-effects.js';
-import { isBossRef } from '../engine/fast-parser-core.js';
-import { isTeamDamageSupportEffect } from '../data/support-effect-catalog.js';
 
 const root = document.getElementById('view-root');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -130,56 +126,10 @@ function mergeDebuffWindows(intervals) {
   return merged;
 }
 
-async function readVerifiedScopeRows(scope) {
-  const rows = [];
-  let cursor = null;
-  do {
-    const page = await workerRequest('raw-page', { options: { cursor, limit: 500, scope } }, 45000);
-    if (!page?.verification || page.verification.status !== 'verified') throw new Error('Debuff timing is available only after both combat checks pass.');
-    rows.push(...(page.rows || []));
-    cursor = page.nextCursor;
-    if (rows.length > 60000 && cursor != null) throw new Error('This scope is too large for the optional debuff overlay.');
-    if (rows.length && rows.length % 2500 === 0) await new Promise(resolve => setTimeout(resolve, 0));
-  } while (cursor != null);
-  return rows;
-}
-
-function buildTeamDebuffTiming(rows, nextReport, scope) {
-  const combat = analyzeCombatEffects(rows);
-  if (!combat.verification?.ok) return { windows: [], applications: [] };
-  const origin = Number(nextReport?.scope?.start) || 0;
-  const fightDuration = Math.max(0, Number(nextReport?.duration) || 0);
-  const applications = [];
-  const windows = [];
-  const register = (effect, canTime) => {
-    for (const event of effect.timeline || []) {
-      const time = Math.max(0, Math.min(fightDuration, Number(event.time) - origin));
-      applications.push({ time, name: effect.name, sourceRef: event.sourceRef || '', sourceName: event.sourceName || '' });
-      if (canTime && Number.isFinite(effect.duration) && effect.duration > 0) {
-        windows.push({ start: time, end: Math.min(fightDuration, time + effect.duration), name: effect.name });
-      }
-    }
-  };
-
-  const teamCatalog = [
-    ...(combat.debuffsOnEnemies || []),
-    ...(combat.targetAdvantageEffects || [])
-  ].filter(effect => effect.family !== 'boss' && isTeamDamageSupportEffect(effect));
-  for (const effect of teamCatalog) {
-    const canTime = effect.classification === 'enemy-debuff' && (effect.timedTargets || []).some(target => target.verified);
-    register(effect, canTime);
-  }
-
-  if (scope?.type === 'boss') {
-    const bossRows = rows.filter(row => isBossRef(row.targetRef));
-    const boss = analyzeBossEffects(bossRows);
-    if (boss.verification?.ok) {
-      for (const effect of boss.effects || []) if (effect.audience === 'team') register(effect, true);
-    }
-  }
-
-  applications.sort((a, b) => a.time - b.time || a.name.localeCompare(b.name));
-  return { windows: mergeDebuffWindows(windows), applications };
+async function loadTeamDebuffTiming(scope) {
+  const effectReport = await workerRequest('effect-intelligence-report', { scope }, 90000);
+  if (!effectReport || effectReport.verification?.status === 'blocked') throw new Error('Verified effect timing is unavailable for this fight.');
+  return effectReport.timing || { windows: [], applications: [] };
 }
 
 function debuffsNearActivation(lane, item) {
@@ -297,7 +247,7 @@ function controlsMarkup() {
 function enhanceHelp(panel) {
   const help = panel.querySelector('.rotation-help');
   if (!help) return;
-  help.textContent = 'Every verified player power use shares one clock. Drag to pan, wheel to zoom, and Shift + wheel to scroll. Purple glow marks a cast that applied a team damage debuff; green bands show verified timed debuff windows. Hover a power use for details.';
+  help.textContent = 'Every verified player power use shares one clock. Drag to pan, wheel to zoom, and Shift + wheel to scroll. Purple glow marks a cast that applied a known team damage debuff; green bands come from the verified Effect Engine timeline. Hover a power use for details.';
 }
 
 function ensureControls(panel) {
@@ -563,9 +513,8 @@ async function enhanceRotation(panel) {
       debuffTiming = cached;
       scheduleRepaint();
     } else {
-      readVerifiedScopeRows(scope).then(rows => {
+      loadTeamDebuffTiming(scope).then(timing => {
         if (generation !== reportGeneration || !panel.isConnected) return;
-        const timing = buildTeamDebuffTiming(rows, nextReport, scope);
         debuffTimingCache.set(cacheKey, timing);
         if (debuffTimingCache.size > 6) debuffTimingCache.delete(debuffTimingCache.keys().next().value);
         debuffTiming = timing;

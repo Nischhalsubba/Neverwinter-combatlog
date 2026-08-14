@@ -3,6 +3,7 @@ import { activationDedupeSeconds, classifyPowerCategory, inferPlayerClass, isRot
 import { encounterPowerClasses, isKnownEncounterPowerName } from '../data/encounter-power-icons.js';
 import { summarizeScopedCombat } from '../engine/scoped-combat-clock.js';
 import { verifyReport, verifyRotationReport } from '../engine/verification-engine.js';
+import { analyzeEffectIntelligence } from '../engine/effect-intelligence-engine.js';
 
 const CHUNK_ROWS = 32768;
 const YIELD_EVERY_LINES = 8000;
@@ -279,6 +280,7 @@ let activeFileMeta = null;
 let activeSummary = null;
 const scopeCache = new Map();
 const rotationCache = new Map();
+const effectCache = new Map();
 
 function sleep() { return new Promise(resolve => setTimeout(resolve, 0)); }
 
@@ -870,6 +872,50 @@ async function buildRotationReport(scope = { type: 'session' }, requestId = 0) {
   return { report, verification, error: null };
 }
 
+async function buildEffectIntelligenceReport(scope = { type: 'session' }, requestId = 0) {
+  const key = scopeKey(scope);
+  const cached = effectCache.get(key);
+  if (cached) {
+    postTaskProgress(requestId, 'effect-intelligence-report', 'cached', 1, 'Using saved effect analysis');
+    return { report: cached, error: null };
+  }
+  if (activeSummary?.verification?.status !== 'verified') return { report: null, error: 'Effect analysis is blocked until both combat engines verify the session.' };
+  const store = activeStore;
+  const generation = activeGeneration;
+  if (!store) return { report: null, error: 'No combat log is loaded.' };
+  const info = store.scopeInfo(scope);
+  if (!info) return { report: null, error: 'Scope is unavailable.' };
+  const rows = [];
+  const totalRows = Math.max(1, info.endIndex - info.startIndex);
+  postTaskProgress(requestId, 'effect-intelligence-report', 'effect-scan', .03, 'Finding effect signals');
+  let scanned = 0;
+  for (const row of store.iterateScope(scope)) {
+    rows.push(row);
+    scanned += 1;
+    if (scanned % 4096 === 0) {
+      postTaskProgress(requestId, 'effect-intelligence-report', 'effect-scan', .03 + .42 * Math.min(1, scanned / totalRows), 'Finding effect signals');
+      await sleep();
+      if (generation !== activeGeneration || store !== activeStore) return { report: null, error: 'Effect analysis was cancelled.' };
+    }
+  }
+  postTaskProgress(requestId, 'effect-intelligence-report', 'effect-timeline', .48, 'Building effect intervals and target states');
+  await sleep();
+  const report = analyzeEffectIntelligence(rows, {
+    scope: { type: info.type, id: info.id, targetOnly: info.targetOnly, label: info.label, bosses: info.bosses || [] },
+    scopeStart: info.start,
+    scopeEnd: info.end
+  });
+  if (generation !== activeGeneration || store !== activeStore) return { report: null, error: 'Effect analysis was cancelled.' };
+  postTaskProgress(requestId, 'effect-intelligence-report', 'effect-baseline', .78, 'Comparing damage with clean baselines');
+  await sleep();
+  if (report.verification?.status === 'blocked') {
+    return { report: null, error: 'Effect timeline verification failed. Strikeglass did not publish the debuff timeline.' };
+  }
+  cacheSet(effectCache, key, report, 8);
+  postTaskProgress(requestId, 'effect-intelligence-report', 'done', 1, report.verification?.status === 'attention' ? 'Effect timing ready with items to review' : 'Effect timing verified');
+  return { report, error: null };
+}
+
 async function parseFile(file, generation) {
   const startedAt = performance.now();
   activeStore = new CompactRowStore();
@@ -878,6 +924,7 @@ async function parseFile(file, generation) {
   activeFileMeta = { name: file.name || 'combat.log', size: file.size || 0, type: file.type || '' };
   scopeCache.clear();
   rotationCache.clear();
+  effectCache.clear();
   let lineNo = 0;
   let carry = '';
   let lastProgressAt = 0;
@@ -925,9 +972,11 @@ async function parseFile(file, generation) {
   activeStore.buildEncounterIndex(activeSummary.encounters);
   scopeCache.clear();
   rotationCache.clear();
+  effectCache.clear();
   postProgress(file, 'verifying', bytesRead, lineNo, startedAt);
   const gate = verifiedReport({ type: 'session' });
   activeSummary.verification = gate.verification;
+  activeSummary.effectEngine = { status: gate.error ? 'blocked' : 'ready', engine: 'Effect Intelligence V1', mode: 'scope-on-demand' };
   if (gate.error) {
     self.postMessage({ type: 'error', message: gate.error, verification: gate.verification });
     return;
@@ -987,6 +1036,11 @@ self.onmessage = async event => {
   if (message.type === 'rotation-report') {
     const result = await buildRotationReport(message.scope || { type: 'session' }, message.requestId);
     self.postMessage({ type: 'rotation-report', requestId: message.requestId, report: result.report, error: result.error, verification: result.verification });
+    return;
+  }
+  if (message.type === 'effect-intelligence-report') {
+    const result = await buildEffectIntelligenceReport(message.scope || { type: 'session' }, message.requestId);
+    self.postMessage({ type: 'effect-intelligence-report', requestId: message.requestId, report: result.report, error: result.error, verification: result.report?.verification || null });
     return;
   }
   if (message.type === 'raw-page') {
