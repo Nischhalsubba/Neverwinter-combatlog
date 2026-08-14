@@ -22,7 +22,7 @@ export const BOSS_EFFECT_DEFINITIONS = Object.freeze([
     type: 'Personal debuff',
     description: 'The boss takes more damage from the player who applied it',
     match(row) {
-      if (row?.powerName !== 'Blood Lust' || !isPlayerRef(row?.ownerRef) || !hasDisplayFlag(row)) return false;
+      if (row?.powerName !== 'Blood Lust' || !hasDisplayFlag(row)) return false;
       return row.damageType === 'Physical' && Number(row.amount) > 0 && Number(row.amount) <= 0.1;
     }
   }),
