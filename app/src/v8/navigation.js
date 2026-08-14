@@ -1,12 +1,11 @@
 import {
   activeView,
-  activeViewLabel,
   bossAttempts,
-  bossOnly,
   duration,
   esc,
   icon,
   navigate,
+  nav,
   prefs,
   root,
   savePrefs,
@@ -27,6 +26,20 @@ function currentOption() {
 
 function isBossOption(option) {
   return Boolean(option?.value?.startsWith('boss:'));
+}
+
+function currentViewButton() {
+  return nav?.querySelector('[data-view][aria-current="page"]') || nav?.querySelector('[data-view].is-active') || null;
+}
+
+function currentView() {
+  return currentViewButton()?.dataset.view || activeView();
+}
+
+function currentViewLabel() {
+  return currentViewButton()?.querySelector('span')?.textContent?.trim()
+    || document.getElementById('workspace-title')?.textContent?.trim()
+    || 'Summary';
 }
 
 function visibleFightOptions() {
@@ -101,12 +114,16 @@ function ensureBreadcrumbs() {
 function syncBreadcrumbs() {
   const host = ensureBreadcrumbs();
   if (!host) return;
-  const items = [];
-  const view = activeView();
+  const view = currentView();
+  const items = ['<button type="button" data-qol-crumb="summary">Summary</button>'];
+  const section = currentViewLabel();
   const scopeLabel = selectedScopeLabel();
   const selectedPlayer = document.getElementById('player-select')?.selectedOptions?.[0]?.textContent?.trim() || '';
 
-  items.push('<button type="button" data-qol-crumb="summary">Summary</button>');
+  if (view !== 'overview') {
+    items.push('<span class="qol-breadcrumb-sep" aria-hidden="true">›</span>');
+    items.push(`<span data-qol-section>${esc(section)}</span>`);
+  }
   if (scopeSelect?.value && scopeSelect.value !== 'session') {
     items.push('<span class="qol-breadcrumb-sep" aria-hidden="true">›</span>');
     items.push(`<button type="button" data-qol-crumb="scope">${esc(scopeLabel)}</button>`);
@@ -115,15 +132,11 @@ function syncBreadcrumbs() {
     items.push('<span class="qol-breadcrumb-sep" aria-hidden="true">›</span>');
     items.push(`<button type="button" data-qol-crumb="player">${esc(selectedPlayer)}</button>`);
   }
-  const label = activeViewLabel();
-  const alreadyRepresented = (view === 'overview' && scopeSelect?.value === 'session') || (view === 'boss' && scopeSelect?.value !== 'session');
-  if (!alreadyRepresented) {
-    items.push('<span class="qol-breadcrumb-sep" aria-hidden="true">›</span>');
-    items.push(`<span aria-current="page">${esc(label)}</span>`);
-  } else if (items.length) {
-    const last = items.at(-1);
-    if (last?.includes('<button')) items[items.length - 1] = last.replace('<button ', '<button aria-current="page" ');
-  }
+
+  const lastIndex = items.length - 1;
+  const last = items[lastIndex] || '';
+  if (last.includes('<button')) items[lastIndex] = last.replace('<button ', '<button aria-current="page" ');
+  else if (last.includes('<span')) items[lastIndex] = last.replace('<span ', '<span aria-current="page" ');
   host.innerHTML = items.join('');
 }
 
@@ -178,7 +191,7 @@ function syncFightNav() {
 }
 
 function collectTinyFights() {
-  if (activeView() !== 'encounters' || !root) return;
+  if (currentView() !== 'encounters' || !root) return;
   root.querySelectorAll('tr[data-scope]').forEach(row => {
     const cells = row.cells;
     const durationText = cells?.[4]?.textContent || '';
@@ -190,7 +203,7 @@ function collectTinyFights() {
 }
 
 function revealFightRows() {
-  if (activeView() !== 'encounters' || !root) return;
+  if (currentView() !== 'encounters' || !root) return;
   root.querySelectorAll('tr[data-scope]').forEach(row => {
     const boss = String(row.dataset.scope || '').startsWith('boss:');
     const hidden = (prefs.bossesOnly && !boss) || (prefs.hideTiny && tinyFightValues.has(row.dataset.scope));
