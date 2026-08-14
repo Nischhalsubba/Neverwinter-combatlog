@@ -1,6 +1,7 @@
 import { summaryMarkup, integer } from './format.js';
 import { rowMarkup } from './rows.js';
 
+// summaryMarkup owns the popup summary labels, including Average hit and Flank / CA.
 function node(tag, className = '', text = '') {
   const item = document.createElement(tag);
   if (className) item.className = className;
