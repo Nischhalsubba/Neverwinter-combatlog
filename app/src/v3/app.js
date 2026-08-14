@@ -229,15 +229,16 @@ function enableNav(enabled) {
 
 function viewTitle(view) {
   return ({
-    overview: 'Session overview',
-    rotation: 'Party rotation',
-    comparison: 'Player comparison',
-    boss: 'Boss analysis',
-    encounters: 'Encounters',
-    players: 'Party performance',
-    powers: 'Damage out',
-    events: 'Event explorer',
-    diagnostics: 'Parser diagnostics'
+    overview: 'Overview',
+    rotation: 'Fight Timeline',
+    comparison: 'Compare',
+    boss: 'Bosses',
+    encounters: 'All Fights',
+    players: 'Players',
+    powers: 'Damage & Powers',
+    events: 'Raw Events',
+    diagnostics: 'Analysis Checks',
+    debuffs: 'Team Debuffs'
   })[view] || 'Combat analysis';
 }
 
@@ -923,7 +924,7 @@ function renderDiagnostics() {
   const list = (items, empty) => items?.length ? `<div class="reason-list">${items.map(item => `<div class="reason"><strong>${esc(item.key)}</strong><span>${compactHtml(item.value)}</span></div>`).join('')}</div>` : `<div class="empty-block good-text">${empty}</div>`;
   const verification = summary.verification || {};
   replaceRoot(`
-    <section class="verification-strip">${verificationBadge(verification)}<span>Checksum ${esc(verification.checksum || '—')}</span></section>
+    <section class="verification-strip">${verificationBadge(verification)}<span>Combat engines matched · Effect Intelligence ${esc(summary.effectEngine?.status || 'on demand')}</span></section>
     <section class="metrics">
       ${metric('Accepted', compactHtml(summary.parsed), `${compact(summary.rejected)} rejected`)}
       ${metric('Acceptance', coverage(summary), `${compact(summary.lines)} lines inspected`)}
@@ -986,7 +987,7 @@ function finish(summary) {
   mode('workspace');
   el.topbarFile.textContent = summary.file?.name || 'Combat log';
   el.eye.textContent = `${summary.file?.name || 'Loaded log'} · ${bytes(summary.file?.size || 0)}`;
-  status('Verified · 2 engines', 'good');
+  status('Combat verified · Effect Engine ready', 'good');
   warmCharts();
   render();
   toast(`Parsed and verified ${compact(summary.parsed)} events in ${(summary.parseMs / 1000).toFixed(2)}s`, 'good');
@@ -1032,7 +1033,7 @@ worker.onmessage = event => {
     el.parsed.textContent = compact(progress.parsed);
     el.rejected.textContent = compact(progress.rejected);
     el.elapsed.textContent = `${(progress.elapsedMs / 1000).toFixed(1)}s`;
-    const phaseText = progress.phase === 'indexing' ? 'Indexing encounter windows...' : progress.phase === 'verifying' ? 'Engine 2 independently verifying all metrics...' : progress.phase === 'finalizing' ? 'Publishing verified aggregates...' : 'Engine 1 streaming and aggregating...';
+    const phaseText = progress.phase === 'indexing' ? 'Indexing fights and targets...' : progress.phase === 'verifying' ? 'Engine 2 independently verifying combat metrics...' : progress.phase === 'finalizing' ? 'Preparing the shared analysis store...' : 'Engine 1 reading and aggregating the log...';
     el.phase.textContent = phaseText;
     status(progress.phase === 'verifying' ? 'Engine 2 verifying' : `${Math.round(ratio * 100)}% parsed`, 'working');
   } else if (message.type === 'partial-summary') {
