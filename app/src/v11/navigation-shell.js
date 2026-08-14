@@ -75,7 +75,6 @@ function updateWorkspaceContext() {
   const active = nav.querySelector('[data-view].is-active .nav-copy strong');
   const title = document.getElementById('workspace-title');
   if (!active || !title) return;
-  if (title.textContent === 'Team Debuffs') return;
   title.textContent = active.textContent;
 }
 
