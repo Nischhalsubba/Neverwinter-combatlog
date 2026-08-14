@@ -35,6 +35,7 @@ jobs:
         run: |
           node scripts/apply-performance-refactor.mjs
           node scripts/finalize-performance-refactor.mjs
+          node scripts/migrate-performance-regressions.mjs
 
       - name: Install dependencies
         working-directory: app
@@ -50,7 +51,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git restore app/public 2>/dev/null || true
           git clean -fd app/public 2>/dev/null || true
-          rm -f .github/workflows/perf-integration.yml app/scripts/apply-performance-refactor.mjs app/scripts/finalize-performance-refactor.mjs
+          rm -f .github/workflows/perf-integration.yml app/scripts/apply-performance-refactor.mjs app/scripts/finalize-performance-refactor.mjs app/scripts/migrate-performance-regressions.mjs
           git add app .github/workflows/perf-integration.yml
           git diff --cached --check
           git commit -m "Optimize runtime for high refresh rates"
