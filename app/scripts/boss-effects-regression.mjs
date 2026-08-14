@@ -37,8 +37,9 @@ assert.equal(Math.round(malady.uptime), 83);
 
 const blood = result.effects.find(effect => effect.id === 'blood-lust');
 assert.ok(blood);
-assert.equal(blood.sources.length, 2);
-assert.equal(blood.applications, 2, 'damage rows and ownerless NPC rows must not count as player applications');
+assert.equal(blood.sources.length, 3, 'ownerless applications stay visible as an unknown source');
+assert.equal(blood.applications, 3, 'valid ownerless Blood Lust markers must still count as boss debuff applications');
+assert.ok(blood.sources.some(source => source.name === 'Source not recorded'));
 
 const storm = result.effects.find(effect => effect.id === 'storm-conduit');
 assert.ok(storm);
@@ -72,12 +73,14 @@ assert.match(engine, /id: 'shadow-of-demise'/);
 assert.match(engine, /duration: 10/);
 assert.match(engine, /duration: 6/);
 assert.doesNotMatch(engine, /\.slice\(0, 12\)/);
+assert.doesNotMatch(engine, /powerName !== 'Blood Lust' \|\| !isPlayerRef/);
 
 const ui = readFileSync(new URL('../src/v7/boss-effects.js', import.meta.url), 'utf8');
 assert.match(ui, /dataset\.view = 'debuffs'/);
 assert.match(ui, />Debuff Uptime</);
 assert.match(ui, /What does uptime mean\?/);
 assert.match(ui, /Who applied it/);
+assert.match(ui, /Player not recorded in the log/);
 assert.match(ui, /Helps everyone/);
 assert.match(ui, /Only helps that player/);
 assert.match(ui, /Effects found but not timed yet/);
