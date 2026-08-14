@@ -1,6 +1,7 @@
 import { analyzeBossEffects } from '../engine/boss-effects.js';
 import { analyzeCombatEffects } from '../engine/combat-effects.js';
 import { isBossRef } from '../engine/fast-parser-core.js';
+import { ENCOUNTER_POWER_ICON_SPRITE, findEncounterPowerIcon } from '../data/encounter-power-icons.js';
 
 const root = document.getElementById('view-root');
 const scopeSelect = document.getElementById('encounter-select');
@@ -182,6 +183,19 @@ function inventoryTargets(effect) {
   }).join('')}</div>`;
 }
 
+function effectIcon(effect) {
+  if (!effect || !['class-power', 'class-feat'].includes(effect.family)) return '';
+  const icon = findEncounterPowerIcon(effect.name);
+  if (!icon) return '';
+  const scale = 0.5;
+  const style = [
+    "background-image:url('" + ENCOUNTER_POWER_ICON_SPRITE.url + "')",
+    'background-size:' + (ENCOUNTER_POWER_ICON_SPRITE.width * scale) + 'px ' + (ENCOUNTER_POWER_ICON_SPRITE.height * scale) + 'px',
+    'background-position:-' + (icon.x * scale) + 'px -' + (icon.y * scale) + 'px'
+  ].join(';');
+  return '<span class="debuff-power-icon" style="' + esc(style) + '" aria-hidden="true"></span>';
+}
+
 function classificationLabel(effect) {
   if (effect.classification === 'enemy-debuff') return 'Actual debuff';
   if (effect.classification === 'target-advantage') return 'Combat Advantage effect';
@@ -217,7 +231,7 @@ function inventoryDetails(effect) {
   const changes = changeCopy(effect);
   return `<details class="debuff-item debuff-inventory-item">
     <summary>
-      <div class="debuff-item-name"><span>${esc(classificationLabel(effect))}</span><strong>${esc(effect.name)}</strong><small>${esc(description)}</small></div>
+      <div class="debuff-item-identity">${effectIcon(effect)}<div class="debuff-item-name"><span>${esc(classificationLabel(effect))}</span><strong>${esc(effect.name)}</strong><small>${esc(description)}</small></div></div>
       <div class="debuff-item-result"><strong>${effect.applications}</strong><span>${effect.applications === 1 ? 'application' : 'applications'}${timed ? ' · uptime available' : ''}</span></div>
     </summary>
     <div class="debuff-item-body">
@@ -239,7 +253,7 @@ function catalogTimedDetails(effect) {
   const summary = targets.length === 1 ? percent(targets[0].uptime) : `${targets.length} targets`;
   return `<details class="debuff-item">
     <summary>
-      <div class="debuff-item-name"><span>Verified debuff</span><strong>${esc(effect.name)}</strong><small>${esc(effect.description)}</small></div>
+      <div class="debuff-item-identity">${effectIcon(effect)}<div class="debuff-item-name"><span>Verified debuff</span><strong>${esc(effect.name)}</strong><small>${esc(effect.description)}</small></div></div>
       <div class="debuff-item-result"><strong>${esc(summary)}</strong><span>${targets.length === 1 ? 'uptime' : 'timed separately'}</span></div>
     </summary>
     <div class="debuff-item-body">
