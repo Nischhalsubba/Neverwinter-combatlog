@@ -1,11 +1,4 @@
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
-let gsapPromise = null;
-
-function loadGsap() {
-  if (reduceMotion.matches) return Promise.resolve(null);
-  if (!gsapPromise) gsapPromise = import('https://cdn.jsdelivr.net/npm/gsap@3.15.0/+esm').then(module => module.gsap || module.default || null).catch(() => null);
-  return gsapPromise;
-}
 
 function isHeavyView(root) {
   if (!root) return true;
@@ -13,32 +6,42 @@ function isHeavyView(root) {
   return root.querySelectorAll('tr').length >= 100;
 }
 
+function animate(element, keyframes, options) {
+  if (!element || reduceMotion.matches || typeof element.animate !== 'function') return null;
+  const animation = element.animate(keyframes, options);
+  animation.finished.catch(() => {}).finally(() => {
+    if (!element.isConnected) return;
+    element.style.removeProperty('transform');
+    element.style.removeProperty('opacity');
+  });
+  return animation;
+}
+
 export function warmMotion() {
-  if (reduceMotion.matches) return;
-  const idle = window.requestIdleCallback || (callback => setTimeout(callback, 400));
-  idle(() => { loadGsap(); });
+  // Native Web Animations needs no library warm-up or network request.
 }
 
-export async function revealView(root) {
+export function revealView(root) {
   if (!root || reduceMotion.matches || isHeavyView(root)) return;
-  const gsap = await loadGsap();
-  if (!gsap || !root.isConnected || isHeavyView(root)) return;
-  gsap.killTweensOf(root);
-  gsap.fromTo(root, { y: 8, autoAlpha: .01 }, { y: 0, autoAlpha: 1, duration: 0.28, ease: 'power2.out', clearProps: 'transform,opacity,visibility', overwrite: 'auto' });
+  animate(root, [
+    { transform: 'translate3d(0,6px,0)', opacity: .3 },
+    { transform: 'translate3d(0,0,0)', opacity: 1 }
+  ], { duration: 150, easing: 'cubic-bezier(.2,0,0,1)' });
 }
 
-export async function revealCards(root) {
+export function revealCards(root) {
   if (!root || reduceMotion.matches || isHeavyView(root)) return;
-  const cards = Array.from(root.querySelectorAll('[data-motion-card]')).slice(0, 8);
-  if (!cards.length) return;
-  const gsap = await loadGsap();
-  if (!gsap) return;
-  gsap.fromTo(cards, { y: 6, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: .18, stagger: .02, ease: 'power2.out', clearProps: 'transform,opacity,visibility', overwrite: 'auto' });
+  const cards = Array.from(root.querySelectorAll('[data-motion-card]')).slice(0, 6);
+  cards.forEach((card, index) => animate(card, [
+    { transform: 'translate3d(0,4px,0)', opacity: .35 },
+    { transform: 'translate3d(0,0,0)', opacity: 1 }
+  ], { duration: 120, delay: index * 10, easing: 'cubic-bezier(.2,0,0,1)' }));
 }
 
-export async function pulseDropZone(element) {
+export function pulseDropZone(element) {
   if (!element || reduceMotion.matches) return;
-  const gsap = await loadGsap();
-  if (!gsap) return;
-  gsap.fromTo(element, { scale: .992 }, { scale: 1, duration: .18, ease: 'power2.out', clearProps: 'transform', overwrite: 'auto' });
+  animate(element, [
+    { transform: 'scale(.995)' },
+    { transform: 'scale(1)' }
+  ], { duration: 120, easing: 'cubic-bezier(.2,0,0,1)' });
 }
