@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 
 for (const path of ['src/v6/copy.js', 'src/v6/drawer-copy.js', 'src/v6/stability.css', 'src/v6/COPY.md', 'src/v11/navigation-shell.js']) await access(path);
@@ -35,6 +36,9 @@ for (const marker of [
 if (!navigation.includes("label: 'Analyze'")) failures.push('navigation is missing the Analyze group');
 if (!navigation.includes("label: 'Advanced'")) failures.push('navigation is missing the Advanced group');
 if (!navigation.includes("title.textContent = active.textContent")) failures.push('workspace title must follow the active navigation item');
+
+assert.ok(copy.includes("strikeglass:view-rendered"), 'copy layer must refresh from explicit view lifecycle events');
+assert.ok(!copy.includes('new MutationObserver'), 'copy layer must not observe DOM mutations in the hot path');
 
 if (failures.length) {
   console.error('Copy regression failed:');

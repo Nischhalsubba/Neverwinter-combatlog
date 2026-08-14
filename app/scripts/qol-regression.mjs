@@ -4,12 +4,16 @@ import { readFileSync } from 'node:fs';
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 const loader = read('src/v3/power-drilldown.js');
-assert.match(loader, /ensureQolStyle/);
-assert.match(loader, /\.\.\/v8\/qol\.css/);
-assert.match(loader, /await ensureQolStyle\(\)/);
-assert.match(loader, /await import\('\.\/power-popup\/index\.js'\)/);
-assert.match(loader, /await import\('\.\.\/v8\/index\.js'\)/);
-assert.ok(loader.indexOf('await ensureQolStyle()') < loader.indexOf("await import('../v8/index.js')"), 'QoL CSS must be ready before QoL controls are created');
+const runtime = read('src/v12/runtime.js');
+assert.match(loader, /\.\.\/v12\/runtime\.js/);
+assert.doesNotMatch(loader, /\.\.\/v8\/index\.js/);
+assert.doesNotMatch(loader, /power-popup\/index\.js/);
+assert.match(runtime, /function ensureQolStyle/);
+assert.match(runtime, /\.\.\/v8\/qol\.css/);
+assert.match(runtime, /import\('\.\.\/v8\/index\.js'\)/);
+assert.match(runtime, /import\('\.\.\/v3\/power-popup\/index\.js'\)/);
+assert.match(runtime, /requestIdleCallback/);
+assert.ok(runtime.indexOf('ensureQolStyle();') < runtime.indexOf("import('../v8/index.js')"), 'QoL stylesheet must be requested before QoL controls are imported');
 assert.doesNotMatch(loader, /powersNav\.click|returnToOrigin|originView/);
 
 const popup = read('src/v3/power-popup/index.js');

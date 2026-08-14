@@ -31,15 +31,7 @@ function activeView() {
   return nav?.querySelector('[data-view].is-active')?.dataset.view || '';
 }
 
-function loadGsap() {
-  if (reduceMotion.matches) return Promise.resolve(null);
-  if (!gsapPromise) {
-    gsapPromise = import('https://cdn.jsdelivr.net/npm/gsap@3.15.0/+esm')
-      .then(module => module.gsap || module.default || null)
-      .catch(() => null);
-  }
-  return gsapPromise;
-}
+function loadGsap() { return Promise.resolve(null); }
 
 function readLayout() {
   try {
@@ -473,15 +465,19 @@ document.addEventListener('keydown', event => {
   trapDrawerFocus(event);
 });
 
-new MutationObserver(() => {
+document.addEventListener('strikeglass:view-rendered', event => {
   closeForViewChange();
-  queueMicrotask(enhanceOverview);
-}).observe(root || document.body, { childList: true, subtree: false });
+  if (event.detail?.view === 'overview') queueMicrotask(enhanceOverview);
+});
 
-nav?.addEventListener('click', () => queueMicrotask(() => {
-  closeForViewChange();
-  enhanceOverview();
-}));
+nav?.addEventListener('click', () => queueMicrotask(closeForViewChange));
 
-addEventListener('resize', () => syncDraggable(), { passive: true });
+let resizeFrame = 0;
+addEventListener('resize', () => {
+  if (resizeFrame) return;
+  resizeFrame = requestAnimationFrame(() => {
+    resizeFrame = 0;
+    syncDraggable();
+  });
+}, { passive: true });
 queueMicrotask(enhanceOverview);

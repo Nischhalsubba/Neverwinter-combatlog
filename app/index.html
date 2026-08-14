@@ -92,15 +92,22 @@
       </div>
 
       <nav id="app-nav" class="nav-list">
-        <button class="nav-item is-active" type="button" data-view="overview" aria-current="page"><svg><use href="#i-grid"/></svg><span>Summary</span></button>
-        <button class="nav-item" type="button" data-view="rotation" disabled><svg><use href="#i-rotation"/></svg><span>Power Timing</span></button>
-        <button class="nav-item" type="button" data-view="comparison" disabled><svg><use href="#i-compare"/></svg><span>Compare Players</span></button>
-        <button class="nav-item" type="button" data-view="boss" disabled><svg><use href="#i-boss"/></svg><span>Boss Fights</span></button>
-        <button class="nav-item" type="button" data-view="encounters" disabled><svg><use href="#i-swords"/></svg><span>Fights</span></button>
-        <button class="nav-item" type="button" data-view="players" disabled><svg><use href="#i-users"/></svg><span>Players</span></button>
-        <button class="nav-item" type="button" data-view="powers" disabled><svg><use href="#i-bolt"/></svg><span>Powers</span></button>
-        <button class="nav-item" type="button" data-view="events" disabled><svg><use href="#i-list"/></svg><span>Raw Events</span></button>
-        <button class="nav-item" type="button" data-view="diagnostics" disabled><svg><use href="#i-diagnostic"/></svg><span>Log Health</span></button>
+        <div class="nav-section nav-section-analyze" role="group" aria-label="Analyze">
+          <span class="nav-section-label">Analyze</span>
+          <button class="nav-item is-active" type="button" data-view="overview" aria-current="page"><svg><use href="#i-grid"/></svg><span class="nav-copy"><strong>Overview</strong><small>Session totals and the main story</small></span></button>
+          <button class="nav-item" type="button" data-view="rotation" disabled><svg><use href="#i-rotation"/></svg><span class="nav-copy"><strong>Fight Timeline</strong><small>When powers and team debuffs happened</small></span></button>
+          <button class="nav-item" type="button" data-view="boss" disabled><svg><use href="#i-boss"/></svg><span class="nav-copy"><strong>Bosses</strong><small>Boss-only fights and phases</small></span></button>
+          <button class="nav-item" id="debuff-uptime-nav" type="button" data-view="debuffs" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M4.2 7.5l3.5 2M16.3 14.5l3.5 2M4.2 16.5l3.5-2M16.3 9.5l3.5-2M9 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0Z"/></svg><span class="nav-copy"><strong>Team Debuffs</strong><small>What made the boss take more damage</small></span></button>
+          <button class="nav-item" type="button" data-view="players" disabled><svg><use href="#i-users"/></svg><span class="nav-copy"><strong>Players</strong><small>Individual player performance</small></span></button>
+          <button class="nav-item" type="button" data-view="powers" disabled><svg><use href="#i-bolt"/></svg><span class="nav-copy"><strong>Damage &amp; Powers</strong><small>What the selected player used</small></span></button>
+          <button class="nav-item" type="button" data-view="comparison" disabled><svg><use href="#i-compare"/></svg><span class="nav-copy"><strong>Compare</strong><small>Players side by side</small></span></button>
+        </div>
+        <div class="nav-section nav-section-advanced" role="group" aria-label="Advanced">
+          <span class="nav-section-label">Advanced</span>
+          <button class="nav-item" type="button" data-view="encounters" disabled><svg><use href="#i-swords"/></svg><span class="nav-copy"><strong>All Fights</strong><small>Every detected combat window</small></span></button>
+          <button class="nav-item" type="button" data-view="events" disabled><svg><use href="#i-list"/></svg><span class="nav-copy"><strong>Raw Events</strong><small>Parsed combat-log rows</small></span></button>
+          <button class="nav-item" type="button" data-view="diagnostics" disabled><svg><use href="#i-diagnostic"/></svg><span class="nav-copy"><strong>Analysis Checks</strong><small>Parser and engine verification</small></span></button>
+        </div>
       </nav>
 
       <div class="sidebar-foot">
@@ -222,11 +229,5 @@
   <script src="src/v7/worker-bridge.js"></script>
   <script type="module" src="src/v3/app.js"></script>
   <script type="module" src="src/v3/power-drilldown.js"></script>
-  <script type="module" src="src/v7/boss-effects.js"></script>
-  <script type="module" src="src/v11/navigation-shell.js"></script>
-  <script type="module" src="src/v6/dashboard.js"></script>
-  <script type="module" src="src/v6/dashboard-interactions.js"></script>
-  <script type="module" src="src/v6/copy.js"></script>
-  <script type="module" src="src/v6/drawer-copy.js"></script>
 </body>
 </html>

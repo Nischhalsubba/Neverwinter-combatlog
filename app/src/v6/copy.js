@@ -341,15 +341,9 @@ function scheduleCopy() {
   queueMicrotask(applyCopy);
 }
 
-if (viewRoot) {
-  new MutationObserver(scheduleCopy).observe(viewRoot, { childList: true, subtree: false });
-  viewRoot.addEventListener('click', () => requestAnimationFrame(scheduleCopy), { passive: true });
-  viewRoot.addEventListener('change', () => requestAnimationFrame(scheduleCopy), { passive: true });
-}
-if (workspaceTitle) new MutationObserver(simplifyWorkspaceTitle).observe(workspaceTitle, { childList: true, characterData: true, subtree: true });
-if (topbarStatus) new MutationObserver(simplifyStatus).observe(topbarStatus, { childList: true, characterData: true, subtree: true });
-if (parseState) new MutationObserver(simplifyParseState).observe(parseState, { childList: true, characterData: true, subtree: true });
-new MutationObserver(() => requestAnimationFrame(scheduleCopy)).observe(document.body, { childList: true, subtree: false });
+document.addEventListener('strikeglass:view-rendered', scheduleCopy);
+document.addEventListener('strikeglass:copy-refresh', scheduleCopy);
+document.addEventListener('strikeglass:dashboard-ready', scheduleCopy);
 nav?.addEventListener('click', () => requestAnimationFrame(scheduleCopy));
 
 scheduleCopy();
