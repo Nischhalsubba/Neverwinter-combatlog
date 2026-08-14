@@ -642,9 +642,16 @@ function compactEffect(group, targets, empirical, timelineVerified) {
 
 export function analyzeEffectIntelligence(rows, options = {}) {
   const source = Array.isArray(rows) ? rows : Array.from(rows || []);
-  const times = source.map(row => number(row.time)).filter(Number.isFinite);
-  const scopeStart = Number.isFinite(Number(options.scopeStart)) ? Number(options.scopeStart) : (times.length ? Math.min(...times) : 0);
-  const scopeEnd = Number.isFinite(Number(options.scopeEnd)) ? Number(options.scopeEnd) : (times.length ? Math.max(...times) : scopeStart);
+  let observedStart = Infinity;
+  let observedEnd = -Infinity;
+  for (const row of source) {
+    const time = Number(row?.time);
+    if (!Number.isFinite(time)) continue;
+    if (time < observedStart) observedStart = time;
+    if (time > observedEnd) observedEnd = time;
+  }
+  const scopeStart = Number.isFinite(Number(options.scopeStart)) ? Number(options.scopeStart) : (Number.isFinite(observedStart) ? observedStart : 0);
+  const scopeEnd = Number.isFinite(Number(options.scopeEnd)) ? Number(options.scopeEnd) : (Number.isFinite(observedEnd) ? observedEnd : scopeStart);
   const combat = analyzeCombatEffects(source);
   const bossRows = source.filter(row => isBossRef(row?.targetRef));
   const boss = bossRows.length ? analyzeBossEffects(bossRows) : null;
