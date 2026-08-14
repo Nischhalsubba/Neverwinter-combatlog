@@ -1,0 +1,32 @@
+.rotation-scroll{position:relative}
+.encounter-power-icon-layer{
+  position:absolute;
+  z-index:2;
+  top:0;
+  left:0;
+  display:block;
+  pointer-events:none;
+}
+.encounter-icon-coverage{
+  display:inline-flex;
+  align-items:center;
+  min-height:24px;
+  margin-left:8px;
+  padding:2px 7px;
+  border:1px solid var(--line-soft);
+  border-radius:999px;
+  color:var(--muted);
+  background:rgba(7,16,24,.72);
+  font:700 9px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  white-space:nowrap;
+}
+.encounter-icon-coverage.is-complete{
+  border-color:rgba(99,245,176,.35);
+  color:var(--green);
+}
+@media (max-width:760px){
+  .encounter-icon-coverage{display:flex;width:max-content;margin:7px 0 0}
+}
+@media (prefers-reduced-motion:reduce){
+  .encounter-power-icon-layer{scroll-behavior:auto}
+}
