@@ -1,15 +1,10 @@
 import { isBossRef, isCreatureRef, isPlayerRef } from './fast-parser-core.js';
 import { BOSS_EFFECT_DEFINITIONS, buildActiveWindows } from './boss-effects.js';
+import { findSupportEffect } from '../data/support-effect-catalog.js';
 
-export const COMPANION_DEBUFFS = Object.freeze([
-  Object.freeze({ id: 'armor-break', name: 'Armor Break', duration: 15, description: 'Lowers enemy Defense by up to 7.5%.' }),
-  Object.freeze({ id: 'dulled-senses', name: 'Dulled Senses', duration: 15, description: 'Lowers enemy Awareness by up to 7.5%.' }),
-  Object.freeze({ id: 'vulnerability', name: 'Vulnerability', duration: 15, description: 'Lowers enemy Critical Avoidance by up to 7.5%.' }),
-  Object.freeze({ id: 'weapon-break', name: 'Weapon Break', duration: 15, description: 'Lowers enemy Critical Severity by up to 7.5%.' }),
-  Object.freeze({ id: 'slowed-reactions', name: 'Slowed Reactions', duration: null, description: 'Lowers enemy Deflect while the effect is active.' })
-]);
+const LEGACY_COMPANION_NAMES = ['Armor Break', 'Dulled Senses', 'Vulnerability', 'Weapon Break', 'Slowed Reactions'];
+export const COMPANION_DEBUFFS = Object.freeze(LEGACY_COMPANION_NAMES.map(name => findSupportEffect(name)).filter(Boolean));
 
-const COMPANION_BY_NAME = new Map(COMPANION_DEBUFFS.map(effect => [effect.name, effect]));
 const BOSS_BY_NAME = new Map(BOSS_EFFECT_DEFINITIONS.map(effect => [effect.name, effect]));
 
 function number(value) {
@@ -53,12 +48,36 @@ function targetIdentity(row) {
   return { ref, name, kind };
 }
 
-function effectMeta(name) {
-  const companion = COMPANION_BY_NAME.get(name);
-  if (companion) return { ...companion, family: 'companion', type: 'Known debuff' };
+function bossMeta(name) {
   const boss = BOSS_BY_NAME.get(name);
-  if (boss) return { id: boss.id, name: boss.name, duration: boss.duration, description: boss.description, family: 'boss', type: boss.type };
-  return { id: '', name, duration: null, description: '', family: 'unknown', type: 'Effect found' };
+  if (!boss) return null;
+  const classification = boss.id === 'midnights-malady' ? 'enemy-debuff' : 'personal-target-effect';
+  return {
+    id: boss.id,
+    name: boss.name,
+    duration: boss.duration,
+    description: boss.description,
+    family: 'boss',
+    type: classification === 'enemy-debuff' ? 'Known debuff' : 'Personal target effect',
+    classification,
+    changes: [],
+    source: null
+  };
+}
+
+function effectMeta(name) {
+  const boss = bossMeta(name);
+  if (boss) return boss;
+  const known = findSupportEffect(name);
+  if (known) {
+    const type = known.classification === 'enemy-debuff' ? 'Known debuff'
+      : known.classification === 'target-advantage' ? 'Combat Advantage effect'
+      : known.classification === 'ally-buff' ? 'Party / player buff'
+      : known.classification === 'support-window' ? 'Support window'
+      : 'Known effect';
+    return { ...known, type };
+  }
+  return { id: '', name, duration: null, description: '', family: 'unknown', type: 'Unclassified status', classification: 'unknown', changes: [], source: null };
 }
 
 function applicationAllowed(row, meta) {
@@ -70,16 +89,28 @@ function applicationAllowed(row, meta) {
   return true;
 }
 
-function applicationKey(row, direction) {
-  const actor = actorIdentity(row);
-  const tick = Math.round(number(row.time) * 20);
-  return `${direction}|${text(row.powerName)}|${text(row.targetRef)}|${actor.ref || actor.name}|${tick}`;
+function strongStatDebuffSignal(row) {
+  if (!isCreatureRef(row?.targetRef)) return false;
+  const type = text(row.damageType).toLowerCase();
+  const amount = number(row.amount);
+  if (amount >= 0) return false;
+  return type.startsWith('abs_') || type.includes('damageset');
 }
 
-function directionFor(row) {
-  if (isPlayerRef(row?.targetRef)) return 'player';
-  if (isCreatureRef(row?.targetRef)) return 'enemy';
-  return 'other';
+function semanticClassification(row, meta) {
+  if (meta.classification && meta.classification !== 'unknown') return meta.classification;
+  const actor = actorIdentity(row);
+  if (isPlayerRef(row?.targetRef)) return 'player-effect';
+  if (!isCreatureRef(row?.targetRef)) return 'other';
+  if (strongStatDebuffSignal(row) && !isCreatureRef(actor.ref)) return 'enemy-debuff';
+  if (isCreatureRef(actor.ref)) return 'enemy-mechanic';
+  return 'unclassified-enemy-effect';
+}
+
+function applicationKey(row, classification) {
+  const actor = actorIdentity(row);
+  const tick = Math.round(number(row.time) * 20);
+  return `${classification}|${text(row.powerName)}|${text(row.targetRef)}|${actor.ref || actor.name}|${tick}`;
 }
 
 function pushCount(map, identity) {
@@ -100,24 +131,27 @@ function collect(rows) {
 
   for (const row of rows || []) {
     if (!statusSignature(row)) continue;
-    const direction = directionFor(row);
-    if (direction === 'other') continue;
     const name = text(row.powerName) || 'Unknown effect';
     const meta = effectMeta(name);
+    const classification = semanticClassification(row, meta);
+    if (classification === 'other') continue;
     if (isImmune(row)) {
       immune.set(name, (immune.get(name) || 0) + 1);
       continue;
     }
     if (!applicationAllowed(row, meta)) continue;
-    const key = applicationKey(row, direction);
+    const key = applicationKey(row, classification);
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const groupKey = `${direction}|${name}`;
+    const target = targetIdentity(row);
+    const direction = target.kind === 'player' ? 'player' : target.kind === 'boss' || target.kind === 'enemy' ? 'enemy' : 'other';
+    const groupKey = `${classification}|${direction}|${name}`;
     let group = groups.get(groupKey);
     if (!group) {
       group = {
         direction,
+        classification,
         name,
         meta,
         applications: 0,
@@ -130,7 +164,6 @@ function collect(rows) {
     }
 
     const source = actorIdentity(row);
-    const target = targetIdentity(row);
     const time = number(row.time);
     group.applications += 1;
     group.events.push({ time, sourceRef: source.ref, sourceName: source.name, targetRef: target.ref, targetName: target.name, targetKind: target.kind });
@@ -237,7 +270,8 @@ function nearlyEqual(left, right, tolerance = 1e-6) {
 }
 
 function timedTargets(group, rows, mismatches) {
-  if (group.meta.family !== 'companion' || !Number.isFinite(group.meta.duration) || group.meta.duration <= 0 || group.direction !== 'enemy') return [];
+  const safeDuration = Number.isFinite(group.meta.duration) && group.meta.duration > 0;
+  if (group.classification !== 'enemy-debuff' || group.meta.family === 'boss' || !safeDuration || group.direction !== 'enemy') return [];
   return Array.from(group.targets.values()).map(target => {
     const primary = primaryCoverage(target.times, group.meta.duration, targetWindows(rows, target.ref));
     const shadow = shadowCoverage(target.times, group.meta.duration, rows, target.ref);
@@ -265,12 +299,17 @@ function compactGroup(group, rows, mismatches) {
     .sort((a, b) => b.applications - a.applications || a.name.localeCompare(b.name));
   return {
     direction: group.direction,
+    classification: group.classification,
     name: group.name,
     id: group.meta.id,
     type: group.meta.type,
     family: group.meta.family,
     description: group.meta.description,
     duration: group.meta.duration,
+    changes: group.meta.changes || [],
+    effectScope: group.meta.effectScope || 'all',
+    notes: group.meta.notes || '',
+    source: group.meta.source || null,
     applications: group.applications,
     sources,
     targets,
@@ -286,18 +325,39 @@ export function analyzeCombatEffects(rows) {
   const effects = Array.from(collected.groups.values())
     .map(group => compactGroup(group, source, mismatches))
     .sort((a, b) => {
-      const knownA = a.family === 'unknown' ? 1 : 0;
-      const knownB = b.family === 'unknown' ? 1 : 0;
-      return knownA - knownB || b.applications - a.applications || a.name.localeCompare(b.name);
+      const priority = value => value === 'enemy-debuff' ? 0
+        : value === 'target-advantage' ? 1
+        : value === 'personal-target-effect' ? 2
+        : value === 'player-effect' ? 3
+        : value === 'ally-buff' ? 4
+        : value === 'enemy-mechanic' ? 5
+        : 6;
+      return priority(a.classification) - priority(b.classification) || b.applications - a.applications || a.name.localeCompare(b.name);
     });
   const immuneEffects = Array.from(collected.immune.entries())
     .map(([name, applications]) => ({ name, applications }))
     .sort((a, b) => b.applications - a.applications || a.name.localeCompare(b.name));
   const timed = effects.flatMap(effect => effect.timedTargets);
+  const debuffsOnEnemies = effects.filter(effect => effect.classification === 'enemy-debuff' && effect.direction === 'enemy');
+  const targetAdvantageEffects = effects.filter(effect => effect.classification === 'target-advantage' && effect.direction === 'enemy');
+  const personalTargetEffects = effects.filter(effect => effect.classification === 'personal-target-effect' && effect.direction === 'enemy');
+  const playerEffects = effects.filter(effect => effect.direction === 'player');
+  const allyBuffs = effects.filter(effect => effect.classification === 'ally-buff');
+  const supportWindows = effects.filter(effect => effect.classification === 'support-window');
+  const enemyMechanics = effects.filter(effect => effect.classification === 'enemy-mechanic');
+  const unclassifiedEnemyEffects = effects.filter(effect => effect.classification === 'unclassified-enemy-effect');
   return {
     effects,
-    onEnemies: effects.filter(effect => effect.direction === 'enemy'),
-    onPlayers: effects.filter(effect => effect.direction === 'player'),
+    debuffsOnEnemies,
+    targetAdvantageEffects,
+    personalTargetEffects,
+    playerEffects,
+    allyBuffs,
+    supportWindows,
+    enemyMechanics,
+    unclassifiedEnemyEffects,
+    onEnemies: [...debuffsOnEnemies, ...targetAdvantageEffects, ...personalTargetEffects, ...unclassifiedEnemyEffects],
+    onPlayers: playerEffects,
     immuneEffects,
     verification: {
       ok: mismatches.length === 0,
