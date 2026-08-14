@@ -62,6 +62,7 @@
   <link rel="stylesheet" href="src/v6/stability.css">
   <link rel="stylesheet" href="src/v6/performance.css">
   <link rel="stylesheet" href="src/v6/brand.css">
+  <link rel="stylesheet" href="src/v7/boss-effects.css">
 </head>
 <body>
   <svg class="svg-sprite" aria-hidden="true">
@@ -212,8 +213,10 @@
   <div class="drop-overlay" id="drop-overlay" hidden aria-hidden="true"><div><strong>Drop to open</strong><span>Nothing leaves your device</span></div></div>
   <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
 
+  <script src="src/v7/worker-bridge.js"></script>
   <script type="module" src="src/v3/app.js"></script>
   <script type="module" src="src/v3/power-drilldown.js"></script>
+  <script type="module" src="src/v7/boss-effects.js"></script>
   <script type="module" src="src/v6/dashboard.js"></script>
   <script type="module" src="src/v6/dashboard-interactions.js"></script>
   <script type="module" src="src/v6/copy.js"></script>
