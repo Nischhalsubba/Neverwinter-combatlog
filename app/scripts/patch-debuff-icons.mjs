@@ -14,11 +14,11 @@ js = js.replace(helperAnchor, `function effectIcon(effect) {
   if (!icon) return '';
   const scale = 0.5;
   const style = [
-    \`background-image:url('\\${ENCOUNTER_POWER_ICON_SPRITE.url}')\`,
-    \`background-size:\\${ENCOUNTER_POWER_ICON_SPRITE.width * scale}px \\${ENCOUNTER_POWER_ICON_SPRITE.height * scale}px\`,
-    \`background-position:-\\${icon.x * scale}px -\\${icon.y * scale}px\`
+    "background-image:url('" + ENCOUNTER_POWER_ICON_SPRITE.url + "')",
+    'background-size:' + (ENCOUNTER_POWER_ICON_SPRITE.width * scale) + 'px ' + (ENCOUNTER_POWER_ICON_SPRITE.height * scale) + 'px',
+    'background-position:-' + (icon.x * scale) + 'px -' + (icon.y * scale) + 'px'
   ].join(';');
-  return \`<span class="debuff-power-icon" style="\\${esc(style)}" aria-hidden="true"></span>\`;
+  return '<span class="debuff-power-icon" style="' + esc(style) + '" aria-hidden="true"></span>';
 }
 
 ${helperAnchor}`);
