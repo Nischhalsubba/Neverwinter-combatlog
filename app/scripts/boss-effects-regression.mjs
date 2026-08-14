@@ -45,7 +45,7 @@ assert.match(index, /src\/v7\/boss-effects\.css/);
 assert.match(index, /src\/v7\/boss-effects\.js/);
 
 const ui = readFileSync(new URL('../src/v7/boss-effects.js', import.meta.url), 'utf8');
-assert.match(ui, /data\.view = 'debuffs'/);
+assert.match(ui, /dataset\.view = 'debuffs'/);
 assert.match(ui, />Debuff Uptime</);
 assert.match(ui, /What does uptime mean\?/);
 assert.match(ui, /Who applied it/);
