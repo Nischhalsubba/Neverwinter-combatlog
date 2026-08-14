@@ -311,6 +311,7 @@ function compactGroup(group, rows, mismatches) {
     notes: group.meta.notes || '',
     source: group.meta.source || null,
     applications: group.applications,
+    timeline: group.events.map(event => ({ ...event })),
     sources,
     targets,
     timedTargets: timedTargets(group, rows, mismatches),

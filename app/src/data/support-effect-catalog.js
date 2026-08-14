@@ -114,6 +114,19 @@ export function isCataloguedEnemyDebuff(value) {
   return findSupportEffect(value)?.classification === 'enemy-debuff';
 }
 
+const TEAM_DAMAGE_REDUCTION_STATS = new Set(['Defense', 'Awareness', 'Critical Avoidance', 'Deflect']);
+
+export function isTeamDamageSupportEffect(entryOrName) {
+  const entry = typeof entryOrName === 'string' ? findSupportEffect(entryOrName) : entryOrName;
+  if (!entry) return false;
+  if (entry.classification === 'target-advantage') return true;
+  if (entry.classification !== 'enemy-debuff') return false;
+  return (entry.changes || []).some(change => {
+    if (change.stat === 'Damage Taken') return change.direction === 'up';
+    return TEAM_DAMAGE_REDUCTION_STATS.has(change.stat) && change.direction !== 'up';
+  });
+}
+
 export function describeEffectChanges(entry) {
   return (entry?.changes || []).map(change => {
     const direction = change.direction === 'up' ? 'increased' : 'reduced';
@@ -122,4 +135,4 @@ export function describeEffectChanges(entry) {
   });
 }
 
-export const SUPPORT_EFFECT_CATALOG_VERSION = 1;
+export const SUPPORT_EFFECT_CATALOG_VERSION = 2;

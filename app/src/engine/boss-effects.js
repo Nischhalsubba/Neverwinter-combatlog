@@ -8,6 +8,8 @@ export const BOSS_EFFECT_DEFINITIONS = Object.freeze([
     audience: 'team',
     type: 'Team debuff',
     description: "Lowers the boss's Defense and Awareness by 3.5%",
+    sourceType: 'Ring',
+    sourceName: "Eilistraee's Grace",
     match(row) {
       if (row?.powerName !== "Midnight's Malady") return false;
       if (!hasDisplayFlag(row)) return false;
@@ -230,6 +232,9 @@ function compactPrimary(collected, activeWindows) {
       audience: definition.audience,
       description: definition.description,
       duration: definition.duration,
+      sourceType: definition.sourceType || '',
+      sourceName: definition.sourceName || '',
+      timeline: effect.applications.map(application => ({ ...application })),
       applications: effect.applications.length,
       seconds: teamCoverage?.seconds ?? null,
       uptime: teamCoverage?.uptime ?? null,
