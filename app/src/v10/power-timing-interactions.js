@@ -138,6 +138,7 @@ async function readVerifiedScopeRows(scope) {
     if (!page?.verification || page.verification.status !== 'verified') throw new Error('Debuff timing is available only after both combat checks pass.');
     rows.push(...(page.rows || []));
     cursor = page.nextCursor;
+    if (rows.length > 60000 && cursor != null) throw new Error('This scope is too large for the optional debuff overlay.');
     if (rows.length && rows.length % 2500 === 0) await new Promise(resolve => setTimeout(resolve, 0));
   } while (cursor != null);
   return rows;
@@ -256,8 +257,13 @@ function applyDimensions(panel, anchor = null) {
   }
 }
 
+function maxZoomForReport() {
+  const duration = Math.max(1, Number(report?.duration) || 1);
+  return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, MAX_TIMELINE_WIDTH / (duration * BASE_PX_PER_SECOND)));
+}
+
 function setZoom(panel, next, anchor = null) {
-  zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(next) || 1));
+  zoom = Math.max(MIN_ZOOM, Math.min(maxZoomForReport(), Number(next) || 1));
   applyDimensions(panel, anchor);
   scheduleRepaint();
 }
@@ -365,7 +371,7 @@ function overlayFor(canvas, width, height) {
     overlay.dataset.powerTimingV10Layer = canvas.dataset.rotationLane || '';
     scroll.append(overlay);
   }
-  const dpr = Math.min(1.5, devicePixelRatio || 1);
+  const dpr = Math.min(1.5, devicePixelRatio || 1, 32760 / Math.max(1, width));
   overlay.width = Math.max(1, Math.floor(width * dpr));
   overlay.height = Math.max(1, Math.floor(height * dpr));
   overlay.style.width = width + 'px';
