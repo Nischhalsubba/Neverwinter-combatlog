@@ -3,9 +3,9 @@ import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
+import sharp from 'sharp';
 
 const ROOT = 'https://nw-hub.com';
-const WIKI_API = 'https://neverwinter.fandom.com/api.php';
 const CLASSES = ['barbarian','bard','cleric','fighter','paladin','ranger','rogue','warlock','wizard'];
 const OUTPUT = process.env.OUTPUT_DIR || path.resolve('nw-hub-power-icons-fixed');
 const RELATED_FALLBACKS = Object.freeze({
@@ -14,9 +14,23 @@ const RELATED_FALLBACKS = Object.freeze({
   'Bard|Con Brio': { url: `${ROOT}/assets/powers/con-elemento.webp`, note: 'Con Brio is the Steel March form of Con Elemento; NW Hub\'s dedicated PNG is missing.' },
   "Bard|Hero's Finale": { url: `${ROOT}/assets/powers/ballad-of-the-hero.webp`, note: 'Hero\'s Finale is the finale state of Ballad of the Hero; NW Hub\'s dedicated PNG is missing.' }
 });
-const WIKI_FALLBACKS = Object.freeze({
-  'Bard|Mystify': { title: 'Mystifying Strikes', note: 'NW Hub\'s Mystify PNG is missing; use the Official Neverwinter Wiki image for Mystifying Strikes, the effect that produces Mystify.' },
-  'Bard|Curtain Call': { title: 'Curtain Call', note: 'NW Hub\'s Curtain Call PNG is missing; use the Official Neverwinter Wiki page image.' }
+const SCREENSHOT_FALLBACKS = Object.freeze({
+  'Bard|Mystify': {
+    url: 'https://www.mmorpgtips.com/wp-content/uploads/2021/08/Single-Target-Songblade.jpg',
+    referer: 'https://www.mmorpgtips.com/neverwinter-bard-songblade-build/',
+    expectedWidth: 1021,
+    expectedHeight: 841,
+    crop: { left: 341, top: 542, width: 45, height: 45 },
+    note: 'NW Hub does not serve bard_mystify.png or mystifying-strikes.webp. This is the Mystifying Strikes icon cropped from a published in-game Songblade power panel; Mystifying Strikes is the class feature that produces Mystify.'
+  },
+  'Bard|Curtain Call': {
+    url: 'https://static.wixstatic.com/media/0e5a9c_80b972ecea1f4153ab810e288400be86~mv2.png/v1/fill/w_980%2Ch_673%2Cal_c%2Cq_90%2Cusm_0.66_1.00_0.01%2Cenc_auto/0e5a9c_80b972ecea1f4153ab810e288400be86~mv2.png',
+    referer: 'https://www.neverwinterturk.com/',
+    expectedWidth: 980,
+    expectedHeight: 673,
+    crop: { left: 220, top: 203, width: 32, height: 32 },
+    note: 'NW Hub does not serve bard_curtaincall.png. This is the Curtain Call daily icon cropped from a published in-game Minstrel power panel.'
+  }
 });
 const executableCandidates = [
   process.env.CHROME_BIN,
@@ -48,52 +62,64 @@ function detectImage(buffer) {
   return null;
 }
 
-async function fetchImage(url) {
+async function fetchBytes(url, referer = `${ROOT}/classes`) {
   const response = await fetch(url, {
     headers: {
       'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/145 Safari/537.36 StrikeglassResearch/1.1',
-      'referer': `${ROOT}/classes`
+      'referer': referer,
+      'accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
     },
     redirect: 'follow'
   });
   const buffer = Buffer.from(await response.arrayBuffer());
-  const detected = detectImage(buffer);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return { buffer, reportedContentType: response.headers.get('content-type') || '' };
+}
+
+function assetFromBuffer(buffer, reportedContentType = '') {
+  const detected = detectImage(buffer);
   if (!detected) {
     const preview = buffer.subarray(0, 80).toString('utf8').replace(/\s+/g, ' ').trim();
-    throw new Error(`Not an image (${response.headers.get('content-type') || 'unknown'}; ${preview.slice(0, 60)})`);
+    throw new Error(`Not an image (${reportedContentType || 'unknown'}; ${preview.slice(0, 60)})`);
   }
   return {
     buffer,
     ext: detected.ext,
     contentType: detected.type,
-    reportedContentType: response.headers.get('content-type') || '',
+    reportedContentType,
     sha256: createHash('sha256').update(buffer).digest('hex')
   };
 }
 
-async function wikiPageImage(title) {
-  const api = new URL(WIKI_API);
-  api.searchParams.set('action', 'query');
-  api.searchParams.set('format', 'json');
-  api.searchParams.set('origin', '*');
-  api.searchParams.set('prop', 'pageimages');
-  api.searchParams.set('piprop', 'original|thumbnail');
-  api.searchParams.set('pithumbsize', '256');
-  api.searchParams.set('titles', title);
-  const response = await fetch(api, { headers: { 'user-agent': 'Mozilla/5.0 StrikeglassResearch/1.1' } });
-  if (!response.ok) throw new Error(`Wiki API HTTP ${response.status}`);
-  const data = await response.json();
-  const page = Object.values(data?.query?.pages || {})[0];
-  const url = page?.original?.source || page?.thumbnail?.source || '';
-  if (!url) throw new Error(`Official Neverwinter Wiki has no page image for ${title}.`);
-  return url;
+async function fetchImage(url) {
+  const response = await fetchBytes(url);
+  return assetFromBuffer(response.buffer, response.reportedContentType);
 }
 
 const assetCache = new Map();
 async function cachedImage(url) {
   if (!assetCache.has(url)) assetCache.set(url, fetchImage(url));
   return assetCache.get(url);
+}
+
+const screenshotCache = new Map();
+async function screenshotAsset(spec) {
+  let sourcePromise = screenshotCache.get(spec.url);
+  if (!sourcePromise) {
+    sourcePromise = fetchBytes(spec.url, spec.referer);
+    screenshotCache.set(spec.url, sourcePromise);
+  }
+  const source = await sourcePromise;
+  const metadata = await sharp(source.buffer).metadata();
+  if (metadata.width !== spec.expectedWidth || metadata.height !== spec.expectedHeight) {
+    throw new Error(`Reference screenshot changed size: ${metadata.width}x${metadata.height}; expected ${spec.expectedWidth}x${spec.expectedHeight}.`);
+  }
+  const buffer = await sharp(source.buffer)
+    .extract(spec.crop)
+    .resize(64, 64, { fit: 'fill', kernel: sharp.kernel.nearest })
+    .webp({ lossless: true })
+    .toBuffer();
+  return assetFromBuffer(buffer, 'image/webp');
 }
 
 async function resolveAsset(record) {
@@ -107,11 +133,21 @@ async function resolveAsset(record) {
       const asset = await cachedImage(related.url);
       return { asset, resolvedUrl: related.url, fallback: { type: 'related-nw-hub-power', note: related.note, primaryError: primaryError.message || String(primaryError) } };
     }
-    const wiki = WIKI_FALLBACKS[key];
-    if (wiki) {
-      const url = await wikiPageImage(wiki.title);
-      const asset = await cachedImage(url);
-      return { asset, resolvedUrl: url, fallback: { type: 'official-wiki-page-image', pageTitle: wiki.title, note: wiki.note, primaryError: primaryError.message || String(primaryError) } };
+    const screenshot = SCREENSHOT_FALLBACKS[key];
+    if (screenshot) {
+      const asset = await screenshotAsset(screenshot);
+      return {
+        asset,
+        resolvedUrl: screenshot.url,
+        fallback: {
+          type: 'published-game-ui-crop',
+          note: screenshot.note,
+          sourceUrl: screenshot.url,
+          sourceReferer: screenshot.referer,
+          crop: screenshot.crop,
+          primaryError: primaryError.message || String(primaryError)
+        }
+      };
     }
     throw primaryError;
   }
@@ -230,12 +266,13 @@ await writeFile(path.join(OUTPUT, 'powers.json'), JSON.stringify({ summary, powe
 await writeFile(path.join(OUTPUT, 'strikeglass-power-map.json'), JSON.stringify(map, null, 2), 'utf8');
 await writeFile(path.join(OUTPUT, 'powers.csv'), csv, 'utf8');
 await writeFile(path.join(OUTPUT, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
-await writeFile(path.join(OUTPUT, 'README.md'), `# NW Hub class power icons\n\nSource: ${ROOT}/classes\n\nThis export contains the rendered At-Will, Encounter, and Daily power icons for the nine Neverwinter classes. Icon URLs are taken from the browser-resolved \`currentSrc\`, which respects NW Hub's \`<base href="/">\`. Every saved asset is validated by file signature before it is accepted.\n\nNW Hub currently references six missing Bard PNG files. Transformed powers use their related NW Hub parent-power icon, while standalone missing effects use an Official Neverwinter Wiki page image when available. Each fallback is recorded in \`powers.json\`, \`powers.csv\`, and \`strikeglass-power-map.json\`.\n\nEntries: ${summary.entries}\nDownloaded: ${summary.downloaded}\nFailed: ${summary.failed}\nFallbacks: ${summary.fallbackCount}\nUnique image hashes: ${summary.uniqueImageHashes}\n`, 'utf8');
+await writeFile(path.join(OUTPUT, 'README.md'), `# NW Hub class power icons\n\nSource: ${ROOT}/classes\n\nThis export contains the rendered At-Will, Encounter, and Daily power icons for the nine Neverwinter classes. Icon URLs are taken from the browser-resolved \`currentSrc\`, which respects NW Hub's \`<base href="/">\`. Every saved asset is validated by file signature before it is accepted.\n\nNW Hub currently references six missing Bard image files. Con Fuoco, Con Moto, Con Brio, and Hero's Finale reuse the verified parent-power artwork documented by the source page. Mystify/Mystifying Strikes and Curtain Call are recovered from published in-game Bard power-panel screenshots because NW Hub does not serve the referenced standalone files. Every fallback records its provenance in \`powers.json\`, \`powers.csv\`, and \`strikeglass-power-map.json\`.\n\nEntries: ${summary.entries}\nDownloaded: ${summary.downloaded}\nFailed: ${summary.failed}\nFallbacks: ${summary.fallbackCount}\nUnique image hashes: ${summary.uniqueImageHashes}\n`, 'utf8');
 
 const structuralFailures = [];
 if (entries.length < 250) structuralFailures.push(`Only ${entries.length} class power entries were found; expected at least 250.`);
 if (summary.downloaded !== entries.length) structuralFailures.push(`${summary.downloaded}/${entries.length} icons downloaded successfully.`);
 if (summary.uniqueImageHashes < 200) structuralFailures.push(`Only ${summary.uniqueImageHashes} unique image hashes were found; the export may contain placeholders.`);
+if (summary.fallbackCount !== 6) structuralFailures.push(`Expected 6 documented Bard fallbacks; found ${summary.fallbackCount}.`);
 for (const [className, count] of Object.entries(counts)) {
   if (count.total < 20 || count.downloaded !== count.total) structuralFailures.push(`${className} coverage is incomplete (${count.downloaded}/${count.total}).`);
 }
