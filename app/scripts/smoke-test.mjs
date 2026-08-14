@@ -29,6 +29,7 @@ const required = [
   'src/engine/scoped-combat-clock.js',
   'src/engine/power-taxonomy.js',
   'src/engine/verification-engine.js',
+  'src/engine/combat-effects.js',
   'src/workers/fast-parse-worker.js'
 ];
 const failures = [];
@@ -136,9 +137,13 @@ for (const marker of [
 
 const powerDrilldown = await readFile('src/v3/power-drilldown.js', 'utf8');
 for (const marker of [
-  "import './power-popup/index.js'",
-  "import '../v8/index.js'"
+  'ensureQolStyle',
+  "new URL('../v8/qol.css', import.meta.url)",
+  'await ensureQolStyle()',
+  "await import('./power-popup/index.js')",
+  "await import('../v8/index.js')"
 ]) if (!powerDrilldown.includes(marker)) failures.push(`power drilldown loader missing ${marker}`);
+if (powerDrilldown.indexOf('await ensureQolStyle()') > powerDrilldown.indexOf("await import('../v8/index.js')")) failures.push('QoL controls can run before their stylesheet is ready.');
 if (/powersNav\.click|returnToOrigin|originView/.test(powerDrilldown)) failures.push('power drilldown loader reintroduced route-changing drilldown state.');
 
 const powerPopup = await readFile('src/v3/power-popup/index.js', 'utf8');
@@ -173,6 +178,16 @@ for (const marker of ['StrikeglassWorkerBridge?.mainWorker', 'workerRequest', 'c
 const qolIndex = await readFile('src/v8/index.js', 'utf8');
 for (const marker of ['./navigation.js','./insights.js','./player-actions.js','./attempts.js','./events.js','./tables.js','./command.js']) {
   if (!qolIndex.includes(marker)) failures.push(`QoL entrypoint missing ${marker}`);
+}
+
+const qolStyles = await readFile('src/v8/qol.css', 'utf8');
+for (const marker of ['.qol-breadcrumbs', '.qol-fight-nav{display:flex;grid-column:1/-1;align-items:center', 'appearance:none', 'max-height:44px']) {
+  if (!qolStyles.includes(marker)) failures.push(`QoL styles missing ${marker}`);
+}
+
+const combatEffects = await readFile('src/engine/combat-effects.js', 'utf8');
+for (const marker of ['Armor Break', 'Dulled Senses', 'Vulnerability', 'Weapon Break', 'Slowed Reactions', 'analyzeCombatEffects', 'immuneEffects']) {
+  if (!combatEffects.includes(marker)) failures.push(`combat effect discovery missing ${marker}`);
 }
 
 const charts = await readFile('src/v3/charts.js', 'utf8');
@@ -270,4 +285,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('Smoke test passed. V6 light design tokens, persistent widget controls, plain-language analytics, dual-engine verification, scoped combat clocks, player comparison, live rotation counts, in-place raw-hit drilldowns, QoL navigation, uPlot charts, Three.js idle budget, and GSAP motion contracts are present.');
+console.log('Smoke test passed. V6 light design tokens, persistent widget controls, plain-language analytics, dual-engine verification, scoped combat clocks, player comparison, live rotation counts, in-place raw-hit drilldowns, styled QoL navigation, full fight effect discovery, uPlot charts, Three.js idle budget, and GSAP motion contracts are present.');
