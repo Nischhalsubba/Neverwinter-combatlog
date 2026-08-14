@@ -25,8 +25,8 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install browser client
-        run: npm install --no-save puppeteer-core@24.16.0
+      - name: Install research tools
+        run: npm install --no-save puppeteer-core@24.16.0 sharp@0.34.3
 
       - name: Export and validate class power icons
         env:
