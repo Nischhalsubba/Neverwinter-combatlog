@@ -18,6 +18,8 @@ const rows = [
   { ...base, time: 7, powerName: 'Blood Lust', damageType: 'Physical', amount: 0.03, ownerRef: '', ownerName: '' },
   { ...base, time: 2, powerName: 'Blood Lust', damageType: 'Physical', amount: 900, flagsRaw: 'Critical', ownerRef: playerA, ownerName: 'PlayerA' },
   { ...base, time: 3, powerName: 'Storm Conduit', damageType: 'Null', ownerRef: playerA, ownerName: 'PlayerA' },
+  { ...base, time: 4, powerName: 'Shadow of Demise', damageType: 'Null', ownerRef: playerB, ownerName: 'PlayerB' },
+  { ...base, time: 10, powerName: 'Shadow of Demise', damageType: 'ApplyPower', ownerRef: playerB, ownerName: 'PlayerB' },
   { ...base, time: 4, powerName: 'Unmapped Target Mark', damageType: 'Null', ownerRef: playerA, ownerName: 'PlayerA' },
   { ...base, time: 5, powerName: 'Immune Target Mark', damageType: 'Null', flagsRaw: 'Immune|ShowPowerDisplayName', ownerRef: playerA, ownerName: 'PlayerA' }
 ];
@@ -25,15 +27,35 @@ const rows = [
 const result = analyzeBossEffects(rows);
 assert.equal(result.verification.status, 'verified');
 assert.equal(result.activeTime, 12);
+assert.equal(result.effects.length, 4, 'all four known boss effects should be timed');
+
 const malady = result.effects.find(effect => effect.id === 'midnights-malady');
 assert.ok(malady);
 assert.equal(malady.applications, 2, 'two metadata rows at the same time count as one application');
 assert.equal(Math.round(malady.seconds), 10);
 assert.equal(Math.round(malady.uptime), 83);
+
 const blood = result.effects.find(effect => effect.id === 'blood-lust');
+assert.ok(blood);
 assert.equal(blood.sources.length, 2);
 assert.equal(blood.applications, 2, 'damage rows and ownerless NPC rows must not count as player applications');
-assert.ok(result.otherSignals.some(signal => signal.name === 'Storm Conduit'));
+
+const storm = result.effects.find(effect => effect.id === 'storm-conduit');
+assert.ok(storm);
+assert.equal(storm.applications, 1);
+assert.equal(storm.sources.length, 1);
+assert.equal(Math.round(storm.sources[0].seconds), 9);
+assert.equal(Math.round(storm.sources[0].uptime), 75);
+
+const demise = result.effects.find(effect => effect.id === 'shadow-of-demise');
+assert.ok(demise);
+assert.equal(demise.applications, 1, 'the ApplyPower expiry row must not count as a new application');
+assert.equal(demise.sources.length, 1);
+assert.equal(Math.round(demise.sources[0].seconds), 6);
+assert.equal(Math.round(demise.sources[0].uptime), 50);
+
+assert.ok(!result.otherSignals.some(signal => signal.name === 'Storm Conduit'));
+assert.ok(!result.otherSignals.some(signal => signal.name === 'Shadow of Demise'));
 assert.ok(result.otherSignals.some(signal => signal.name === 'Unmapped Target Mark'));
 assert.ok(!result.otherSignals.some(signal => signal.name === 'Immune Target Mark'));
 
@@ -43,6 +65,13 @@ const appAt = index.indexOf('src/v3/app.js');
 assert.ok(bridgeAt >= 0 && bridgeAt < appAt, 'worker bridge must load before the combat app creates its worker');
 assert.match(index, /src\/v7\/boss-effects\.css/);
 assert.match(index, /src\/v7\/boss-effects\.js/);
+
+const engine = readFileSync(new URL('../src/engine/boss-effects.js', import.meta.url), 'utf8');
+assert.match(engine, /id: 'storm-conduit'/);
+assert.match(engine, /id: 'shadow-of-demise'/);
+assert.match(engine, /duration: 10/);
+assert.match(engine, /duration: 6/);
+assert.doesNotMatch(engine, /\.slice\(0, 12\)/);
 
 const ui = readFileSync(new URL('../src/v7/boss-effects.js', import.meta.url), 'utf8');
 assert.match(ui, /dataset\.view = 'debuffs'/);
