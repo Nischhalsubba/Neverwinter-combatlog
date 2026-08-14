@@ -7,7 +7,7 @@ export const BOSS_EFFECT_DEFINITIONS = Object.freeze([
     duration: 5,
     audience: 'team',
     type: 'Team debuff',
-    description: 'Defense and Awareness reduced by 3.5%',
+    description: "Lowers the boss's Defense and Awareness by 3.5%",
     match(row) {
       if (row?.powerName !== "Midnight's Malady") return false;
       if (!hasDisplayFlag(row)) return false;
@@ -20,10 +20,34 @@ export const BOSS_EFFECT_DEFINITIONS = Object.freeze([
     duration: 10,
     audience: 'personal',
     type: 'Personal debuff',
-    description: 'Target takes more damage from the player who applied it',
+    description: 'The boss takes more damage from the player who applied it',
     match(row) {
       if (row?.powerName !== 'Blood Lust' || !isPlayerRef(row?.ownerRef) || !hasDisplayFlag(row)) return false;
       return row.damageType === 'Physical' && Number(row.amount) > 0 && Number(row.amount) <= 0.1;
+    }
+  }),
+  Object.freeze({
+    id: 'storm-conduit',
+    name: 'Storm Conduit',
+    duration: 10,
+    audience: 'personal',
+    type: 'Personal debuff',
+    description: "The boss takes 10% more damage from that Ranger's powers",
+    match(row) {
+      if (row?.powerName !== 'Storm Conduit' || !isPlayerRef(row?.ownerRef) || !hasDisplayFlag(row)) return false;
+      return row.damageType === 'Null';
+    }
+  }),
+  Object.freeze({
+    id: 'shadow-of-demise',
+    name: 'Shadow of Demise',
+    duration: 6,
+    audience: 'personal',
+    type: 'Personal mark',
+    description: "Marks the boss so part of that Rogue's damage is dealt again when the mark ends",
+    match(row) {
+      if (row?.powerName !== 'Shadow of Demise' || !isPlayerRef(row?.ownerRef) || !hasDisplayFlag(row)) return false;
+      return row.damageType === 'Null';
     }
   })
 ]);
@@ -215,8 +239,7 @@ function compactPrimary(collected, activeWindows) {
 
   const otherSignals = Array.from(collected.unknown.values())
     .map(item => ({ name: item.name, applications: item.applications, sources: Array.from(item.sources).sort() }))
-    .sort((a, b) => b.applications - a.applications || a.name.localeCompare(b.name))
-    .slice(0, 12);
+    .sort((a, b) => b.applications - a.applications || a.name.localeCompare(b.name));
 
   return { activeTime, activeWindows, effects, otherSignals };
 }
