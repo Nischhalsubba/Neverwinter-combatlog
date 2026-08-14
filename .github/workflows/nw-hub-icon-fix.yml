@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/nw-hub-icon-fix.yml
       - app/scripts/nw-hub-icon-fix.mjs
+      - app/scripts/nw-bard-icon-research.mjs
 
 permissions:
   contents: read
@@ -31,6 +32,12 @@ jobs:
         env:
           OUTPUT_DIR: ${{ github.workspace }}/nw-hub-power-icons-fixed
         run: node app/scripts/nw-hub-icon-fix.mjs
+
+      - name: Capture Bard icon references
+        if: always()
+        env:
+          OUTPUT_DIR: ${{ github.workspace }}/nw-hub-power-icons-fixed
+        run: node app/scripts/nw-bard-icon-research.mjs
 
       - name: Upload validated icon artifact
         if: always()
