@@ -4,8 +4,12 @@ import { readFileSync } from 'node:fs';
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 const loader = read('src/v3/power-drilldown.js');
-assert.match(loader, /power-popup\/index\.js/);
-assert.match(loader, /\.\.\/v8\/index\.js/);
+assert.match(loader, /ensureQolStyle/);
+assert.match(loader, /\.\.\/v8\/qol\.css/);
+assert.match(loader, /await ensureQolStyle\(\)/);
+assert.match(loader, /await import\('\.\/power-popup\/index\.js'\)/);
+assert.match(loader, /await import\('\.\.\/v8\/index\.js'\)/);
+assert.ok(loader.indexOf('await ensureQolStyle()') < loader.indexOf("await import('../v8/index.js')"), 'QoL CSS must be ready before QoL controls are created');
 assert.doesNotMatch(loader, /powersNav\.click|returnToOrigin|originView/);
 
 const popup = read('src/v3/power-popup/index.js');
@@ -23,6 +27,8 @@ for (const module of ['navigation','insights','player-actions','attempts','event
 
 const navigation = read('src/v8/navigation.js');
 assert.match(navigation, /qol-breadcrumbs/);
+assert.match(navigation, /aria-current="page"/);
+assert.match(navigation, /currentViewButton/);
 assert.match(navigation, /Previous fight/);
 assert.match(navigation, /Next fight/);
 assert.match(navigation, /All fights/);
@@ -61,6 +67,10 @@ assert.match(command, /event\.key === '\/'/);
 assert.match(command, /event\.key\.toLowerCase\(\) === 'k'/);
 
 const css = read('src/v8/qol.css');
+assert.match(css, /qol-fight-nav\{display:flex;grid-column:1\/-1;align-items:center/);
+assert.match(css, /max-height:44px/);
+assert.match(css, /appearance:none/);
+assert.match(css, /qol-breadcrumbs/);
 assert.match(css, /min-height:44px/);
 assert.match(css, /max-width:1024px/);
 assert.match(css, /max-width:768px/);
