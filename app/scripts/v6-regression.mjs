@@ -26,7 +26,7 @@ const [index, dashboard, interactions, copy, drawerCopy, styles, components, sta
 ]);
 const failures = [];
 
-for (const marker of ['src/v6/v6.css','src/v6/components.css','src/v6/stability.css','content="#f6f8fb"','content="light"','<strong>Overview</strong>','<strong>Fight Timeline</strong>','<strong>Team Debuffs</strong>','<strong>Analysis Checks</strong>']) {
+for (const marker of ['src/v6/v6.css','src/v6/components.css','src/v6/stability.css','content="#f6f8fb"','content="light dark"','<strong>Overview</strong>','<strong>Fight Timeline</strong>','<strong>Team Debuffs</strong>','<strong>Analysis Checks</strong>']) {
   if (!index.includes(marker)) failures.push(`index missing ${marker}`);
 }
 for (const eager of ['src/v6/dashboard.js','src/v6/dashboard-interactions.js','src/v6/copy.js','src/v6/drawer-copy.js']) {
