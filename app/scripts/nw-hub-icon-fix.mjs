@@ -84,12 +84,12 @@ try {
     const powers = await page.evaluate(() => {
       const clean = value => String(value || '').trim().replace(/\s+/g, ' ');
       return Array.from(document.querySelectorAll('.gi-power-card')).map(card => {
-        const content = card.closest('.content');
-        const section = card.closest('.gi-power-section');
+        const typeSection = card.closest('.gi-power-type-section');
+        const paragonSection = card.closest('.gi-power-section');
         const img = card.querySelector('img.pw-icon');
         return {
-          category: clean(content?.querySelector(':scope > h2')?.textContent),
-          paragon: clean(section?.querySelector(':scope > h4')?.textContent) || 'Shared',
+          category: clean(typeSection?.querySelector(':scope > h3')?.textContent),
+          paragon: clean(paragonSection?.querySelector(':scope > h4')?.textContent) || 'Shared',
           name: clean(card.querySelector('.gi-power-name')?.textContent),
           iconUrl: img?.currentSrc || img?.src || '',
           iconAttribute: img?.getAttribute('src') || '',
@@ -99,9 +99,12 @@ try {
       }).filter(item => ['At-Wills','Encounters','Dailies'].includes(item.category) && item.name && item.iconUrl);
     });
 
+    if (powers.length < 20) throw new Error(`${classSlug} returned only ${powers.length} class powers; expected at least 20.`);
+
     for (const power of powers) {
       const record = { className: classSlug[0].toUpperCase() + classSlug.slice(1), sourcePage: pageUrl, ...power };
       try {
+        if (power.iconUrl.includes('/classes/assets/')) throw new Error(`Browser returned an invalid class-relative icon URL: ${power.iconUrl}`);
         let asset = downloadedByUrl.get(power.iconUrl);
         if (!asset) {
           asset = await fetchImage(power.iconUrl);
@@ -174,8 +177,17 @@ await writeFile(path.join(OUTPUT, 'powers.csv'), csv, 'utf8');
 await writeFile(path.join(OUTPUT, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
 await writeFile(path.join(OUTPUT, 'README.md'), `# NW Hub class power icons\n\nSource: ${ROOT}/classes\n\nThis export contains the rendered At-Will, Encounter, and Daily power icons for the nine Neverwinter classes. Icon URLs are taken from the browser-resolved \`currentSrc\`, which respects NW Hub's \`<base href="/">\`. Every saved asset is validated by file signature before it is accepted.\n\nEntries: ${summary.entries}\nDownloaded: ${summary.downloaded}\nFailed: ${summary.failed}\nUnique image hashes: ${summary.uniqueImageHashes}\n`, 'utf8');
 
+const structuralFailures = [];
+if (entries.length < 250) structuralFailures.push(`Only ${entries.length} class power entries were found; expected at least 250.`);
+if (summary.downloaded !== entries.length) structuralFailures.push(`${summary.downloaded}/${entries.length} icons downloaded successfully.`);
+if (summary.uniqueImageHashes < 200) structuralFailures.push(`Only ${summary.uniqueImageHashes} unique image hashes were found; the export may contain placeholders.`);
+for (const [className, count] of Object.entries(counts)) {
+  if (count.total < 20 || count.downloaded !== count.total) structuralFailures.push(`${className} coverage is incomplete (${count.downloaded}/${count.total}).`);
+}
+
 console.log(JSON.stringify(summary, null, 2));
-if (failures.length) {
-  console.error(JSON.stringify(failures, null, 2));
+if (failures.length || structuralFailures.length) {
+  if (failures.length) console.error(JSON.stringify(failures, null, 2));
+  for (const failure of structuralFailures) console.error(failure);
   process.exit(1);
 }
