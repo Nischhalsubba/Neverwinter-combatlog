@@ -1,14 +1,14 @@
 .sg-chart-studio{position:relative;width:100%;min-width:0}
 .sg-chart-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--panel) 94%,var(--blue) 6%)}
 .sg-chart-tools-primary,.sg-chart-tools-secondary{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.sg-chart-button{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);color:var(--text);cursor:pointer}
+.sg-chart-button{width:44px;height:44px;display:grid;place-items:center;border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);color:var(--text);cursor:pointer}
 .sg-chart-button:hover{background:var(--panel-strong);border-color:var(--blue)}
 .sg-chart-button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--blue);color:var(--blue)}
 .sg-chart-button:focus-visible,.sg-chart-focus select:focus-visible,.sg-chart-stage:focus-visible{outline:3px solid color-mix(in srgb,var(--blue) 48%,transparent);outline-offset:2px}
 .sg-chart-button:disabled{opacity:.38;cursor:not-allowed}
 .sg-chart-button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.sg-chart-focus{display:flex;align-items:center;gap:6px;min-height:38px;padding-left:4px;color:var(--muted);font-size:12px;font-weight:700}
-.sg-chart-focus select{height:38px;min-width:140px;max-width:220px;border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);color:var(--text);padding:0 30px 0 9px}
+.sg-chart-focus{display:flex;align-items:center;gap:6px;min-height:44px;padding-left:4px;color:var(--muted);font-size:12px;font-weight:700}
+.sg-chart-focus select{height:44px;min-width:140px;max-width:220px;border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);color:var(--text);padding:0 30px 0 9px}
 .sg-chart-stage{width:100%;height:clamp(300px,31vw,480px);min-height:280px;background:var(--panel)}
 .sg-chart-help{padding:6px 10px 8px;color:var(--muted);font-size:11px;border-top:1px solid var(--line);background:var(--panel)}
 .sg-chart-tooltip-row{display:flex;justify-content:space-between;gap:28px;min-width:180px;margin-top:6px}
@@ -34,7 +34,7 @@ html[data-contrast="high"] .analysis-bar-track,html[data-contrast="high"] .mini-
 
 .sg-pt-studio{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
 .sg-pt-focus{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px;font-weight:700}
-.sg-pt-focus select{height:36px;min-width:140px;max-width:210px;border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);color:var(--text);padding:0 28px 0 8px}
+.sg-pt-focus select{height:44px;min-width:140px;max-width:210px;border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);color:var(--text);padding:0 28px 0 8px}
 .rotation-lane{transition:opacity .12s ease,filter .12s ease}
 .rotation-lane.sg-lane-muted{opacity:.2;filter:saturate(.25)}
 .rotation-lane.sg-lane-focus{opacity:1}
