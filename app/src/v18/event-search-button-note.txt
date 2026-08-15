@@ -1,1 +1,0 @@
-Search event UI repair is covered by app/scripts/qol-regression.mjs.
