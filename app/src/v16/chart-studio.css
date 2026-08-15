@@ -24,6 +24,7 @@ body.sg-visual-expanded{overflow:hidden}
 .chart-lazy-placeholder{height:clamp(300px,31vw,480px);display:grid;grid-template-columns:repeat(5,1fr);align-items:end;gap:8px;padding:28px 24px;background:var(--panel)}
 .chart-lazy-placeholder i{height:var(--h,48%);border-radius:6px;background:color-mix(in srgb,var(--line-strong) 42%,transparent);animation:sg-chart-pulse 1.2s ease-in-out infinite alternate}
 .chart-lazy-placeholder i:nth-child(2){--h:72%}.chart-lazy-placeholder i:nth-child(3){--h:58%}.chart-lazy-placeholder i:nth-child(4){--h:86%}.chart-lazy-placeholder i:nth-child(5){--h:64%}
+.chart-lazy-placeholder + .sg-chart-stage{display:none}
 @keyframes sg-chart-pulse{to{opacity:.45}}
 
 .analysis-bar-row,.partial-row{transition:background-color .12s ease,border-color .12s ease}
