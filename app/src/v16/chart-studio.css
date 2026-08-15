@@ -33,6 +33,7 @@ body.sg-visual-expanded{overflow:hidden}
 html[data-contrast="high"] .analysis-bar-track,html[data-contrast="high"] .mini-bar{outline:1px solid var(--text)}
 
 .sg-pt-studio{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
+.rotation-panel[data-sg-graph-studio="true"] .pt-zoom button{width:44px;height:44px;min-height:44px}
 .sg-pt-focus{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px;font-weight:700}
 .sg-pt-focus select{height:44px;min-width:140px;max-width:210px;border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);color:var(--text);padding:0 28px 0 8px}
 .rotation-lane{transition:opacity .12s ease,filter .12s ease}
