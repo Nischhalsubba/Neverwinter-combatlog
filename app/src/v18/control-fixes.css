@@ -1,6 +1,6 @@
 /* Shared form-control repair layer.
-   Keep native check/radio inputs native, and keep custom switches visually compact
-   without sacrificing the app-wide 44px interaction target. */
+   Keep native check/radio inputs native, keep custom switches visually compact,
+   and keep icon-bearing action buttons from falling back to raw SVG defaults. */
 
 input[type="checkbox"],
 input[type="radio"]{
@@ -90,6 +90,34 @@ html[data-theme="dark"] button[role="switch"].v6-widget-toggle::before{
 html[data-theme="dark"] button[role="switch"].v6-widget-toggle[aria-checked="true"]::before,
 html[data-theme="dark"] button[role="switch"].v6-widget-toggle[aria-pressed="true"]::before{
   background:var(--sg-primary);
+}
+
+/* The verified-event finder uses the shared icon() helper inside a normal .button.
+   Without explicit SVG geometry, the browser's intrinsic SVG size expands the button
+   and the <circle> search glyph renders with the default black fill. */
+.qol-event-finder .qol-event-checks .button[type="submit"]{
+  inline-size:auto;
+  min-inline-size:max-content;
+  block-size:44px;
+  min-block-size:44px;
+  max-block-size:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding-inline:14px;
+  white-space:nowrap;
+}
+
+.qol-event-finder .qol-event-checks .button[type="submit"] svg{
+  inline-size:16px;
+  block-size:16px;
+  flex:0 0 16px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
 }
 
 @media(prefers-reduced-motion:reduce){
