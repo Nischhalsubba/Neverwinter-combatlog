@@ -1,0 +1,98 @@
+/* Shared form-control repair layer.
+   Keep native check/radio inputs native, and keep custom switches visually compact
+   without sacrificing the app-wide 44px interaction target. */
+
+input[type="checkbox"],
+input[type="radio"]{
+  inline-size:16px;
+  block-size:16px;
+  flex:0 0 auto;
+  margin:0;
+  accent-color:var(--sg-primary,var(--blue));
+}
+
+button[role="switch"].v6-widget-toggle{
+  --sg-switch-track-w:42px;
+  --sg-switch-track-h:24px;
+  --sg-switch-thumb:20px;
+  --sg-switch-offset:9px;
+  position:relative;
+  inline-size:44px;
+  min-inline-size:44px;
+  block-size:44px;
+  min-block-size:44px;
+  padding:0;
+  border:0;
+  border-radius:999px;
+  background:transparent;
+  box-shadow:none;
+  cursor:pointer;
+  isolation:isolate;
+}
+
+button[role="switch"].v6-widget-toggle::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  inline-size:var(--sg-switch-track-w);
+  block-size:var(--sg-switch-track-h);
+  border-radius:999px;
+  background:#cbd5e1;
+  transform:translate(-50%,-50%);
+  transition:background var(--motion-quick) var(--motion-enter),box-shadow var(--motion-quick) var(--motion-enter);
+  z-index:0;
+}
+
+button[role="switch"].v6-widget-toggle::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  inline-size:var(--sg-switch-thumb);
+  block-size:var(--sg-switch-thumb);
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 1px 3px rgba(15,23,42,.22);
+  transform:translate(calc(-50% - var(--sg-switch-offset)),-50%);
+  transition:transform var(--motion-quick) var(--motion-enter);
+  z-index:1;
+}
+
+button[role="switch"].v6-widget-toggle[aria-checked="true"],
+button[role="switch"].v6-widget-toggle[aria-pressed="true"]{
+  background:transparent;
+}
+
+button[role="switch"].v6-widget-toggle[aria-checked="true"]::before,
+button[role="switch"].v6-widget-toggle[aria-pressed="true"]::before{
+  background:var(--sg-primary);
+}
+
+button[role="switch"].v6-widget-toggle[aria-checked="true"]::after,
+button[role="switch"].v6-widget-toggle[aria-pressed="true"]::after{
+  transform:translate(calc(-50% + var(--sg-switch-offset)),-50%);
+}
+
+button[role="switch"].v6-widget-toggle:active::after{
+  transform:translate(calc(-50% - var(--sg-switch-offset)),-50%) scale(.94);
+}
+
+button[role="switch"].v6-widget-toggle[aria-checked="true"]:active::after,
+button[role="switch"].v6-widget-toggle[aria-pressed="true"]:active::after{
+  transform:translate(calc(-50% + var(--sg-switch-offset)),-50%) scale(.94);
+}
+
+html[data-theme="dark"] button[role="switch"].v6-widget-toggle::before{
+  background:#526273;
+}
+
+html[data-theme="dark"] button[role="switch"].v6-widget-toggle[aria-checked="true"]::before,
+html[data-theme="dark"] button[role="switch"].v6-widget-toggle[aria-pressed="true"]::before{
+  background:var(--sg-primary);
+}
+
+@media(prefers-reduced-motion:reduce){
+  button[role="switch"].v6-widget-toggle::before,
+  button[role="switch"].v6-widget-toggle::after{transition:none}
+}
