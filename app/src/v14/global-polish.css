@@ -1,0 +1,156 @@
+/* Global UX polish: shared spacing, contrast, controls, tables, breadcrumbs and responsive states. */
+:root{
+  --sg-space-1:4px;
+  --sg-space-2:8px;
+  --sg-space-3:12px;
+  --sg-space-4:16px;
+  --sg-space-5:24px;
+  --sg-space-6:32px;
+  --sg-control-h:44px;
+  --sg-row-h:44px;
+  --sg-content-measure:72ch;
+}
+
+/* Keep secondary copy readable. Muted is for metadata, not ordinary instructions. */
+body,.panel,.metric-card,.telemetry-card,.compare-card{color:var(--sg-text)}
+.panel-head>span,.subsection-head span,.chart-note,.rotation-help,.qol-event-status,.qol-fight-nav-status,.qol-command-item small,.sg-setting-row small{color:var(--sg-text-secondary)}
+.eyebrow,.nav-section-label,.field>span,.scope-readout>span,.check-field>span,.telemetry-card>span,.metric-card>span{font-weight:650;letter-spacing:.02em}
+.helper-text,.empty-inline,.panel-note,.chart-note,.rotation-help,.qol-event-status{line-height:1.5}
+
+/* One spacing rhythm across legacy and current feature layers. */
+.workspace-head{margin-bottom:var(--sg-space-3)}
+.analysis-toolbar{gap:var(--sg-space-2);padding:var(--sg-space-3);margin-bottom:var(--sg-space-3)}
+.panel-head{min-height:44px;padding:var(--sg-space-2) var(--sg-space-4)}
+.panel-body,.panel-subsection{padding:var(--sg-space-4)}
+.panel-subsection+.panel-subsection{border-top:1px solid var(--sg-border)}
+.reference-metrics{gap:var(--sg-space-3);padding:var(--sg-space-3) var(--sg-space-4)}
+.metric-grid,.telemetry-grid,.compare-grid,.boss-grid{gap:var(--sg-space-3)}
+.metric-card,.telemetry-card,.compare-card{padding:var(--sg-space-3)}
+.subsection-head{gap:var(--sg-space-3);margin-bottom:var(--sg-space-3)}
+.analysis-bars{display:grid;gap:var(--sg-space-2)}
+.analysis-bar-row{min-height:var(--sg-row-h);padding:var(--sg-space-2) 0}
+.analysis-bar-row>strong,.analysis-bar-row>span{line-height:1.35}
+
+/* Controls share the same physical size and focus treatment. */
+.button,.qol-icon-button,.qol-action-button,.rotation-filters button,.qol-player-menu button,.qol-command-item,.sg-settings-close{min-height:var(--sg-control-h)}
+.field select,.field input,.qol-event-finder-form .field input,.qol-event-finder-form .field select,.sg-setting-row select{min-height:var(--sg-control-h);border-color:var(--sg-border-strong)}
+.button:focus-visible,.nav-item:focus-visible,.drop-zone:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,[role="button"]:focus-visible,.qol-breadcrumbs button:focus-visible,.qol-command-item:focus-visible,.qol-event-power:focus-visible,.sg-settings-close:focus-visible{outline:2px solid var(--sg-focus);outline-offset:2px}
+
+/* Breadcrumbs are compact but never faint. */
+.qol-breadcrumbs{min-height:36px;margin:0 0 var(--sg-space-3);padding:0;color:var(--sg-text-secondary)}
+.qol-breadcrumbs button{min-height:36px;padding:0 var(--sg-space-2);color:var(--sg-text-secondary);font-weight:700}
+.qol-breadcrumbs button:hover{background:var(--sg-surface-hover);color:var(--sg-text)}
+.qol-breadcrumbs [aria-current="page"]{color:var(--sg-text);font-weight:800}
+.qol-breadcrumb-sep{color:var(--sg-text-muted)}
+
+/* Fight navigation and filters stay aligned instead of collapsing into a toolbar soup. */
+.qol-fight-nav{gap:var(--sg-space-2);min-height:var(--sg-control-h)}
+.qol-fight-nav-main{gap:var(--sg-space-2)}
+.qol-action-button{padding-inline:var(--sg-space-3)}
+.qol-filter-toggle[aria-pressed="true"]{font-weight:750}
+
+/* Information banners are readable and constrained. */
+.verification-strip,.qol-delta,.rotation-help,.panel-note,.qol-event-status{padding:var(--sg-space-3) var(--sg-space-4)}
+.verification-strip>*,.qol-delta>*,.rotation-help>*{max-width:var(--sg-content-measure)}
+.verification-strip{line-height:1.45}
+
+/* Tables: readable rows, sticky headers where scrolling is expected, and stronger metadata. */
+.table-wrap{border-radius:8px;overflow:auto}
+table{line-height:1.4}
+th{height:40px;padding:var(--sg-space-2) var(--sg-space-3);color:var(--sg-text-secondary);font-size:11px;font-weight:750;letter-spacing:.025em;text-transform:none}
+td{min-height:var(--sg-row-h);padding:10px var(--sg-space-3);color:var(--sg-text-secondary);vertical-align:middle}
+td strong,td.num{color:var(--sg-text)}
+.qol-sticky-table thead th,.power-popup-table-wrap thead th{position:sticky;top:0;z-index:3;background:var(--sg-surface-muted);box-shadow:0 1px 0 var(--sg-border)}
+
+/* Power/player rows use a stable value grid and more breathing room. */
+.player-overview-panel .analysis-bar-row,.boss-grid .analysis-bar-row{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:var(--sg-space-3);align-items:center}
+.player-overview-panel .analysis-bar-track,.boss-grid .analysis-bar-track{grid-column:1/-1;width:100%}
+.qol-player-menu{padding:var(--sg-space-2)}
+.qol-player-menu button{padding:0 var(--sg-space-3)}
+
+/* Team debuffs: separate effects visually and prevent counts from running into labels. */
+.boss-effect-list,.boss-effect-sources,.debuff-list,.debuff-source-list{display:grid;gap:var(--sg-space-2)}
+.boss-effect-card,.boss-effect-row,.debuff-card,.debuff-row{padding:var(--sg-space-3) var(--sg-space-4);border:1px solid var(--sg-border);border-radius:9px;background:var(--sg-surface)}
+.boss-effect-card header,.debuff-card header,.boss-effect-row header,.debuff-row header{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sg-space-3)}
+.boss-effect-card small,.debuff-card small,.boss-effect-row small,.debuff-row small{color:var(--sg-text-secondary);line-height:1.45}
+
+/* Event finder: form fields and action area read as one system. */
+.qol-event-finder-form{gap:var(--sg-space-3);padding:var(--sg-space-4)}
+.qol-event-checks{gap:var(--sg-space-2)}
+.qol-event-check{min-height:var(--sg-control-h);padding:0 var(--sg-space-3);border-color:var(--sg-border-strong);color:var(--sg-text-secondary)}
+.qol-event-results{padding:0 var(--sg-space-4) var(--sg-space-4)}
+.qol-event-power{min-height:32px;color:var(--sg-primary);font-weight:750}
+
+/* Insight strip and cards should scan, not shout. */
+.qol-matters .panel-head{padding:var(--sg-space-3) var(--sg-space-4)}
+.qol-matters .qol-insights{gap:1px}
+.qol-matters .qol-insight{min-height:96px;padding:var(--sg-space-3) var(--sg-space-4)}
+.qol-insight>span,.qol-insight>small{color:var(--sg-text-secondary)}
+.qol-insight strong{margin:var(--sg-space-1) 0;color:var(--sg-text)}
+
+/* Dialogs and menus keep comfortable edge spacing and 44px actions. */
+.qol-modal-head,.sg-settings-head{padding:var(--sg-space-4)}
+.qol-modal-body,.sg-settings-body{padding:var(--sg-space-4)}
+.qol-command-search{padding:var(--sg-space-3)}
+.qol-command-list{padding:var(--sg-space-2)}
+.power-popup-head,.power-popup-meta,.power-popup-summary,.power-popup-status,.power-popup-foot{padding-left:var(--sg-space-4);padding-right:var(--sg-space-4)}
+
+/* High-contrast mode also strengthens structural separation. */
+html[data-contrast="high"] .panel,
+html[data-contrast="high"] .metric-card,
+html[data-contrast="high"] .telemetry-card,
+html[data-contrast="high"] .compare-card,
+html[data-contrast="high"] .analysis-toolbar,
+html[data-contrast="high"] .qol-modal,
+html[data-contrast="high"] .sg-settings-dialog{border-color:var(--sg-border-strong)}
+html[data-contrast="high"] th,html[data-contrast="high"] .panel-head,html[data-contrast="high"] .panel-subsection{border-color:var(--sg-border-strong)}
+
+/* Dark mode: remove leftover light-only surfaces from newer QoL pieces. */
+html[data-theme="dark"] .qol-modal-head,
+html[data-theme="dark"] .power-popup-head,
+html[data-theme="dark"] .power-popup-meta,
+html[data-theme="dark"] .power-popup-foot{background:var(--sg-surface)}
+html[data-theme="dark"] .qol-event-check,
+html[data-theme="dark"] .qol-event-finder-form .field input,
+html[data-theme="dark"] .qol-event-finder-form .field select{background:var(--sg-surface-muted);color:var(--sg-text)}
+
+/* Density changes spacing without shrinking interaction targets. */
+html[data-density="compact"] .panel-body,html[data-density="compact"] .panel-subsection{padding:var(--sg-space-3)}
+html[data-density="compact"] td{padding-top:8px!important;padding-bottom:8px!important}
+html[data-density="comfortable"] .panel-body,html[data-density="comfortable"] .panel-subsection{padding:var(--sg-space-5)}
+html[data-density="comfortable"] td{padding-top:12px!important;padding-bottom:12px!important}
+html[data-density="comfortable"] .analysis-bars{gap:var(--sg-space-3)}
+
+/* Breakpoints tested by the release contract: 1440, 1024, 768 and 375. */
+@media(max-width:1024px){
+  .analysis-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .qol-fight-nav{grid-column:1/-1;flex-wrap:wrap}
+  .qol-fight-nav-status{flex-basis:100%;margin-left:0}
+  .metric-grid,.telemetry-grid{gap:var(--sg-space-2)}
+}
+@media(max-width:768px){
+  .main-stage{padding:var(--sg-space-3)}
+  .workspace-head{align-items:flex-start;gap:var(--sg-space-2)}
+  .analysis-toolbar{grid-template-columns:1fr;padding:var(--sg-space-2)}
+  .analysis-toolbar>*{grid-column:1}
+  .qol-fight-nav-main{width:100%}
+  .qol-fight-nav-main .qol-action-button{flex:1 1 auto}
+  .qol-event-finder-form{grid-template-columns:1fr;padding:var(--sg-space-3)}
+  .qol-event-results{padding:0 var(--sg-space-3) var(--sg-space-3)}
+  .panel-head{padding-inline:var(--sg-space-3)}
+  .panel-body,.panel-subsection{padding:var(--sg-space-3)}
+  .qol-modal-head,.qol-modal-body,.sg-settings-head,.sg-settings-body{padding:var(--sg-space-3)}
+  .qol-breadcrumbs{margin-bottom:var(--sg-space-2)}
+}
+@media(max-width:420px){
+  .main-stage{padding:10px}
+  .workspace-head h1{font-size:21px}
+  .qol-fight-nav-main{display:grid;grid-template-columns:44px 44px 1fr 1fr;gap:6px}
+  .qol-fight-nav-main [data-qol-all],.qol-fight-nav-main [data-qol-attempt]{grid-column:span 2}
+  .qol-fight-nav-main .qol-action-button{min-width:0;padding-inline:8px;font-size:11px}
+  .qol-breadcrumbs{font-size:11px}
+  th,td{padding-left:8px;padding-right:8px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important}
+}

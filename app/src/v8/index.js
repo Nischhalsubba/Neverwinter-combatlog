@@ -6,6 +6,7 @@ import './attempts.js';
 import './events.js';
 import './tables.js';
 import './command.js';
+import '../v14/ux-hardening.js';
 
 ensureQolStyles();
 ensureSkipLink();
