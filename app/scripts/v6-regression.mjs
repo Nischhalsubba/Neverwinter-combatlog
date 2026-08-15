@@ -9,11 +9,13 @@ const required = [
   'src/v6/dashboard-interactions.js',
   'src/v6/copy.js',
   'src/v6/drawer-copy.js',
-  'src/v12/runtime.js'
+  'src/v12/runtime.js',
+  'src/v18/control-fixes.css',
+  'src/v3/power-drilldown.js'
 ];
 for (const path of required) await access(path);
 
-const [index, dashboard, interactions, copy, drawerCopy, styles, components, stability, runtime] = await Promise.all([
+const [index, dashboard, interactions, copy, drawerCopy, styles, components, stability, runtime, controlFixes, bootstrap] = await Promise.all([
   readFile('index.html', 'utf8'),
   readFile('src/v6/dashboard.js', 'utf8'),
   readFile('src/v6/dashboard-interactions.js', 'utf8'),
@@ -22,7 +24,9 @@ const [index, dashboard, interactions, copy, drawerCopy, styles, components, sta
   readFile('src/v6/v6.css', 'utf8'),
   readFile('src/v6/components.css', 'utf8'),
   readFile('src/v6/stability.css', 'utf8'),
-  readFile('src/v12/runtime.js', 'utf8')
+  readFile('src/v12/runtime.js', 'utf8'),
+  readFile('src/v18/control-fixes.css', 'utf8'),
+  readFile('src/v3/power-drilldown.js', 'utf8')
 ]);
 const failures = [];
 
@@ -35,7 +39,7 @@ for (const eager of ['src/v6/dashboard.js','src/v6/dashboard-interactions.js','s
 for (const marker of ["import('../v6/dashboard.js')","import('../v6/dashboard-interactions.js')","import('../v6/drawer-copy.js')",'data-dashboard-customize']) {
   if (!runtime.includes(marker)) failures.push(`route runtime missing dashboard hook ${marker}`);
 }
-for (const marker of ['strikeglass.dashboard.v1','Customize layout','Add widget','Reset layout','data-v6-hide','data-v6-move','data-v6-toggle','data-v6-size','aria-modal','prefers-reduced-motion','strikeglass:view-rendered']) {
+for (const marker of ['strikeglass.dashboard.v1','Customize layout','Add widget','Reset layout','data-v6-hide','data-v6-move','data-v6-toggle','data-v6-size','aria-modal','prefers-reduced-motion','strikeglass:view-rendered','role="switch"','aria-checked']) {
   if (!dashboard.includes(marker)) failures.push(`dashboard missing ${marker}`);
 }
 if (/cdn\.jsdelivr\.net|gsap@/i.test(dashboard)) failures.push('dashboard must not load GSAP/CDN at runtime');
@@ -58,9 +62,27 @@ for (const marker of ['[data-v6-drag]{cursor:grab}', '.v6-widget-action', '@medi
 for (const marker of ['.v6-drawer-scrim{','opacity:1','.v6-widget-drawer{','transform:translateX(0)','.v6-data-guide','@media(prefers-reduced-motion:reduce)']) if (!stability.includes(marker)) failures.push(`V6 stability styles missing ${marker}`);
 if (/\.v6-drawer-scrim[\s\S]*?backdrop-filter\s*:\s*blur\(/i.test(styles + stability)) failures.push('Widget drawer scrim must remain blur-free.');
 
+for (const marker of [
+  'input[type="checkbox"]',
+  'input[type="radio"]',
+  'button[role="switch"].v6-widget-toggle',
+  '--sg-switch-track-w:42px',
+  '--sg-switch-track-h:24px',
+  'min-inline-size:44px',
+  'min-block-size:44px',
+  'aria-checked="true"',
+  'background:transparent'
+]) {
+  if (!controlFixes.includes(marker)) failures.push(`form-control repair missing ${marker}`);
+}
+for (const marker of ['../v18/control-fixes.css','data-strikeglass-control-fixes','strikeglassControlFixes']) {
+  if (!bootstrap.includes(marker)) failures.push(`control repair bootstrap missing ${marker}`);
+}
+if (/button\[role="switch"\]\.v6-widget-toggle\s*\{[^}]*height\s*:\s*24px/i.test(controlFixes)) failures.push('Switch hit target must not collapse to the 24px visual track.');
+
 if (failures.length) {
   console.error('V6 regression failed:');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log('V6 regression passed. Customizable Overview remains available on demand with accessible controls, plain-language copy, lifecycle-driven refresh, and no persistent DOM observers or runtime animation CDN.');
+console.log('V6 regression passed. Customizable Overview remains available on demand with accessible controls, plain-language copy, lifecycle-driven refresh, stable 44px switch targets, and no persistent DOM observers or runtime animation CDN.');
