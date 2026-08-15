@@ -11,5 +11,6 @@ obj/
 *.db
 *.sqlite
 *.sqlite3
+vendor/
 apps/desktop/src-tauri/gen/
 apps/desktop/src-tauri/target/

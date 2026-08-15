@@ -10,3 +10,6 @@ if (!document.querySelector('link[data-strikeglass-fluid-layout]')) {
 
 // Heavy analysis features are loaded on demand by the v12 runtime.
 await import('../v12/runtime.js');
+
+// Graph Studio augments plotted and timeline visuals only; it does not own combat data.
+await import('../v16/visual-studio.js');
