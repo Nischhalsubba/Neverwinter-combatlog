@@ -7,7 +7,7 @@ const layout = read('src/v15/fluid-desktop.css');
 const legacy = read('src/v6/v6.css');
 
 assert.match(bootstrap, /v15\/fluid-desktop\.css/);
-assert.match(bootstrap, /data-strikeglass-fluid-layout/);
+assert.match(bootstrap, /dataset\.strikeglassFluidLayout/);
 assert.ok(bootstrap.indexOf('fluid-desktop.css') < bootstrap.indexOf("v12/runtime.js"), 'fluid layout must be requested before route-aware analysis runtime');
 
 assert.match(legacy, /\.empty-state,\.parse-state,\.workspace\{max-width:1600px\}/, 'fixture should retain the legacy cap this layer overrides');
