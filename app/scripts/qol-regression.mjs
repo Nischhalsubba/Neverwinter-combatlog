@@ -81,6 +81,23 @@ assert.match(css, /max-width:768px/);
 assert.match(css, /prefers-reduced-motion:reduce/);
 assert.match(css, /qol-sticky-table/);
 
+const controlFixes = read('src/v18/control-fixes.css');
+for (const marker of [
+  '.qol-event-finder .qol-event-checks .button[type="submit"]',
+  'block-size:44px',
+  'max-block-size:44px',
+  'display:inline-flex',
+  'gap:8px',
+  '.qol-event-finder .qol-event-checks .button[type="submit"] svg',
+  'inline-size:16px',
+  'block-size:16px',
+  'fill:none',
+  'stroke:currentColor'
+]) {
+  assert.ok(controlFixes.includes(marker), `event-search control repair missing ${marker}`);
+}
+assert.doesNotMatch(controlFixes, /\.qol-event-finder[\s\S]*?button\[type="submit"\][^{]*\{[^}]*block-size\s*:\s*(?:1[5-9]\d|[2-9]\d{2,})px/i, 'Search events button must not inherit an oversized SVG-driven height');
+
 const parser = read('src/engine/fast-parser-core.js');
 const verification = read('src/engine/verification-engine.js');
 assert.ok(parser.includes("CANONICAL_DAMAGE_TYPES = new Set(['physical'])"), 'QoL release must retain the canonical damage contract');
