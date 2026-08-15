@@ -13,3 +13,6 @@ await import('../v12/runtime.js');
 
 // Graph Studio augments plotted and timeline visuals only; it does not own combat data.
 await import('../v16/visual-studio.js');
+
+// The v17 visual-analysis workspace adds synchronized exploration on top of verified reports.
+await import('../v17/index.js');
