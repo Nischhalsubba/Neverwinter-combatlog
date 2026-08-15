@@ -2,6 +2,8 @@ const root = document.getElementById('view-root');
 let scanFrame = 0;
 let expandedPanel = null;
 
+const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
+
 function ensureStyle() {
   if (document.querySelector('link[data-chart-studio-style]')) return;
   const link = document.createElement('link');
@@ -64,9 +66,14 @@ function enhancePowerTimeline(panel) {
   if (!panel || panel.dataset.sgGraphStudio === 'true') return;
   const baseToolbar = panel.querySelector('[data-pt-toolbar]');
   if (!baseToolbar) {
-    requestAnimationFrame(scheduleScan);
+    const tries = Number(panel.dataset.sgGraphStudioWait || 0);
+    if (tries < 30) {
+      panel.dataset.sgGraphStudioWait = String(tries + 1);
+      setTimeout(scheduleScan, 100);
+    }
     return;
   }
+  delete panel.dataset.sgGraphStudioWait;
   const items = lanes(panel).map(laneIdentity);
   if (!items.length) return;
   panel.dataset.sgGraphStudio = 'true';
@@ -74,7 +81,7 @@ function enhancePowerTimeline(panel) {
   panel.setAttribute('aria-label', 'Fight Timeline graph. Use the timeline controls to zoom, pan, focus a player, change contrast, or expand the visual.');
   const studio = document.createElement('div');
   studio.className = 'sg-pt-studio';
-  studio.innerHTML = `<label class="sg-pt-focus"><span>Focus player</span><select data-sg-pt-focus aria-label="Focus one player timeline"><option value="">All players</option>${items.map(item => `<option value="${item.ref.replace(/"/g, '&quot;')}">${item.name.replace(/</g, '&lt;')}</option>`).join('')}</select></label>${control('reset','Reset timeline view','M4 7v5h5M5.2 16a8 8 0 1 0 .4-8.6L4 9')}${control('contrast','High contrast timeline','M12 4a8 8 0 1 0 0 16V4z',false)}${control('expand','Expand timeline','M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5',false)}`;
+  studio.innerHTML = `<label class="sg-pt-focus"><span>Focus player</span><select data-sg-pt-focus aria-label="Focus one player timeline"><option value="">All players</option>${items.map(item => `<option value="${esc(item.ref)}">${esc(item.name)}</option>`).join('')}</select></label>${control('reset','Reset timeline view','M4 7v5h5M5.2 16a8 8 0 1 0 .4-8.6L4 9')}${control('contrast','High contrast timeline','M12 4a8 8 0 1 0 0 16V4z',false)}${control('expand','Expand timeline','M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5',false)}`;
   baseToolbar.append(studio);
   studio.querySelector('[data-sg-pt-focus]')?.addEventListener('change', event => applyFocus(panel, event.target.value));
   studio.addEventListener('click', event => {
