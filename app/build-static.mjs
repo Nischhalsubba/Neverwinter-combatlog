@@ -2,7 +2,8 @@ import { cp, mkdir, rm } from 'node:fs/promises';
 
 const copyTargets = [
   ['index.html', 'public/index.html'],
-  ['src', 'public/src']
+  ['src', 'public/src'],
+  ['vendor', 'public/vendor']
 ];
 
 await rm('public', { recursive: true, force: true });
