@@ -1,0 +1,203 @@
+/* Fluid desktop and ultrawide layout contract.
+   Data surfaces may use the display; long-form text keeps a readable measure. */
+:root{
+  --sg-workspace-max:3200px;
+  --sg-page-gutter:clamp(16px,1.15vw,32px);
+  --sg-wide-text:76ch;
+}
+
+/* The legacy shell centered a 1540/1600px workspace. Keep data views left-anchored
+   to the navigation rail and let them grow with the usable viewport instead. */
+.main-stage{
+  padding-inline:var(--sg-page-gutter);
+}
+.workspace{
+  width:min(100%,var(--sg-workspace-max));
+  max-width:var(--sg-workspace-max);
+  margin-inline:0 auto;
+}
+.view-root,
+.section-grid,
+.v6-dashboard-grid,
+.v6-widget,
+.v6-widget-content,
+.panel,
+.table-wrap{
+  min-width:0;
+}
+
+/* Upload and parse screens are intentionally calmer than data-heavy analysis. */
+.empty-state,
+.parse-state{
+  width:min(100%,1800px);
+  max-width:1800px;
+}
+
+/* Tables and timelines should use available width instead of inheriting a narrow
+   content column. Horizontal overflow remains local on genuinely wide tables. */
+.table-wrap{
+  width:100%;
+  max-width:100%;
+}
+table{
+  width:100%;
+}
+.chart-panel,
+.chart-host,
+.rotation-shell,
+.rotation-stage,
+.power-timing-shell,
+.power-timing-viewport{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+}
+
+/* Text should not become a 200-character line merely because the data table can. */
+.brand-promise,
+.panel-note,
+.rotation-help,
+.qol-delta,
+.qol-event-status,
+.sg-settings-head p,
+.v6-dashboard-toolbar-copy span{
+  max-width:var(--sg-wide-text);
+}
+
+/* Keep dense controls aligned on normal desktop widths before the ultrawide tiers. */
+@media(min-width:1440px){
+  .analysis-toolbar{
+    grid-template-columns:minmax(280px,1.35fr) minmax(220px,.85fr) auto minmax(220px,.8fr);
+  }
+  .comparison-cards{
+    grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  }
+  .diagnostic-grid{
+    grid-template-columns:minmax(300px,.45fr) minmax(0,1.55fr);
+  }
+  .overview-grid{
+    grid-template-columns:minmax(0,1.7fr) minmax(360px,.7fr);
+  }
+  .boss-grid{
+    grid-template-columns:minmax(0,1.7fr) minmax(360px,.65fr);
+  }
+}
+
+/* Wide desktop: use the available canvas and stop rendering laptop-sized type on
+   a large monitor. This changes typography and geometry, never combat values. */
+@media(min-width:1600px){
+  :root{
+    --sidebar:268px;
+    --sg-page-gutter:24px;
+  }
+  body{font-size:15px}
+  .main-stage{padding-top:18px;padding-bottom:36px}
+  .workspace-head{min-height:52px}
+  .workspace-head h1{font-size:25px}
+  .topbar-title strong{font-size:13.5px}
+  .topbar-title span,.topbar-status{font-size:12.5px}
+
+  .nav-item{min-height:58px;padding:7px 10px}
+  .nav-copy strong{font-size:13px}
+  .nav-copy small{font-size:10.5px;line-height:1.3}
+  .nav-section-label{font-size:9.5px}
+
+  .panel-head h2{font-size:14.5px}
+  .v6-widget-title strong{font-size:14.5px}
+  .v6-widget-title span{font-size:11.5px}
+  .v6-dashboard-toolbar-copy strong{font-size:14px}
+  .v6-dashboard-toolbar-copy span{font-size:12.5px}
+
+  .field>span,.scope-readout>span,.check-field>span{font-size:9.5px}
+  .field select,.scope-readout strong{font-size:12px}
+  th{font-size:11.5px}
+  td,table{font-size:13.5px}
+
+  .comparison-cards{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .qol-modal{width:min(1240px,calc(100vw - 64px))}
+  body.power-drilldown-open .raw-hits-panel{width:min(1420px,calc(100vw - 64px))}
+  .v6-widget-drawer{width:min(400px,100vw)}
+}
+
+/* 1080p/1440p wide monitors: the old 1600px cap was most visible here. */
+@media(min-width:1920px){
+  :root{
+    --sidebar:276px;
+    --sg-page-gutter:28px;
+  }
+  .main-stage{padding-top:20px;padding-bottom:40px}
+  .analysis-toolbar{
+    grid-template-columns:minmax(340px,1.45fr) minmax(260px,.85fr) auto minmax(260px,.8fr);
+    gap:12px;
+  }
+  .qol-fight-nav{gap:10px}
+  .metrics,.reference-metrics{gap:12px}
+  .v6-dashboard-grid{gap:14px}
+  .v6-dashboard-toolbar{padding:10px 12px;margin-bottom:12px}
+  .v6-widget-head{padding:9px 12px}
+  .v6-widget-content>.panel-subsection{padding:16px}
+
+  .overview-grid{grid-template-columns:minmax(0,1.8fr) minmax(420px,.65fr)}
+  .boss-grid{grid-template-columns:minmax(0,1.82fr) minmax(420px,.62fr)}
+  .diagnostic-grid{grid-template-columns:minmax(340px,.42fr) minmax(0,1.58fr)}
+  .comparison-cards{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+
+  .qol-modal{width:min(1360px,calc(100vw - 80px))}
+  body.power-drilldown-open .raw-hits-panel{width:min(1540px,calc(100vw - 80px))}
+  .v6-widget-drawer{width:min(420px,100vw)}
+}
+
+/* QHD / 2560-wide screens: preserve density while increasing legibility. */
+@media(min-width:2560px){
+  :root{
+    --sidebar:288px;
+    --sg-page-gutter:32px;
+  }
+  body{font-size:15.5px}
+  .nav-item{min-height:60px}
+  .nav-copy strong{font-size:13.5px}
+  .nav-copy small{font-size:11px}
+  .nav-section-label{font-size:10px}
+  .workspace-head h1{font-size:27px}
+  .panel-head h2,.v6-widget-title strong{font-size:15px}
+  .field select,.scope-readout strong{font-size:12.5px}
+  th{font-size:12px}
+  td,table{font-size:14px}
+
+  .analysis-toolbar{
+    grid-template-columns:minmax(420px,1.5fr) minmax(300px,.8fr) auto minmax(300px,.75fr);
+  }
+  .comparison-cards{grid-template-columns:repeat(auto-fit,minmax(310px,1fr))}
+  .qol-modal{width:min(1480px,calc(100vw - 96px))}
+  body.power-drilldown-open .raw-hits-panel{width:min(1680px,calc(100vw - 96px))}
+}
+
+/* Very large displays keep a sane ceiling, but the ceiling is high enough for
+   data-dense work. Any unused width stays to the right rather than splitting
+   into giant gutters that detach content from the sidebar. */
+@media(min-width:3440px){
+  :root{
+    --sidebar:296px;
+    --sg-page-gutter:36px;
+  }
+  .workspace{width:min(100%,3200px)}
+  .analysis-toolbar{
+    grid-template-columns:minmax(480px,1.55fr) minmax(340px,.8fr) auto minmax(340px,.75fr);
+  }
+  .comparison-cards{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+}
+
+/* Large-screen height should not trap ordinary overview data in a tiny nested
+   scroller. Keep the long-table cap generous while preserving it for Raw Events. */
+@media(min-width:1600px) and (min-height:900px){
+  .qol-sticky-table .table-wrap{max-height:min(76vh,980px)}
+}
+@media(min-width:1920px) and (min-height:1200px){
+  .qol-sticky-table .table-wrap{max-height:min(80vh,1180px)}
+}
+
+/* Existing tablet/mobile behavior remains authoritative below the desktop tier. */
+@media(max-width:1200px){
+  .workspace{width:100%;max-width:none;margin-inline:0}
+  .empty-state,.parse-state{width:100%;max-width:none}
+}
