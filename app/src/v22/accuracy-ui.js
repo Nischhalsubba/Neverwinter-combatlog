@@ -178,6 +178,21 @@ function reportValue(report, player, source) {
   return value;
 }
 
+function checkedFieldsSummary(verification) {
+  const value = verification?.checkedFields ?? verification?.arithmetic?.checkedFields;
+  if (Array.isArray(value)) {
+    const labels = value.slice(0, 10).map(item => String(item)).filter(Boolean);
+    return labels.join(', ') || 'core combat totals and clocks';
+  }
+  const count = Number(value);
+  if (Number.isFinite(count) && count > 0) return `${count.toLocaleString()} report values`;
+  if (value && typeof value === 'object') {
+    const labels = Object.keys(value).slice(0, 10);
+    if (labels.length) return labels.join(', ');
+  }
+  return 'core combat totals and clocks';
+}
+
 async function showMetricEvidence(card, label) {
   const dialog = ensureEvidenceDialog();
   const body = dialog.querySelector('[data-sg-accuracy-body]');
@@ -194,7 +209,7 @@ async function showMetricEvidence(card, label) {
     const displayed = card.querySelector('strong')?.textContent?.trim() || '—';
     const sourceValue = reportValue(report, player, definition.source);
     const state = definition.state === 'inferred' ? 'inferred' : verification.status === 'verified' ? definition.state : 'partial';
-    const checked = (verification.checkedFields || []).slice(0, 10).join(', ') || 'core combat totals and clocks';
+    const checked = checkedFieldsSummary(verification);
     body.innerHTML = `
       <div class="sg-accuracy-evidence-summary">${statePill(state)}<strong>${esc(displayed)}</strong><span>${esc(selected)}</span></div>
       <dl class="sg-accuracy-evidence-list">
@@ -203,7 +218,7 @@ async function showMetricEvidence(card, label) {
         <div><dt>Scope</dt><dd>${esc(selected)}</dd></div>
         <div><dt>Calculation check</dt><dd>${verification.status === 'verified' ? 'Independent arithmetic check matched.' : esc(verification.status || 'Unavailable')}</dd></div>
         <div><dt>Verifier</dt><dd>${esc(verification.engine || 'shadow verifier')}</dd></div>
-        <div><dt>Checked fields</dt><dd>${esc(checked)}</dd></div>
+        <div><dt>Checked values</dt><dd>${esc(checked)}</dd></div>
         ${verification.checksum ? `<div><dt>Evidence checksum</dt><dd><code>${esc(String(verification.checksum))}</code></dd></div>` : ''}
       </dl>
       <p class="sg-accuracy-help">${esc((ACCURACY_STATES[state] || ACCURACY_STATES.unknown)[1])}</p>`;
