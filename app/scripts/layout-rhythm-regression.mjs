@@ -5,6 +5,7 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 const bootstrap = read('src/v3/power-drilldown.js');
 const layout = read('src/v20/layout-rhythm.css');
 const overview = read('src/v20/overview-layout.js');
+const lifecycle = read('src/v28/route-lifecycle.js');
 const parser = read('src/engine/fast-parser-core.js');
 const verification = read('src/engine/verification-engine.js');
 
@@ -43,11 +44,14 @@ for (const marker of [
   "encounter?.type === 'boss'",
   "bossEncountersFromSelect",
   "All ${Math.max(0, totalFightCount)} fights",
-  "strikeglass:dashboard-ready",
-  "strikeglass:view-rendered"
+  "registerRouteEnhancer('overview-layout'",
+  "dashboard-ready",
+  "view-rendered"
 ]) {
   assert.ok(overview.includes(marker), `compact Overview contract missing ${marker}`);
 }
+assert.ok(lifecycle.includes("document.addEventListener('strikeglass:dashboard-ready'"), 'shared lifecycle owner must subscribe to dashboard-ready');
+assert.ok(lifecycle.includes("document.addEventListener('strikeglass:view-rendered'"), 'shared lifecycle owner must subscribe to view-rendered');
 assert.doesNotMatch(overview, /MutationObserver/);
 assert.doesNotMatch(overview, /fast-parser|verification-engine|effect-intelligence-engine|scoped-combat-clock/);
 
