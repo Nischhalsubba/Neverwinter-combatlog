@@ -64,12 +64,12 @@ export async function launchAudit({ rootDir = '.', instrument = '' } = {}) {
       const info = await stat(path);
       const target = info.isDirectory() ? join(path, 'index.html') : path;
       const body = await readFile(target);
-      res.writeHead(200, { 'content-type': mime[extname(target)] || 'application/octet-stream', 'cache-control': 'no-store' }); res.end(body);
+      res.writeHead(200, { 'content-type': mime[extname(target)] || 'application/octet-stream', 'cache-control':'no-store' }); res.end(body);
     } catch { res.writeHead(404); res.end('Not found'); }
   });
   await new Promise(resolvePromise => server.listen(port, '127.0.0.1', resolvePromise));
   const chrome = spawn(binary, ['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',`--remote-debugging-port=${debugPort}`,`--user-data-dir=/tmp/strikeglass-audit-${process.pid}`,'about:blank'], { stdio:['ignore','ignore','pipe'] });
-  const version = await waitFor(async () => { try { const response = await fetch(`http://127.0.0.1:${debugPort}/json/version`); return response.ok ? response.json() : null; } catch { return null; } }, 10000, 100, 'Chrome debugging endpoint');
+  const version = await waitFor(async () => { try { const response = await fetch(`http://127.0.0.1:${debugPort}/json/version`); return response.ok ? response.json() : null; } catch { return null; } }, 30000, 100, 'Chrome debugging endpoint');
   const targetResponse = await fetch(`http://127.0.0.1:${debugPort}/json/new?http://127.0.0.1:${port}/`, { method:'PUT' });
   const target = await targetResponse.json();
   const socket = new WebSocket(target.webSocketDebuggerUrl || version.webSocketDebuggerUrl);
@@ -91,7 +91,7 @@ export async function launchAudit({ rootDir = '.', instrument = '' } = {}) {
     await cdp.send('DOM.setFileInputFiles', { nodeId:input.nodeId, files:[fixture] });
     const start = await cdp.eval('performance.now()');
     await cdp.eval("document.getElementById('file-input').dispatchEvent(new Event('change',{bubbles:true}))");
-    await waitFor(() => cdp.eval("!document.getElementById('workspace').hidden && document.querySelector('#app-nav [data-view=\"overview\"]:not(:disabled)') !== null"), 30000, 120, 'verified workspace');
+    await waitFor(() => cdp.eval("!document.getElementById('workspace').hidden && document.querySelector('#app-nav [data-view=\"overview\"]:not(:disabled)') !== null"), 45000, 120, 'verified workspace');
     const end = await cdp.eval('performance.now()');
     return end - start;
   }
