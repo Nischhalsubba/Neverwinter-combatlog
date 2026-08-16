@@ -28,3 +28,5 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Run parser tests and build
         run: pnpm check
+      - name: Run browser upload smoke
+        run: pnpm test:browser
