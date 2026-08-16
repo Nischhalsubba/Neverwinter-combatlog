@@ -11,6 +11,7 @@ import '../v22/accuracy-ui.js';
 import '../v23/semantic-guidance.js';
 import '../v24/evidence-coverage.js';
 import '../v25/entity-evidence.js';
+import '../v26/accuracy-finalization.js';
 
 ensureQolStyles();
 ensureSkipLink();
