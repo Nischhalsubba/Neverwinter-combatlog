@@ -42,6 +42,7 @@ export function verifyReport(primary, rows, context = {}, onProgress = null) {
     ok,
     status: !arithmetic.ok ? 'mismatch' : classification.mismatches.length ? 'classification-mismatch' : 'verified',
     engine: 'shadow-verifier-v2',
+    evidenceStatus: !arithmetic.ok ? 'arithmetic-mismatch' : classification.mismatches.length ? 'classification-mismatch' : classification.unresolved ? 'verified-arithmetic-partial-classification' : 'verified-arithmetic-and-classification',
     arithmetic: {
       ok: Boolean(arithmetic.ok),
       engine: arithmetic.engine,
@@ -76,13 +77,15 @@ export function verifyRotationReport(primary, rows, context = {}, onProgress = n
   const directEvidence = verifyDirectRotationMarkers(primary, markers);
   onProgress?.(1);
   const ok = Boolean(consistency.ok) && Boolean(directEvidence.ok);
+  const evidenceStatus = !consistency.ok ? 'consistency-mismatch'
+    : !directEvidence.ok ? 'direct-evidence-mismatch'
+    : directEvidence.markers ? 'verified-direct-evidence'
+    : 'consistent-inferred';
   return {
     ...consistency,
     ok,
-    status: !consistency.ok ? 'mismatch'
-      : !directEvidence.ok ? 'direct-evidence-mismatch'
-      : directEvidence.markers ? 'verified-direct-evidence'
-      : 'consistent-inferred',
+    status: ok ? 'verified' : 'mismatch',
+    evidenceStatus,
     engine: 'rotation-verifier-v2',
     consistency: {
       ok: Boolean(consistency.ok),
