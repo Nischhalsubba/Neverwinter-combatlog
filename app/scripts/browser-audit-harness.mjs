@@ -46,6 +46,22 @@ class Cdp {
   }
 }
 
+function auditBrowserErrors(cdp) {
+  return cdp.events.flatMap(event => {
+    if (event.method === 'Runtime.exceptionThrown') return [event.params?.exceptionDetails?.exception?.description || event.params?.exceptionDetails?.text || 'Runtime exception'];
+    if (event.method === 'Log.entryAdded' && event.params?.entry?.level === 'error') return [event.params.entry.text || 'Browser log error'];
+    return [];
+  }).filter(text => !/ResizeObserver loop/i.test(text));
+}
+
+function auditNetworkFailures(cdp) {
+  return cdp.events.flatMap(event => {
+    if (event.method === 'Network.loadingFailed') return [{ type:'loadingFailed', url:event.params?.requestId || '', error:event.params?.errorText || '', blockedReason:event.params?.blockedReason || '' }];
+    if (event.method === 'Network.responseReceived' && Number(event.params?.response?.status || 0) >= 400) return [{ type:'http', url:event.params?.response?.url || '', status:event.params.response.status }];
+    return [];
+  }).slice(-30);
+}
+
 export async function launchAudit({ rootDir = '.', instrument = '' } = {}) {
   const binary = chromeBinary();
   if (!binary) {
@@ -64,12 +80,12 @@ export async function launchAudit({ rootDir = '.', instrument = '' } = {}) {
       const info = await stat(path);
       const target = info.isDirectory() ? join(path, 'index.html') : path;
       const body = await readFile(target);
-      res.writeHead(200, { 'content-type': mime[extname(target)] || 'application/octet-stream', 'cache-control': 'no-store' }); res.end(body);
+      res.writeHead(200, { 'content-type': mime[extname(target)] || 'application/octet-stream', 'cache-control':'no-store' }); res.end(body);
     } catch { res.writeHead(404); res.end('Not found'); }
   });
   await new Promise(resolvePromise => server.listen(port, '127.0.0.1', resolvePromise));
   const chrome = spawn(binary, ['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',`--remote-debugging-port=${debugPort}`,`--user-data-dir=/tmp/strikeglass-audit-${process.pid}`,'about:blank'], { stdio:['ignore','ignore','pipe'] });
-  const version = await waitFor(async () => { try { const response = await fetch(`http://127.0.0.1:${debugPort}/json/version`); return response.ok ? response.json() : null; } catch { return null; } }, 10000, 100, 'Chrome debugging endpoint');
+  const version = await waitFor(async () => { try { const response = await fetch(`http://127.0.0.1:${debugPort}/json/version`); return response.ok ? response.json() : null; } catch { return null; } }, 30000, 100, 'Chrome debugging endpoint');
   const targetResponse = await fetch(`http://127.0.0.1:${debugPort}/json/new?http://127.0.0.1:${port}/`, { method:'PUT' });
   const target = await targetResponse.json();
   const socket = new WebSocket(target.webSocketDebuggerUrl || version.webSocketDebuggerUrl);
@@ -82,6 +98,38 @@ export async function launchAudit({ rootDir = '.', instrument = '' } = {}) {
   await writeFile(fixture, REALSHAPE_LOG, 'utf8');
   const origin = `http://127.0.0.1:${port}`;
 
+  async function captureReadinessFailure(error, start) {
+    let state = null;
+    try {
+      state = await cdp.eval(`(() => ({
+        elapsedMs: Math.round(performance.now() - ${Number(start) || 0}),
+        readyState: document.readyState,
+        location: location.href,
+        workspaceHidden: document.getElementById('workspace')?.hidden ?? null,
+        statusText: document.getElementById('status-text')?.textContent?.trim() || '',
+        topbarStatus: document.getElementById('topbar-status')?.textContent?.trim() || '',
+        taskText: document.getElementById('task-text')?.textContent?.trim() || '',
+        taskProgress: document.getElementById('task-progress')?.value ?? null,
+        activeView: document.querySelector('#app-nav [data-view].is-active')?.dataset?.view || '',
+        overviewDisabled: document.querySelector('#app-nav [data-view="overview"]')?.disabled ?? null,
+        blockedText: document.querySelector('.verification-blocked')?.innerText?.trim()?.slice(0,2000) || '',
+        viewText: document.getElementById('view-root')?.innerText?.trim()?.slice(0,3000) || '',
+        nav: [...document.querySelectorAll('#app-nav [data-view]')].map(button => ({ view:button.dataset.view || '', disabled:Boolean(button.disabled), active:button.classList.contains('is-active') }))
+      }))()`);
+    } catch (snapshotError) {
+      state = { snapshotError: snapshotError.message };
+    }
+    const diagnostic = {
+      error: error?.message || String(error),
+      state,
+      browserErrors: auditBrowserErrors(cdp),
+      networkFailures: auditNetworkFailures(cdp)
+    };
+    await mkdir('test-artifacts/browser', { recursive:true });
+    await writeFile('test-artifacts/browser/privacy-readiness-failure.json', JSON.stringify(diagnostic, null, 2));
+    return diagnostic;
+  }
+
   async function navigateAndAnalyze() {
     await cdp.send('Page.navigate', { url:`${origin}/` });
     await waitFor(() => cdp.eval("document.readyState === 'complete'"), 10000, 100, 'Strikeglass document');
@@ -91,7 +139,12 @@ export async function launchAudit({ rootDir = '.', instrument = '' } = {}) {
     await cdp.send('DOM.setFileInputFiles', { nodeId:input.nodeId, files:[fixture] });
     const start = await cdp.eval('performance.now()');
     await cdp.eval("document.getElementById('file-input').dispatchEvent(new Event('change',{bubbles:true}))");
-    await waitFor(() => cdp.eval("!document.getElementById('workspace').hidden && document.querySelector('#app-nav [data-view=\"overview\"]:not(:disabled)') !== null"), 30000, 120, 'verified workspace');
+    try {
+      await waitFor(() => cdp.eval("!document.getElementById('workspace').hidden && document.querySelector('#app-nav [data-view=\"overview\"]:not(:disabled)') !== null"), 45000, 120, 'verified workspace');
+    } catch (error) {
+      const diagnostic = await captureReadinessFailure(error, start);
+      throw new Error(`${error.message}; privacy readiness state: ${JSON.stringify(diagnostic.state)}; browser errors: ${diagnostic.browserErrors.join(' | ') || 'none'}`);
+    }
     const end = await cdp.eval('performance.now()');
     return end - start;
   }
