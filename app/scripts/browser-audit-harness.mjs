@@ -133,6 +133,7 @@ export async function launchAudit({ rootDir = '.', instrument = '' } = {}) {
   async function navigateAndAnalyze() {
     await cdp.send('Page.navigate', { url:`${origin}/` });
     await waitFor(() => cdp.eval("document.readyState === 'complete'"), 10000, 100, 'Strikeglass document');
+    await waitFor(() => cdp.eval("document.getElementById('boss-target-field')?.hidden === true"), 10000, 50, 'Strikeglass app initialization');
     const documentNode = await cdp.send('DOM.getDocument', { depth:2 });
     const input = await cdp.send('DOM.querySelector', { nodeId:documentNode.root.nodeId, selector:'#file-input' });
     if (!input.nodeId) throw new Error('combat-log file input is missing');
