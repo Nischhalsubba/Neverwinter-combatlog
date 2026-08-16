@@ -1,0 +1,4 @@
+@media(max-width:768px){
+  .qol-breadcrumbs{min-height:44px}
+  .qol-breadcrumbs button,.qol-breadcrumbs [aria-current="page"]{min-height:44px;max-height:none;padding:0 10px}
+}
