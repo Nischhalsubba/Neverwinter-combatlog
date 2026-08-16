@@ -4,14 +4,39 @@ import { clearDebuffTimeline, scheduleDebuffTimeline } from './debuff-timeline.j
 import { bindTimelineSync } from './timeline-sync.js';
 import { clearAttemptVisuals, scheduleAttemptVisuals } from './attempt-visuals.js';
 import { resetScenes, scanScenes } from './scene-visuals.js';
+import { registerRouteEnhancer } from '../v28/route-lifecycle.js';
 
-let scheduled=0;
-function scan(){ensureStyle();scheduleGraphScan();scheduleDebuffTimeline();scheduleAttemptVisuals();bindTimelineSync().catch(()=>{});scanScenes();}
-function schedule(){if(scheduled)return;scheduled=requestAnimationFrame(()=>{scheduled=0;scan();});}
+let scheduled = 0;
+function scan() {
+  ensureStyle();
+  scheduleGraphScan();
+  scheduleDebuffTimeline();
+  scheduleAttemptVisuals();
+  bindTimelineSync().catch(() => {});
+  scanScenes();
+}
+function schedule() {
+  if (scheduled) return;
+  scheduled = requestAnimationFrame(() => {
+    scheduled = 0;
+    scan();
+  });
+}
 
-document.addEventListener('strikeglass:view-rendered',schedule);
-document.getElementById('app-nav')?.addEventListener('click',()=>setTimeout(schedule,0));
-document.getElementById('encounter-select')?.addEventListener('change',()=>{clearDebuffTimeline();clearAttemptVisuals();resetScenes();setTimeout(schedule,0);});
-window.addEventListener('strikeglass:worker-ready',()=>{clearVisualCaches();clearDebuffTimeline();clearAttemptVisuals();resetScenes();setTimeout(schedule,0);});
-new MutationObserver(schedule).observe(document.getElementById('view-root')||document.body,{childList:true,subtree:false});
-ensureStyle();scan();
+registerRouteEnhancer('visual-analysis-workspace', ({ reasons }) => {
+  if (reasons.includes('scope-change')) {
+    clearDebuffTimeline();
+    clearAttemptVisuals();
+    resetScenes();
+  }
+  if (reasons.includes('worker-ready') || reasons.includes('analysis-ready')) {
+    clearVisualCaches();
+    clearDebuffTimeline();
+    clearAttemptVisuals();
+    resetScenes();
+  }
+  schedule();
+});
+
+ensureStyle();
+scan();
