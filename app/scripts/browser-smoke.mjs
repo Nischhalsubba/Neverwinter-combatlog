@@ -183,7 +183,9 @@ try {
   const overviewGrid = await cdp.eval("(() => { const table=document.querySelector('#view-root table'); if(!table) return true; return table.getBoundingClientRect().width > Math.min(600, innerWidth*.55); })()");
   assert.equal(overviewGrid, true, 'Overview player table must remain full-width after route return');
 
-  // Overview customization must be reversible and keyboard dismissible.
+  // The customizable dashboard is intentionally lazy. Ask the product to load it before testing its interaction contract.
+  const requestedDashboard = await cdp.eval("(() => { const b=document.querySelector('[data-dashboard-customize]'); if(!b) return false; b.click(); return true; })()");
+  assert.equal(requestedDashboard, true, 'Overview must expose the on-demand Customize overview action');
   await waitFor(() => cdp.eval("document.querySelector('.v6-dashboard-grid') !== null"), 8000, 100, 'Overview dashboard enhancement');
   const openedDrawer = await cdp.eval("(() => { const b=document.querySelector('[data-v6-add]'); if(!b) return false; b.click(); return true; })()");
   assert.equal(openedDrawer, true, 'Overview widget drawer should open');
