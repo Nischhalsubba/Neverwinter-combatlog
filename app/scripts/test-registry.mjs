@@ -15,7 +15,7 @@ const groups = Object.freeze({
     'v6-regression.mjs','copy-regression.mjs','performance-regression.mjs','debuff-icon-regression.mjs','qol-regression.mjs',
     'encounter-icon-regression.mjs','power-timing-interaction-regression.mjs','settings-regression.mjs','ux-polish-regression.mjs',
     'wide-layout-regression.mjs','visualization-regression.mjs','visual-analysis-regression.mjs','layout-rhythm-regression.mjs',
-    'ui-coherence-regression.mjs','lifecycle-regression.mjs'
+    'ui-coherence-regression.mjs','lifecycle-regression.mjs','recovery-onboarding-regression.mjs'
   ]
 });
 

@@ -1,5 +1,6 @@
 import { nav, playerSelect } from '../v8/core.js';
 import { closeInvestigation, ensureCompositionShell } from './composition-shell.js';
+import './recovery-onboarding.js';
 import './trust-rail.js';
 import './evidence-drawer.js';
 import { openEvidenceMap } from './evidence-map.js';
