@@ -45,6 +45,7 @@ export function verifyReport(primary, rows, context = {}, onProgress = null) {
     arithmetic: {
       ok: Boolean(arithmetic.ok),
       engine: arithmetic.engine,
+      coreEngine: 'shadow-verifier-v1',
       checksum: arithmetic.checksum || '',
       checkedFields: arithmetic.checkedFields || 0
     },
