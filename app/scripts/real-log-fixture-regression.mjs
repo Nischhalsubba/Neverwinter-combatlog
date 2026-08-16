@@ -12,7 +12,7 @@ function near(actual, wanted, label, relative = 1e-9) {
 assert.equal(summary.rejected, expected.rejected, 'real-shape rejected row count');
 assert.equal(summary.validDamageRows, expected.validDamageRows, 'real-shape canonical damage row count');
 near(summary.damage, expected.group.damage, 'real-shape group damage');
-assert.equal(summary.hits, expected.group.hits, 'real-shape group hit count');
+assert.equal(summary.players.reduce((sum, player) => sum + (Number(player.hits) || 0), 0), expected.group.hits, 'real-shape group hit count');
 assert.equal(summary.encounters.length, expected.encounters.length, 'real-shape encounter count');
 
 for (let index = 0; index < expected.encounters.length; index += 1) {
