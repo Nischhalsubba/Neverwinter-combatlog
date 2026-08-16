@@ -1,0 +1,49 @@
+name: Refresh TypeScript 7 lockfile
+
+on:
+  push:
+    branches:
+      - dependabot/npm_and_yarn/app/typescript-7.0.2
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lockfile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: dependabot/npm_and_yarn/app/typescript-7.0.2
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Set up pnpm
+        uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+        with:
+          version: 11.22.0
+          install: false
+          package-json-file: app/package.json
+      - name: Refresh lockfile
+        working-directory: app
+        run: pnpm install --lockfile-only
+      - name: Audit refreshed dependency graph
+        working-directory: app
+        run: pnpm audit --audit-level low
+      - name: Commit refreshed lockfile
+        run: |
+          if git diff --quiet -- app/pnpm-lock.yaml; then
+            echo "Lockfile already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/pnpm-lock.yaml
+          git commit -m "chore(deps-dev): refresh TypeScript 7 lockfile"
+          git push origin HEAD:dependabot/npm_and_yarn/app/typescript-7.0.2
