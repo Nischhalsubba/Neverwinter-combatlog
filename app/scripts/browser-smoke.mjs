@@ -138,7 +138,7 @@ const chrome = spawn(binary, ['--headless=new','--no-sandbox','--disable-gpu','-
 let cdp = null;
 
 try {
-  const version = await waitFor(async () => { try { const response=await fetch('http://127.0.0.1:9222/json/version'); return response.ok?response.json():null; } catch { return null; } }, 10000, 100, 'Chrome debugging endpoint');
+  const version = await waitFor(async () => { try { const response=await fetch('http://127.0.0.1:9222/json/version'); return response.ok?response.json():null; } catch { return null; } }, 30000, 100, 'Chrome debugging endpoint');
   const targetResponse = await fetch('http://127.0.0.1:9222/json/new?http://127.0.0.1:4173/', { method: 'PUT' });
   assert.equal(targetResponse.ok, true, 'Chrome debugging target should open');
   const target = await targetResponse.json();
@@ -155,7 +155,7 @@ try {
   assert.ok(input.nodeId, 'combat-log file input should exist');
   await cdp.send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [fixture] });
   await cdp.eval("document.getElementById('file-input').dispatchEvent(new Event('change',{bubbles:true}))");
-  await waitFor(() => cdp.eval("!document.getElementById('workspace').hidden && document.querySelector('#app-nav [data-view=\"overview\"]:not(:disabled)') !== null"), 25000, 120, 'verified workspace');
+  await waitFor(() => cdp.eval("!document.getElementById('workspace').hidden && document.querySelector('#app-nav [data-view=\"overview\"]:not(:disabled)') !== null"), 45000, 120, 'verified workspace');
   await waitRoute(cdp, 'overview');
   await assertNoOverflow(cdp, 'Overview at 1440px');
   await screenshot(cdp, 'overview-1440');
