@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { parseText } from '../src/engine/fast-parser-core.js';
-import { verifyReport } from '../src/engine/verification-engine.js';
+import { buildShadowReport } from '../src/engine/verification-engine.js';
 import { FIXTURE as shortBoss, LOG as shortBossLog } from '../tests/fixtures/real-corpus/short-boss.mjs';
 import { FIXTURE as phasedBoss, LOG as phasedBossLog } from '../tests/fixtures/real-corpus/phased-boss.mjs';
 import { FIXTURE as companionHeavy, LOG as companionHeavyLog } from '../tests/fixtures/real-corpus/companion-heavy.mjs';
@@ -69,8 +69,18 @@ for (const [name, fixture, log] of corpus) {
   }
 
   if (summary.validDamageRows > 0) {
-    const verification = verifyReport(summary, parsed.rows);
-    assert.equal(verification.status, 'verified', `${name} must pass the independent arithmetic verifier: ${JSON.stringify(verification.mismatches)}`);
+    const shadow = buildShadowReport(parsed.rows, { scopeType: 'session', totalRows: parsed.rows.length });
+    near(shadow.damage, wanted.damage, `${name} shadow group damage`);
+    assert.equal(shadow.hits, wanted.hits, `${name} shadow group hits`);
+    if (wanted.combatDuration != null) nearTime(shadow.duration, wanted.combatDuration, `${name} shadow combat span`);
+    for (const [ref, expectedPlayer] of Object.entries(wanted.players || {})) {
+      const player = shadow.players.find(item => item.ref === ref);
+      assert.ok(player, `${name} shadow missing ${expectedPlayer.name}`);
+      near(player.damage, expectedPlayer.damage, `${name} shadow ${expectedPlayer.name} damage`);
+      assert.equal(player.hits, expectedPlayer.hits, `${name} shadow ${expectedPlayer.name} hits`);
+      nearTime(player.duration, expectedPlayer.duration, `${name} shadow ${expectedPlayer.name} elapsed time`);
+      near(player.companionDamage, expectedPlayer.companionDamage, `${name} shadow ${expectedPlayer.name} companion damage`);
+    }
   }
 }
 
