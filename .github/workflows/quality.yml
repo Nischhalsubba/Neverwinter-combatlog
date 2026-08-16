@@ -50,17 +50,22 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Run tests and build exact production artifact
-        run: pnpm check
+        run: |
+          mkdir -p test-artifacts/ci
+          set -o pipefail
+          pnpm check 2>&1 | tee test-artifacts/ci/check.log
       - name: Stage source manifest for legacy browser reliability server
         run: cp public/site.webmanifest site.webmanifest
       - name: Test source and exact production artifact in Chromium
         run: pnpm test:browser
-      - name: Upload browser diagnostics
+      - name: Upload failure diagnostics
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: strikeglass-browser-diagnostics
-          path: app/test-artifacts/browser
+          name: strikeglass-ci-diagnostics
+          path: |
+            app/test-artifacts/browser
+            app/test-artifacts/ci
           if-no-files-found: ignore
           retention-days: 7
       - name: Preserve tested production artifact
