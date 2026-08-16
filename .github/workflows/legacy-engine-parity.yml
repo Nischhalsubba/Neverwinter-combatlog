@@ -1,0 +1,54 @@
+name: Validate experimental engine parity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/apps/desktop/**'
+      - 'app/apps/windows/**'
+      - 'app/scripts/legacy-engine-parity-regression.mjs'
+      - 'app/docs/ENGINE_PARITY.md'
+      - 'app/tests/fixtures/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/apps/desktop/**'
+      - 'app/apps/windows/**'
+      - 'app/scripts/legacy-engine-parity-regression.mjs'
+      - 'app/docs/ENGINE_PARITY.md'
+      - 'app/tests/fixtures/**'
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-typescript:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@9.15.0 --activate
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Type-check browser-safe desktop runtime
+        run: pnpm --filter @nevercombat/desktop test
+
+  windows-dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Run Windows engine executable tests
+        run: dotnet run --project app/apps/windows/NexusCombatAnalyzer.Tests/NexusCombatAnalyzer.Tests.csproj

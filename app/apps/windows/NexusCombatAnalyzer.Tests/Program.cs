@@ -37,7 +37,8 @@ var tests = new List<(string Name, Action Test)>
     ("recovers simple unquoted comma in owner name", RecoversUnquotedCommaInOwnerName),
     ("parses real Neverwinter dummy damage line", ParsesRealNeverwinterDummyDamageLine),
     ("parses real Neverwinter companion damage line", ParsesRealNeverwinterCompanionDamageLine),
-    ("computes encounter duration and EncDPS", ComputesEncounterDurationAndEncDps)
+    ("computes encounter duration and EncDPS", ComputesEncounterDurationAndEncDps),
+    ("publishes only canonical Physical player-owned damage", PublishesOnlyCanonicalPhysicalPlayerOwnedDamage)
 };
 
 foreach (var (name, test) in tests)
@@ -144,6 +145,34 @@ static void ComputesEncounterDurationAndEncDps()
         AssertEqual(10d, summary.DurationSeconds);
         AssertEqual(40d, summary.EncDps);
         AssertEqual(40d, summary.Players[0].EncDps);
+    }
+    finally
+    {
+        File.Delete(tempPath);
+    }
+}
+
+static void PublishesOnlyCanonicalPhysicalPlayerOwnedDamage()
+{
+    var tempPath = Path.Combine(Path.GetTempPath(), $"nca-canonical-{Guid.NewGuid():N}.log");
+    File.WriteAllLines(tempPath,
+    [
+        "26:08:14:10:00:00.0::Player,P[123],Player,P[123],Boss,C[99 M33_Test_Boss],Physical Hit,Pow[1],Physical,,100,100",
+        "26:08:14:10:00:01.0::Player,P[123],Player,P[123],Boss,C[99 M33_Test_Boss],Poison Proc,Pow[2],Poison,,900,0",
+        "26:08:14:10:00:02.0::Player,P[123],Player,P[123],Boss,C[99 M33_Test_Boss],Display Marker,Pow[3],Physical,ShowPowerDisplayName,800,0",
+        "26:08:14:10:00:03.0::Enemy,C[77 M33_Test_Elite],Enemy,C[77 M33_Test_Elite],Player,P[123],Enemy Hit,Pow[4],Physical,,700,700",
+        "26:08:14:10:00:04.0::Player,P[123],Wolf,C[10 Pet_Wolf_Companion],Boss,C[99 M33_Test_Boss],Bite,Pow[5],Physical,,50,50"
+    ]);
+
+    try
+    {
+        var summary = new CombatLogSummarizer().SummarizeFile(tempPath);
+        AssertEqual(100d, summary.TotalPlayerDamage);
+        AssertEqual(50d, summary.TotalCompanionDamage);
+        AssertEqual(1, summary.Players.Count);
+        AssertEqual(1, summary.Players[0].Hits);
+        AssertEqual(1, summary.Companions.Count);
+        AssertEqual(1, summary.Companions[0].Hits);
     }
     finally
     {
