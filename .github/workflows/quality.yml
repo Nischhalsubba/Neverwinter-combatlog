@@ -26,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: quality-${{ github.workflow }}-${{ github.ref }}
+  group: combatlog-quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -35,21 +35,31 @@ env:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: app
     steps:
       - name: Check out repository
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
-          package-manager-cache: false
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@9.15.0 --activate
-      - name: Install dependencies
+          node-version-file: .node-version
+      - name: Set up pnpm
+        uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+        with:
+          version: 11.22.0
+          install: false
+          package-json-file: package.json
+      - name: Verify toolchain
+        run: |
+          test "$(node --version)" = "v24.19.0"
+          test "$(pnpm --version)" = "11.22.0"
+      - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
+      - name: Audit dependencies
+        run: pnpm audit --audit-level low
       - name: Run tests and build exact production artifact
         run: |
           mkdir -p test-artifacts/ci
@@ -61,7 +71,7 @@ jobs:
         run: pnpm test:browser
       - name: Upload failure diagnostics
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: strikeglass-ci-diagnostics
           path: |
@@ -71,7 +81,7 @@ jobs:
           retention-days: 7
       - name: Preserve tested production artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: strikeglass-production-${{ env.STRIKEGLASS_SOURCE_SHA }}
           path: app/public
