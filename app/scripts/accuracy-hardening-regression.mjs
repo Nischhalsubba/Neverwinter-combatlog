@@ -5,9 +5,10 @@ import { verifyDirectRotationMarkers } from '../src/engine/rotation-direct-verif
 import { auditSupportEffectProvenance, supportEffectProvenance } from '../src/engine/support-effect-provenance.js';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
-const [accuracy, accuracyCss, scenes, events, docs, referenceDocs, finalization, verifier] = await Promise.all([
+const [accuracy, accuracyCss, semanticCss, scenes, events, docs, referenceDocs, finalization, verifier] = await Promise.all([
   read('../src/v22/accuracy-ui.js'),
   read('../src/v22/accuracy-ui.css'),
+  read('../src/v23/semantic-guidance.css'),
   read('../src/v17/scene-visuals.js'),
   read('../src/v8/events.js'),
   read('../docs/ACCURACY_CONTRACT.md'),
@@ -24,7 +25,11 @@ assert.match(accuracy, /Top-hit annotations checked across/);
 assert.match(accuracy, /x - previous\[0\] > 5/);
 assert.match(accuracy, /Timing verification confirms reconstructed effect windows/);
 assert.match(accuracy, /Boss detection: high confidence/);
+assert.match(accuracy, /function checkedFieldsSummary\(verification\)/, 'metric evidence must normalize verifier checkedFields before rendering');
+assert.match(accuracy, /Number\.isFinite\(count\)/, 'numeric checkedFields must be rendered as a count, not treated as an array');
+assert.doesNotMatch(accuracy, /\(verification\.checkedFields \|\| \[\]\)\.slice/, 'metric evidence must not call array methods on numeric checkedFields');
 assert.match(accuracyCss, /--sg-player-color/);
+assert.match(semanticCss, /\.sg-overview>\.sg-clock-guide,\.sg-overview>\.sg-semantic-note\{grid-column:1\/-1;min-width:0\}/, 'Overview semantic guidance must span the full root grid instead of consuming one column');
 
 assert.doesNotMatch(scenes, /slice\(0,\s*40\)/, 'encounter sparklines must not silently stop after 40 fights');
 assert.match(scenes, /IntersectionObserver/, 'encounter sparklines should load lazily instead of using a content cap');
