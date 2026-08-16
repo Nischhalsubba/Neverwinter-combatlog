@@ -114,7 +114,7 @@ async function go(cdp, view, { wait = true } = {}) {
 
 async function press(cdp, key, code = key, keyCode = 0) {
   const params = { key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode };
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', ...params });
+  await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...params });
   await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...params });
 }
 
