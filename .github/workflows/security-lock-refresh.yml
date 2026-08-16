@@ -26,10 +26,11 @@ jobs:
           node-version-file: .node-version
           package-manager-cache: false
       - name: Set up pnpm
-        uses: pnpm/action-setup@84cb39b217b10273981911c288cd62326dc7c6d2
+        uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2
         with:
           version: 11.22.0
-          run_install: false
+          install: false
+          package-json-file: package.json
       - name: Regenerate lockfile only
         run: pnpm install --lockfile-only --no-frozen-lockfile
       - name: Upload regenerated lockfile
