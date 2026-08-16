@@ -14,6 +14,7 @@ for (const token of ['--sg-space-1:4px','--sg-space-2:8px','--sg-space-3:12px','
 assert.match(layout, /\.view-root\{display:grid;gap:var\(--sg-section-gap\);align-content:start\}/);
 assert.match(layout, /\.view-root>:is\([^}]+\)\{margin-block:0\}/);
 assert.match(layout, /html\[data-density="comfortable"\]/);
+for (const selector of ['.workspace .qol-breadcrumbs','.view-root .qol-event-finder-form','.view-root .sg-chart-toolbar','.view-root .sg-v17-controls','.view-root .sg-debuff-toolbar']) assert.ok(layout.includes(selector), `lazy spacing override missing ${selector}`);
 assert.match(layout, /\.panel-head\{min-height:44px/);
 assert.match(layout, /\.sg-overview-footer button\{min-height:44px/);
 
