@@ -4,11 +4,10 @@ import {
   currentPlayerRef,
   currentScope,
   esc,
-  playerSelect,
   root,
-  scopeSelect,
   verifiedReport
 } from '../v8/core.js';
+import { registerRouteEnhancer } from '../v28/route-lifecycle.js';
 
 const STYLE_ATTR = 'data-semantic-guidance-style';
 let scheduled = 0;
@@ -161,10 +160,7 @@ function schedule(delay = 20) {
   scheduled = setTimeout(() => requestAnimationFrame(scan), delay);
 }
 
-document.addEventListener('strikeglass:view-rendered', () => schedule());
-document.addEventListener('strikeglass:analysis-ready', () => schedule());
-playerSelect?.addEventListener('change', () => schedule());
-scopeSelect?.addEventListener('change', () => schedule());
+registerRouteEnhancer('semantic-guidance', () => schedule());
 
 ensureStyle();
 schedule(0);

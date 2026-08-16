@@ -6,13 +6,13 @@ import {
   currentScope,
   duration,
   esc,
-  playerSelect,
   root,
   scopeSelect,
   verifiedReport,
   workerRequest
 } from '../v8/core.js';
 import { verifyPowerCategories } from '../engine/classification-evidence.js';
+import { registerRouteEnhancer } from '../v28/route-lifecycle.js';
 
 const STYLE_ATTR = 'data-accuracy-ui-style';
 const SCAN_EVENT = 'strikeglass:accuracy-refreshed';
@@ -521,12 +521,11 @@ root?.addEventListener('change', event => {
     schedule(80);
   }
 });
-playerSelect?.addEventListener('change', () => schedule(20));
-scopeSelect?.addEventListener('change', () => { topHitCache.clear(); schedule(20); });
-document.addEventListener('strikeglass:view-rendered', () => schedule(20));
-document.addEventListener('strikeglass:analysis-ready', () => schedule(20));
-document.addEventListener('strikeglass:settings-changed', () => schedule(20));
-new MutationObserver(() => schedule(80)).observe(root || document.body, { childList: true, subtree: false });
+
+registerRouteEnhancer('accuracy-ui', ({ reasons }) => {
+  if (reasons.includes('scope-change') || reasons.includes('analysis-ready') || reasons.includes('worker-ready')) topHitCache.clear();
+  schedule(reasons.includes('root-children-changed') ? 80 : 20);
+});
 
 ensureStyle();
 schedule();
