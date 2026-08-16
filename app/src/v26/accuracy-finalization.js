@@ -6,14 +6,13 @@ import {
   currentScope,
   downloadText,
   esc,
-  playerSelect,
   root,
-  scopeSelect,
   verifiedReport,
   workerRequest
 } from '../v8/core.js';
 import { independentCategoryEvidence } from '../engine/classification-evidence.js';
 import { auditSupportEffectProvenance, supportEffectProvenance } from '../engine/support-effect-provenance.js';
+import { registerRouteEnhancer } from '../v28/route-lifecycle.js';
 
 const STYLE_ATTR = 'data-accuracy-finalization-style';
 let scheduled = 0;
@@ -274,11 +273,10 @@ function schedule(delay = 20) {
   scheduled = setTimeout(() => requestAnimationFrame(scan), delay);
 }
 
-document.addEventListener('strikeglass:view-rendered', () => schedule());
-document.addEventListener('strikeglass:analysis-ready', () => schedule());
-scopeSelect?.addEventListener('change', () => schedule());
-playerSelect?.addEventListener('change', () => schedule());
-window.addEventListener('strikeglass:worker-ready', () => { exclusionCache.clear(); schedule(); });
+registerRouteEnhancer('accuracy-finalization', ({ reasons }) => {
+  if (reasons.includes('analysis-ready') || reasons.includes('worker-ready')) exclusionCache.clear();
+  schedule();
+});
 
 ensureStyle();
 schedule(0);
