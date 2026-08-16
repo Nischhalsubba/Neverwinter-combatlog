@@ -48,7 +48,11 @@ assert.match(overview, /dashboard-ready/, 'Overview must still react when the on
 assert.match(overview, /analysis-ready/, 'Overview must reset cached diagnostics for a newly parsed log');
 
 const packageJson = JSON.parse(await read('package.json'));
-assert.match(packageJson.scripts.syntax, /src\/v28\/route-lifecycle\.js/, 'syntax gate must include lifecycle owner');
-assert.match(packageJson.scripts.test, /lifecycle-regression\.mjs/, 'normal release tests must include lifecycle ownership regression');
+const syntaxRegistry = await read('scripts/syntax-registry.mjs');
+const testRegistry = await read('scripts/test-registry.mjs');
+assert.match(packageJson.scripts.syntax, /syntax-registry\.mjs/, 'syntax gate must delegate to the syntax registry');
+assert.match(syntaxRegistry, /const roots = \['src', 'scripts', 'tests'\]/, 'syntax registry must recursively cover production source modules');
+assert.match(packageJson.scripts.test, /test-registry\.mjs/, 'normal release tests must delegate to the test registry');
+assert.match(testRegistry, /lifecycle-regression\.mjs/, 'test registry must include lifecycle ownership regression');
 
 console.log('Route lifecycle regression passed. Post-render analytics share one event fan-in and one root observer while feature interactions remain locally owned.');
