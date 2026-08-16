@@ -98,7 +98,7 @@ pub fn summarize_combat_log(path: &Path, skip_lines: u64) -> Result<CombatLogSum
                 parsed_count += 1;
                 let classification = format!("{:?}", event.classification);
                 *counts.entry(classification.clone()).or_default() += 1;
-                if is_damage_classification(event.classification) {
+                if is_damage_classification(event.classification) && is_canonical_published_damage(&event) {
                     apply_damage_event(&mut damage_by_member, &mut damage_by_companion, &event);
                 }
                 recent_events.push(RecentEvent {
@@ -161,6 +161,26 @@ pub fn count_log_lines(path: &Path) -> Result<u64, String> {
     Ok(lines)
 }
 
+fn is_canonical_published_damage(event: &crate::parser::ParsedEvent) -> bool {
+    if event.amount1.unwrap_or_default() <= 0.0 {
+        return false;
+    }
+    if !event
+        .event_type
+        .as_deref()
+        .map(|value| value.eq_ignore_ascii_case("physical"))
+        .unwrap_or(false)
+    {
+        return false;
+    }
+    if !is_player_ref(event.owner_ref.as_deref()) {
+        return false;
+    }
+    !event.flags.iter().any(|flag| {
+        flag.eq_ignore_ascii_case("immune") || flag.eq_ignore_ascii_case("showpowerdisplayname")
+    })
+}
+
 fn apply_damage_event(
     damage_by_member: &mut BTreeMap<String, DamageAccumulator>,
     damage_by_companion: &mut BTreeMap<String, DamageAccumulator>,
@@ -181,8 +201,12 @@ fn apply_damage_event(
     let is_companion = source_name
         .as_deref()
         .map(|name| is_companion_source(name, source_ref))
-        .unwrap_or(false);
+        .unwrap_or_else(|| source_ref.map(is_companion_ref).unwrap_or(false));
     let is_owner_player = is_player_ref(owner_ref);
+
+    if !is_owner_player {
+        return;
+    }
 
     if is_companion {
         if let Some(name) = source_name {
@@ -195,7 +219,7 @@ fn apply_damage_event(
             }
             add_damage_to_accumulator(entry, amount, &event.flags, event.power_name.clone());
         }
-    } else if let Some(name) = owner_name.filter(|_| is_owner_player).or(source_name) {
+    } else if let Some(name) = owner_name.or(source_name) {
         let entry = damage_by_member.entry(name).or_default();
         add_damage_to_accumulator(entry, amount, &event.flags, event.power_name.clone());
     }
@@ -316,27 +340,25 @@ fn ranked_damage(
     rows
 }
 
+fn is_companion_ref(source_ref: &str) -> bool {
+    let normalized_ref = source_ref.to_ascii_lowercase();
+    normalized_ref.contains("pet_")
+        || normalized_ref.contains("companion")
+        || normalized_ref.contains("appointment")
+        || normalized_ref.contains("summon")
+}
+
 fn is_companion_source(name: &str, source_ref: Option<&str>) -> bool {
     let normalized_name = name.to_ascii_lowercase();
     if normalized_name.contains("companion")
         || normalized_name.contains("summon")
         || normalized_name.contains("pet")
-        || normalized_name.contains("artifact")
-        || normalized_name.contains("familiar")
+        || normalized_name.contains("appointment")
     {
         return true;
     }
 
-    source_ref
-        .map(|reference| {
-            let normalized_ref = reference.to_ascii_lowercase();
-            normalized_ref.contains("pet_")
-                || normalized_ref.contains("companion")
-                || normalized_ref.contains("pet")
-                || normalized_ref.contains("summon")
-                || normalized_ref.contains("artifact")
-        })
-        .unwrap_or(false)
+    source_ref.map(is_companion_ref).unwrap_or(false)
 }
 
 fn infer_companion_owner_name(name: &str) -> Option<String> {
@@ -425,5 +447,30 @@ mod tests {
         assert_eq!(summary.party_damage[0].name, "Player");
         assert_eq!(summary.party_damage[0].total_damage, 150.0);
         assert_eq!(summary.party_damage[0].crit_count, 1);
+    }
+
+    #[test]
+    fn publishes_only_canonical_physical_player_owned_damage() {
+        let path =
+            std::env::temp_dir().join(format!("nexus-canonical-summary-{}.log", uuid::Uuid::new_v4()));
+        let contents = [
+            "26:08:14:10:00:00.0::Player,P[123],Player,P[123],Boss,C[99 M33_Test_Boss],Physical Hit,Pn.1,Physical,,100,100",
+            "26:08:14:10:00:01.0::Player,P[123],Player,P[123],Boss,C[99 M33_Test_Boss],Poison Proc,Pn.2,Poison,,900,0",
+            "26:08:14:10:00:02.0::Player,P[123],Player,P[123],Boss,C[99 M33_Test_Boss],Display Marker,Pn.3,Physical,ShowPowerDisplayName,800,0",
+            "26:08:14:10:00:03.0::Enemy,C[77 M33_Test_Elite],Enemy,C[77 M33_Test_Elite],Player,P[123],Enemy Hit,Pn.4,Physical,,700,700",
+            "26:08:14:10:00:04.0::Player,P[123],Wolf,C[10 Pet_Wolf_Companion],Boss,C[99 M33_Test_Boss],Bite,Pn.5,Physical,,50,50",
+        ]
+        .join("\r\n");
+        fs::write(&path, contents).expect("test log should be writable");
+
+        let summary = summarize_combat_log(&path, 0).expect("summary should parse");
+
+        fs::remove_file(&path).ok();
+        assert_eq!(summary.party_damage.len(), 1);
+        assert_eq!(summary.party_damage[0].total_damage, 100.0);
+        assert_eq!(summary.party_damage[0].hit_count, 1);
+        assert_eq!(summary.companion_damage.len(), 1);
+        assert_eq!(summary.companion_damage[0].total_damage, 50.0);
+        assert_eq!(summary.companion_damage[0].hit_count, 1);
     }
 }
