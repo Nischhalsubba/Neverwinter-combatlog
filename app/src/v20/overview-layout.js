@@ -1,4 +1,5 @@
 import { workerRequest } from '../v3/power-popup/worker.js';
+import { registerRouteEnhancer } from '../v28/route-lifecycle.js';
 
 const root = document.getElementById('view-root');
 const nav = document.getElementById('app-nav');
@@ -262,16 +263,18 @@ root?.addEventListener('click', event => {
   migrateDashboardLayout({ create: true });
 }, true);
 
-document.addEventListener('strikeglass:view-rendered', event => syncView(event.detail?.view));
-document.addEventListener('strikeglass:dashboard-ready', () => syncView('overview'));
-document.addEventListener('strikeglass:analysis-ready', () => {
-  diagnosticsPromise = null;
-  diagnosticsSummary = null;
-  syncView(activeView());
-});
-window.addEventListener('strikeglass:worker-ready', () => {
-  diagnosticsPromise = null;
-  diagnosticsSummary = null;
+registerRouteEnhancer('overview-layout', ({ view, reasons }) => {
+  if (reasons.includes('analysis-ready') || reasons.includes('worker-ready')) {
+    diagnosticsPromise = null;
+    diagnosticsSummary = null;
+  }
+  if (reasons.includes('dashboard-ready')) {
+    syncView('overview');
+    return;
+  }
+  if (reasons.some(reason => reason === 'view-rendered' || reason === 'analysis-ready' || reason.startsWith('register:'))) {
+    syncView(view || activeView());
+  }
 });
 
 migrateDashboardLayout();
