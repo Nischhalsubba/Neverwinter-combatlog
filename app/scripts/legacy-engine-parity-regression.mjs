@@ -40,7 +40,8 @@ for (const text of [docs, desktopReadme, windowsReadme]) {
   assert.match(text, /browser engine/i);
   assert.match(text, /production parity|production-parity/i);
 }
-assert.match(docs, /positive Physical/i);
+assert.match(docs, /positive magnitude/i);
+assert.match(docs, /event type `Physical`/i);
 assert.match(docs, /golden fixture/i);
 assert.match(docs, /must not use.*Verified/is);
 
