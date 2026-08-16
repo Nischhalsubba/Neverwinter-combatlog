@@ -9,6 +9,7 @@ if (!logPath) {
 
 const text = await readFile(logPath, 'utf8');
 const result = parseText(text).summary;
+const groupHits = result.players.reduce((sum, player) => sum + (Number(player.hits) || 0), 0);
 const strikeglass = {
   source: 'Strikeglass browser engine',
   contract: 'canonical Physical damage',
@@ -17,7 +18,7 @@ const strikeglass = {
     dps: result.partyDps,
     activeDps: result.partyCombatDps,
     duration: result.combatDuration,
-    hits: result.hits
+    hits: groupHits
   },
   players: result.players.map(player => ({
     name: player.name,
