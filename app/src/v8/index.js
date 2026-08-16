@@ -8,6 +8,7 @@ import './tables.js';
 import './command.js';
 import '../v14/ux-hardening.js';
 import '../v22/accuracy-ui.js';
+import '../v23/semantic-guidance.js';
 
 ensureQolStyles();
 ensureSkipLink();
