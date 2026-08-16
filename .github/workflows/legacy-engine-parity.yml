@@ -9,6 +9,7 @@ on:
       - 'app/scripts/legacy-engine-parity-regression.mjs'
       - 'app/docs/ENGINE_PARITY.md'
       - 'app/tests/fixtures/**'
+      - '.github/workflows/legacy-engine-parity.yml'
   pull_request:
     branches: [main]
     paths:
@@ -17,6 +18,7 @@ on:
       - 'app/scripts/legacy-engine-parity-regression.mjs'
       - 'app/docs/ENGINE_PARITY.md'
       - 'app/tests/fixtures/**'
+      - '.github/workflows/legacy-engine-parity.yml'
 
 permissions:
   contents: read

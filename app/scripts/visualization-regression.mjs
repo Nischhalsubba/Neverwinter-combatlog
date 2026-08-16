@@ -14,7 +14,9 @@ assert.match(vendor, /VERSION = '6\.1\.0'/);
 assert.match(vendor, /3b8ed4bcd17f7c838d86d4920af588f1a0aeb389/);
 assert.match(vendor, /raw\.githubusercontent\.com\/apache\/echarts/);
 assert.match(vendor, /gitBlobSha/);
-assert.match(build, /\['vendor', 'public\/vendor'\]/);
+assert.match(build, /await copy\('vendor', 'vendor'\)/, 'production build must retain the vendored chart runtime');
+assert.match(build, /asset-manifest\.json/, 'production build must publish an asset manifest');
+assert.match(build, /build-manifest\.json/, 'production build must publish reproducible build identity');
 
 for (const control of ['minus','plus','reset','contrast','grid','points','area','expand','image']) {
   assert.match(chartStudio, new RegExp(`data-sg-chart-action=\\"\\$\\{name\\}\\"|${control}`), `missing ${control} graph control`);

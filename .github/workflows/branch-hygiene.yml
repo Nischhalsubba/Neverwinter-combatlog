@@ -1,0 +1,39 @@
+name: Branch hygiene
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview stale merged branch cleanup without deleting refs
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: branch-hygiene
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Delete merged branch or prune merged branch backlog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            DRY=""
+            if [ "${{ inputs.dry_run }}" = "true" ]; then DRY="--dry-run"; fi
+            python app/scripts/branch-hygiene.py --repo "$GITHUB_REPOSITORY" --prune-merged $DRY
+          else
+            python app/scripts/branch-hygiene.py --repo "$GITHUB_REPOSITORY" --event-path "$GITHUB_EVENT_PATH"
+          fi

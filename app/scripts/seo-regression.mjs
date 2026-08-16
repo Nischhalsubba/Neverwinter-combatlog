@@ -54,14 +54,18 @@ for (const [path, titleMarker] of [
   requireText(page, 'rel="canonical"', path);
 }
 
-const packageJson = await read('package.json');
-for (const marker of [
-  'cp src/seo/robots.txt public/robots.txt',
-  'cp src/seo/sitemap.txt public/sitemap.txt',
-  'cp src/seo/site.webmanifest public/site.webmanifest',
-  'cp src/seo/how-to-use/index.html public/how-to-use/index.html',
-  'cp src/seo/about.html public/about/index.html'
-]) requireText(packageJson, marker, 'package build');
+const buildScript = await read('build-static.mjs');
+for (const [source, target] of [
+  ['src/seo/robots.txt', 'robots.txt'],
+  ['src/seo/sitemap.txt', 'sitemap.txt'],
+  ['src/seo/site.webmanifest', 'site.webmanifest'],
+  ['src/seo/how-to-use/index.html', 'how-to-use/index.html'],
+  ['src/seo/dps-explained/index.html', 'dps-explained/index.html'],
+  ['src/seo/privacy/index.html', 'privacy/index.html'],
+  ['src/seo/about.html', 'about/index.html']
+]) {
+  requireText(buildScript, `['${source}', '${target}']`, 'production build');
+}
 
 const brand = await read('../BRAND.md');
 requireText(brand, 'Double checked. Kept local.', 'brand guide');
@@ -73,4 +77,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('SEO regression passed. Strikeglass public metadata, discovery files, help pages, and build publishing contract are present.');
+console.log('SEO regression passed. Strikeglass public metadata, discovery files, help pages, and production build publishing contract are present.');
