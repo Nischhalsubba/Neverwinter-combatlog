@@ -34,6 +34,16 @@ if (!document.querySelector('link[data-strikeglass-layout-rhythm]')) {
   stylesheet.dataset.strikeglassLayoutRhythm = 'true';
   document.head.append(stylesheet);
 }
+
+// Keep route transitions, selected-player context, and worker progress coherent across lazy features.
+if (!document.querySelector('link[data-strikeglass-ui-coherence]')) {
+  const stylesheet = document.createElement('link');
+  stylesheet.rel = 'stylesheet';
+  stylesheet.href = new URL('../v21/ui-coherence.css', import.meta.url).href;
+  stylesheet.dataset.strikeglassUiCoherence = 'true';
+  document.head.append(stylesheet);
+}
+await import('../v21/ui-coherence.js');
 await import('../v20/overview-layout.js');
 
 // Heavy analysis features are loaded on demand by the v12 runtime.
