@@ -5,10 +5,10 @@ import {
   currentScope,
   esc,
   root,
-  scopeSelect,
   workerRequest
 } from '../v8/core.js';
 import { isKnownEncounterPowerName } from '../data/encounter-power-icons.js';
+import { registerRouteEnhancer } from '../v28/route-lifecycle.js';
 
 const STYLE_ATTR = 'data-evidence-coverage-style';
 let scheduled = 0;
@@ -220,9 +220,13 @@ function schedule(delay = 30) {
   scheduled = setTimeout(() => requestAnimationFrame(scan), delay);
 }
 
-document.addEventListener('strikeglass:view-rendered', () => schedule());
-document.addEventListener('strikeglass:analysis-ready', () => schedule());
-scopeSelect?.addEventListener('change', () => { rotationCache.clear(); effectCache.clear(); schedule(); });
+registerRouteEnhancer('evidence-coverage', ({ reasons }) => {
+  if (reasons.includes('scope-change') || reasons.includes('analysis-ready') || reasons.includes('worker-ready')) {
+    rotationCache.clear();
+    effectCache.clear();
+  }
+  schedule();
+});
 
 ensureStyle();
 schedule(0);
