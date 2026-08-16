@@ -29,6 +29,8 @@ assert.match(accuracy, /function checkedFieldsSummary\(verification\)/, 'metric 
 assert.match(accuracy, /Number\.isFinite\(count\)/, 'numeric checkedFields must be rendered as a count, not treated as an array');
 assert.doesNotMatch(accuracy, /\(verification\.checkedFields \|\| \[\]\)\.slice/, 'metric evidence must not call array methods on numeric checkedFields');
 assert.match(accuracyCss, /--sg-player-color/);
+assert.match(accuracyCss, /\.sg-overview>\.sg-accuracy-context\{grid-column:1\/-1;min-width:0;width:100%/, 'Overview boss-confidence context must span the full root grid');
+assert.match(accuracyCss, /grid-template-columns:auto max-content minmax\(0,1fr\)/, 'Overview boss-confidence context must keep its copy in a flexible column');
 assert.match(semanticCss, /\.sg-overview>\.sg-clock-guide,\.sg-overview>\.sg-semantic-note\{grid-column:1\/-1;min-width:0\}/, 'Overview semantic guidance must span the full root grid instead of consuming one column');
 
 assert.doesNotMatch(scenes, /slice\(0,\s*40\)/, 'encounter sparklines must not silently stop after 40 fights');
