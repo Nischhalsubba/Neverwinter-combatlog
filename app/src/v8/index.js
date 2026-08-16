@@ -9,6 +9,7 @@ import './command.js';
 import '../v14/ux-hardening.js';
 import '../v22/accuracy-ui.js';
 import '../v23/semantic-guidance.js';
+import '../v24/evidence-coverage.js';
 
 ensureQolStyles();
 ensureSkipLink();
