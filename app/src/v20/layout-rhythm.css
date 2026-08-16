@@ -1,0 +1,214 @@
+/* Strikeglass layout rhythm and compact Overview contract.
+   All spacing resolves to the same 4/8/12/16/24/32px scale. */
+:root{
+  --sg-space-1:4px;
+  --sg-space-2:8px;
+  --sg-space-3:12px;
+  --sg-space-4:16px;
+  --sg-space-5:24px;
+  --sg-space-6:32px;
+  --sg-section-gap:12px;
+  --sg-card-pad:12px;
+  --sg-panel-pad-y:8px;
+  --sg-panel-pad-x:12px;
+}
+
+html[data-density="comfortable"]{
+  --sg-section-gap:16px;
+  --sg-card-pad:16px;
+  --sg-panel-pad-y:12px;
+  --sg-panel-pad-x:16px;
+}
+
+/* Page and view rhythm */
+.main-stage{padding-block:var(--sg-space-4) var(--sg-space-6)}
+.workspace-head{min-height:44px;margin:0 0 var(--sg-section-gap);gap:var(--sg-space-3)}
+.analysis-toolbar{gap:var(--sg-space-2);margin:0 0 var(--sg-section-gap);padding:var(--sg-space-2)}
+.view-root{display:grid;gap:var(--sg-section-gap);align-content:start}
+.view-root>:is(.verification-strip,.metrics,.panel,.section-grid,.comparison-cards,.qol-matters,.qol-event-finder,.v6-dashboard-toolbar,.v6-dashboard-grid){margin-block:0}
+.section-grid,.comparison-cards,.v6-dashboard-grid{gap:var(--sg-section-gap)}
+.metrics,.telemetry-grid,.reference-metrics{gap:var(--sg-space-2);margin-bottom:0}
+.panel+.panel{margin-top:var(--sg-section-gap)}
+
+/* Shared component spacing */
+.brand-block{gap:var(--sg-space-2);padding-inline:var(--sg-space-3)}
+.topbar{gap:var(--sg-space-4);padding-inline:var(--sg-space-4)}
+.nav-list{gap:var(--sg-space-1);padding:var(--sg-space-3) var(--sg-space-2)}
+.nav-item{gap:var(--sg-space-2);padding-inline:var(--sg-space-3)}
+.button{padding-inline:var(--sg-space-3)}
+.panel-head{min-height:44px;gap:var(--sg-space-3);padding:var(--sg-panel-pad-y) var(--sg-panel-pad-x)}
+.panel-body,.panel-subsection{padding:var(--sg-card-pad)}
+.metric-card,.telemetry-card,.compare-card{padding:var(--sg-card-pad)}
+.reference-metrics{padding:var(--sg-card-pad)}
+.subsection-head{gap:var(--sg-space-3);margin-bottom:var(--sg-space-2)}
+.analysis-bars{gap:var(--sg-space-2);padding:var(--sg-space-1) 0}
+.analysis-bar-row{gap:var(--sg-space-2)}
+th,td{padding:var(--sg-space-2) var(--sg-space-3)}
+.qol-breadcrumbs{gap:var(--sg-space-1);margin:0 0 var(--sg-space-2);padding:0}
+.qol-fight-nav,.qol-event-checks,.qol-table-tools,.v6-dashboard-actions,.v6-drawer-controls{gap:var(--sg-space-2)}
+.qol-event-finder{margin-bottom:0}
+.qol-event-finder-form{gap:var(--sg-space-2);padding:var(--sg-space-3)}
+.qol-event-results{padding:0 var(--sg-space-3) var(--sg-space-3)}
+.qol-modal-head,.qol-modal-body{padding:var(--sg-space-4)}
+.qol-compare-grid{gap:var(--sg-space-3)}
+.qol-delta{margin:var(--sg-space-3) 0;padding:var(--sg-space-3)}
+.rotation-help{padding:var(--sg-space-3)}
+.rotation-filters{gap:var(--sg-space-2);padding:var(--sg-space-2) var(--sg-space-3)}
+.verification-details{gap:var(--sg-space-2);padding:var(--sg-space-3)}
+.v6-dashboard-toolbar{min-height:44px;gap:var(--sg-space-2);margin:0;padding:var(--sg-space-1) var(--sg-space-2)}
+.v6-widget-head{padding:var(--sg-panel-pad-y) var(--sg-panel-pad-x)}
+.v6-widget-content>.panel-subsection{padding:var(--sg-card-pad)}
+.v6-drawer-head{gap:var(--sg-space-3);padding:var(--sg-space-3) var(--sg-space-4)}
+.v6-drawer-list{padding:var(--sg-space-2) var(--sg-space-3)}
+.v6-drawer-item{gap:var(--sg-space-2);padding:var(--sg-space-3) var(--sg-space-1)}
+.v6-drawer-foot{gap:var(--sg-space-2);padding:var(--sg-space-3) var(--sg-space-4)}
+
+/* Lazy-loaded QoL, chart, and analysis layers keep the same rhythm. */
+.workspace .qol-breadcrumbs{gap:var(--sg-space-1);margin:0 0 var(--sg-space-2);padding:0}
+.workspace .qol-fight-nav{gap:var(--sg-space-2)}
+.view-root .qol-event-checks,.view-root .qol-table-tools{gap:var(--sg-space-2)}
+.view-root .qol-event-finder{margin-bottom:0}
+.view-root .qol-event-finder-form{gap:var(--sg-space-2);padding:var(--sg-space-3)}
+.view-root .qol-event-results{padding:0 var(--sg-space-3) var(--sg-space-3)}
+body .qol-modal-head,body .qol-modal-body{padding:var(--sg-space-4)}
+body .qol-compare-grid{gap:var(--sg-space-3)}
+body .qol-delta{margin:var(--sg-space-3) 0;padding:var(--sg-space-3)}
+.view-root .sg-chart-toolbar{gap:var(--sg-space-2);padding:var(--sg-space-2) var(--sg-space-3)}
+.view-root .sg-chart-tools-primary,.view-root .sg-chart-tools-secondary{gap:var(--sg-space-2)}
+.view-root .sg-chart-help{padding:var(--sg-space-2) var(--sg-space-3)}
+.view-root .sg-v17-analysis>summary{gap:var(--sg-space-3);min-height:44px;padding:var(--sg-space-2) var(--sg-space-3)}
+.view-root .sg-v17-controls{gap:var(--sg-space-2);padding:var(--sg-space-2) var(--sg-space-3)}
+.view-root .sg-v17-actions{gap:var(--sg-space-2);padding:0 var(--sg-space-3) var(--sg-space-2)}
+.view-root .sg-v17-annotations{gap:var(--sg-space-3);margin:0 var(--sg-space-3) var(--sg-space-2);padding:var(--sg-space-2)}
+.view-root .sg-v17-range-status{padding:var(--sg-space-2) var(--sg-space-3)}
+.view-root .sg-v17-range-summary{padding:0 var(--sg-space-3) var(--sg-space-3)}
+.view-root .sg-v17-summary-grid{gap:var(--sg-space-2);margin-top:var(--sg-space-2)}
+.view-root .sg-v17-summary-columns{gap:var(--sg-space-2);margin-top:var(--sg-space-2)}
+.view-root .sg-debuff-toolbar{gap:var(--sg-space-2);padding:var(--sg-space-2) var(--sg-space-3)}
+.view-root .sg-debuff-brush{margin-top:var(--sg-space-2)}
+.view-root .sg-attempt-visuals{margin-top:var(--sg-section-gap)}
+.view-root .sg-share-strip{margin:var(--sg-space-2) var(--sg-space-3) var(--sg-space-1)}
+.view-root .sg-share-legend{gap:var(--sg-space-2) var(--sg-space-4);padding:0 var(--sg-space-3) var(--sg-space-3)}
+.view-root .sg-category-filter{gap:var(--sg-space-2);margin:var(--sg-space-2) var(--sg-space-3) var(--sg-space-3);padding:var(--sg-space-2)}
+.view-root .sg-diagnostic-bars{gap:var(--sg-space-2);padding:var(--sg-space-2) var(--sg-space-3)}
+
+/* Overview: summary first, details second. */
+.view-root.sg-overview:not(:has(.v6-dashboard-grid)){
+  grid-template-columns:repeat(12,minmax(0,1fr));
+}
+.sg-overview>.verification-strip{grid-column:1/-1;min-height:44px;padding:var(--sg-space-1) var(--sg-space-3)}
+.sg-overview>.qol-matters{grid-column:span 8}
+.sg-overview>.party-metrics{grid-column:span 4;grid-template-columns:repeat(2,minmax(0,1fr));align-self:stretch}
+.sg-overview>.sg-overview-party,
+.sg-overview>.player-overview-panel,
+.sg-overview>.overview-grid{grid-column:1/-1}
+
+/* Fight highlights are compact scan targets rather than four tall mini-pages. */
+.sg-overview .qol-matters .panel-head{min-height:44px;padding:var(--sg-space-2) var(--sg-space-3)}
+.sg-overview .qol-matters .qol-insights{grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin:0}
+.sg-overview .qol-matters .qol-insight{position:relative;min-height:70px;padding:var(--sg-space-2) 52px var(--sg-space-2) var(--sg-space-3)}
+.sg-overview .qol-insight span,.sg-overview .qol-insight small{font-size:11px;line-height:1.3}
+.sg-overview .qol-insight strong{margin:2px 0;font-size:16px;line-height:1.15}
+.sg-overview .qol-insight button{position:absolute;right:var(--sg-space-1);top:50%;width:44px;height:44px;min-height:44px;margin:0;border-radius:8px;font-size:0;transform:translateY(-50%)}
+.sg-overview .qol-insight button::after{content:'›';font-size:20px;line-height:1}
+
+/* KPI cards use a two-by-two block beside the highlights on desktop. */
+.sg-overview>.party-metrics .metric-card,
+.sg-overview .v6-widget[data-widget-id="party-summary"] .metric-card{min-height:66px;padding:var(--sg-space-2) var(--sg-space-3)}
+.sg-overview>.party-metrics .metric-card strong,
+.sg-overview .v6-widget[data-widget-id="party-summary"] .metric-card strong{margin-top:2px;font-size:20px}
+.sg-overview>.party-metrics .metric-card small,
+.sg-overview .v6-widget[data-widget-id="party-summary"] .metric-card small{margin-top:2px}
+
+/* Party table stays useful without turning Overview into the Players screen. */
+.sg-overview .sg-overview-party th,
+.sg-overview .sg-overview-party td,
+.sg-overview .v6-widget[data-widget-id="party-overview"] th,
+.sg-overview .v6-widget[data-widget-id="party-overview"] td{height:36px}
+
+/* Selected-player details share a row in the raw Overview and stay compact as widgets. */
+.sg-overview>.player-overview-panel{display:grid;grid-template-columns:minmax(420px,.9fr) minmax(0,1.1fr);align-items:start}
+.sg-overview>.player-overview-panel>.panel-head{grid-column:1/-1}
+.sg-overview>.player-overview-panel>.reference-metrics{grid-template-columns:repeat(4,minmax(0,1fr));border-right:1px solid var(--sg-border);border-bottom:0}
+.sg-overview>.player-overview-panel>.panel-subsection{min-width:0}
+.sg-overview .v6-widget[data-widget-id="selected-player"] .reference-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+.sg-overview .v6-widget[data-widget-id="selected-player"] .metric-card{min-height:64px;padding:var(--sg-space-2) var(--sg-space-3)}
+.sg-overview .v6-widget[data-widget-id="top-powers"] .analysis-bar-row{min-height:28px}
+
+/* Timeline is the main analytical surface; boss shortcuts are the supporting rail. */
+.sg-overview .overview-grid{grid-template-columns:minmax(0,2.2fr) minmax(380px,.8fr);gap:var(--sg-section-gap)}
+.sg-overview .overview-grid .encounter-strip,
+.sg-overview .v6-widget[data-widget-id="encounters"] .encounter-strip{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--sg-space-2);padding:var(--sg-space-2)}
+.sg-overview .overview-grid .encounter-chip,
+.sg-overview .v6-widget[data-widget-id="encounters"] .encounter-chip{min-height:60px;padding:var(--sg-space-2)}
+.sg-overview .overview-grid .encounter-chip strong,
+.sg-overview .v6-widget[data-widget-id="encounters"] .encounter-chip strong{margin:2px 0;font-size:11px}
+.sg-overview .overview-grid .encounter-chip span,
+.sg-overview .overview-grid .encounter-chip small,
+.sg-overview .v6-widget[data-widget-id="encounters"] .encounter-chip span,
+.sg-overview .v6-widget[data-widget-id="encounters"] .encounter-chip small{font-size:9px}
+.sg-overview .sg-chart-stage,
+.sg-overview .chart-lazy-placeholder{height:clamp(260px,22vw,360px);min-height:260px}
+.sg-overview .v6-widget[data-widget-id="timeline"] .chart-host{min-height:260px}
+
+/* Compact disclosure rows keep secondary data available without bloating the page. */
+.sg-overview-footer{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:var(--sg-space-3);padding:var(--sg-space-1) var(--sg-space-3);border-top:1px solid var(--sg-border);background:var(--sg-surface-muted);color:var(--sg-text-muted);font-size:11px}
+.sg-overview-footer button{min-height:44px;padding:0 var(--sg-space-2);border:0;border-radius:6px;background:transparent;color:var(--sg-primary);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.sg-overview-footer button:hover{background:var(--sg-primary-soft)}
+.sg-overview-footer button:focus-visible{outline:2px solid var(--sg-focus);outline-offset:2px}
+
+/* Customizable Overview keeps the same hierarchy. */
+.sg-overview .v6-dashboard-grid{gap:var(--sg-section-gap)}
+.sg-overview .v6-dashboard-grid>.qol-matters{grid-column:span 8}
+.sg-overview .v6-dashboard-grid>.v6-widget[data-widget-id="party-summary"]{--v6-span:4}
+.sg-overview .v6-dashboard-grid>.v6-widget[data-widget-id="party-summary"][data-size="full"]{--v6-span:12}
+.sg-overview .v6-dashboard-grid>.v6-widget[data-widget-id="party-summary"][data-size="large"]{--v6-span:8}
+.sg-overview .v6-dashboard-grid>.v6-widget[data-widget-id="party-summary"][data-size="wide"]{--v6-span:6}
+.sg-overview .v6-dashboard-grid>.v6-widget[data-widget-id="party-summary"][data-size="medium"]{--v6-span:4}
+.sg-overview .v6-dashboard-grid>.v6-widget[data-widget-id="party-summary"][data-size="small"]{--v6-span:3}
+.sg-overview .v6-dashboard-grid>.qol-matters+.v6-widget[data-widget-id="party-summary"] .party-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+.sg-overview .v6-dashboard-toolbar-copy span{display:none}
+.sg-overview:has(.v6-dashboard-grid)>.verification-strip [data-dashboard-customize]{display:none!important}
+.sg-overview .v6-dashboard-toolbar{justify-content:flex-end}
+.sg-overview .v6-dashboard-toolbar-copy{margin-right:auto}
+.sg-overview .v6-dashboard-toolbar-copy strong{font-size:12px}
+.sg-overview .v6-widget[data-widget-id="party-summary"] .party-metrics{grid-template-columns:repeat(4,minmax(0,1fr));padding:var(--sg-space-2);gap:var(--sg-space-2)}
+.sg-overview .v6-widget[data-widget-id="encounters"] .encounter-strip{max-height:none;overflow:visible}
+
+@media(max-width:1400px){
+  .sg-overview .v6-dashboard-grid>.qol-matters{grid-column:1/-1}
+  .sg-overview .v6-dashboard-grid>.qol-matters+.v6-widget[data-widget-id="party-summary"]{--v6-span:12}
+  .sg-overview .v6-dashboard-grid>.qol-matters+.v6-widget[data-widget-id="party-summary"] .party-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .sg-overview>.qol-matters,.sg-overview>.party-metrics{grid-column:1/-1}
+  .sg-overview>.party-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .sg-overview>.player-overview-panel{grid-template-columns:1fr}
+  .sg-overview>.player-overview-panel>.reference-metrics{border-right:0;border-bottom:1px solid var(--sg-border)}
+  .sg-overview .overview-grid{grid-template-columns:1fr}
+  .sg-overview .overview-grid .encounter-strip{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+}
+
+@media(max-width:1024px){
+  .sg-overview .qol-matters .qol-insights{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sg-overview>.party-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sg-overview .overview-grid .encounter-strip,
+  .sg-overview .v6-widget[data-widget-id="encounters"] .encounter-strip{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+}
+
+@media(max-width:760px){
+  :root{--sg-section-gap:8px}
+  .main-stage{padding-block:var(--sg-space-3) var(--sg-space-6)}
+  .workspace-head{margin-bottom:var(--sg-space-2)}
+  .analysis-toolbar{margin-bottom:var(--sg-space-2)}
+  .sg-overview>.verification-strip{align-items:flex-start;padding:var(--sg-space-2)}
+  .sg-overview .qol-matters .qol-insights{grid-template-columns:1fr}
+  .sg-overview>.party-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sg-overview .overview-grid .encounter-strip,
+  .sg-overview .v6-widget[data-widget-id="encounters"] .encounter-strip{grid-template-columns:1fr}
+  .sg-overview .sg-chart-stage,.sg-overview .chart-lazy-placeholder{height:300px;min-height:280px}
+  .sg-overview-footer{align-items:flex-start;flex-direction:column;padding:var(--sg-space-2) var(--sg-space-3)}
+  .sg-overview-footer button{min-height:44px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .sg-overview .qol-insight button{transition:none}
+}
