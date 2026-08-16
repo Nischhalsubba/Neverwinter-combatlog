@@ -1,0 +1,164 @@
+/* Persistent analysis context, progress feedback, and layout recovery. */
+
+/* Overview must remain full-width even when lazy copy/dashboard modules finish in a different order. */
+.view-root.sg-overview:not(:has(.v6-dashboard-grid)) > .panel:not(.qol-matters),
+.view-root.sg-overview:not(:has(.v6-dashboard-grid)) > .section-grid,
+.view-root.sg-overview:not(:has(.v6-dashboard-grid)) > .sg-overview-full-span{
+  grid-column:1/-1!important;
+  width:100%;
+  min-width:0;
+}
+.view-root.sg-overview > .sg-overview-party{grid-column:1/-1!important;width:100%;min-width:0}
+
+/* The selected player is visible without making the user decode a dropdown. */
+.sg-active-player-chip{
+  min-height:44px;
+  max-width:min(360px,32vw);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-left:auto;
+  padding:4px 8px;
+  border:1px solid #9bbdf4;
+  border-radius:9px;
+  background:var(--sg-primary-soft);
+  color:var(--sg-text);
+  box-shadow:var(--sg-shadow-1);
+  cursor:pointer;
+  text-align:left;
+}
+.sg-active-player-chip:hover{border-color:var(--sg-primary);background:#e7f0ff}
+.sg-active-player-chip:focus-visible{outline:2px solid var(--sg-focus);outline-offset:2px}
+.sg-active-player-avatar{
+  flex:0 0 32px;
+  width:32px;
+  height:32px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:var(--sg-primary);
+  color:#fff;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.02em;
+}
+.sg-active-player-copy{min-width:0;display:grid;gap:1px}
+.sg-active-player-copy small{color:var(--sg-primary);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.sg-active-player-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;line-height:1.2}
+.sg-active-player-change{margin-left:4px;color:var(--sg-primary);font-size:11px;font-weight:750}
+.analysis-toolbar .sg-player-field{position:relative;padding-left:10px;border-left:3px solid var(--sg-primary)}
+.analysis-toolbar .sg-player-field > span{color:var(--sg-primary);font-weight:800}
+.analysis-toolbar .sg-player-field #player-select{border-color:#9bbdf4;background:var(--sg-primary-soft);font-weight:750}
+.analysis-toolbar .sg-player-field #player-select:hover{border-color:var(--sg-primary)}
+
+/* Standard progress feedback for every worker-backed analysis task. */
+.sg-global-task{
+  display:grid;
+  gap:7px;
+  margin:0 0 var(--sg-section-gap,12px);
+  padding:10px 12px;
+  border:1px solid #b8cff5;
+  border-left:3px solid var(--sg-primary);
+  border-radius:9px;
+  background:#f7faff;
+  box-shadow:var(--sg-shadow-1);
+}
+.sg-global-task-head,.sg-global-task-meta,.sg-inline-progress-copy{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-width:0;
+}
+.sg-global-task-head>div{min-width:0;display:grid;gap:1px}
+.sg-global-task-head small{color:var(--sg-primary);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.sg-global-task-head strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.sg-global-task-head>span{font-variant-numeric:tabular-nums;font-weight:800;color:var(--sg-primary)}
+.sg-global-task-meta{color:var(--sg-text-secondary);font-size:11px}
+.sg-global-task-meta [data-sg-task-eta],.sg-inline-progress [data-sg-inline-eta]{white-space:nowrap;color:var(--sg-text);font-weight:700}
+.sg-global-progress{
+  position:relative;
+  height:7px;
+  overflow:hidden;
+  border:1px solid #c8d8ef;
+  border-radius:999px;
+  background:#e9eff7;
+}
+.sg-global-progress>i{
+  display:block;
+  width:100%;
+  height:100%;
+  transform:scaleX(.02);
+  transform-origin:left center;
+  border-radius:inherit;
+  background:linear-gradient(90deg,var(--sg-primary),#38bdf8,#22c55e);
+  transition:transform 140ms linear;
+}
+
+/* Existing route loaders gain ETA without replacing their verified progress logic. */
+.task-progress-copy:has([data-sg-task-eta]){display:flex;align-items:center;justify-content:space-between;gap:12px}
+.task-progress-copy [data-sg-task-eta]{margin-left:auto;white-space:nowrap;color:var(--sg-text);font-weight:700}
+
+/* Team Debuffs uses the worker's real effect-analysis phases and progress values. */
+.sg-inline-progress{
+  display:grid;
+  gap:7px;
+  margin:8px 12px 12px;
+  padding:10px 12px;
+  border:1px solid var(--sg-border);
+  border-radius:8px;
+  background:var(--sg-surface-muted);
+}
+.sg-inline-progress-copy strong{color:var(--sg-text);font-size:12px}
+.sg-inline-progress-copy span{color:var(--sg-text-secondary);font-size:11px}
+.sg-inline-progress>small{justify-self:end;color:var(--sg-primary);font-size:10px;font-weight:800;font-variant-numeric:tabular-nums}
+.debuff-loading .sg-inline-progress{margin-top:10px}
+.qol-boss-debuff-summary .sg-inline-progress{margin:0 12px 12px}
+
+/* File parsing already exposes byte progress; add an ETA card to the same telemetry row. */
+.parse-state .telemetry-grid:has([data-sg-parse-eta-card]){grid-template-columns:repeat(6,minmax(0,1fr))}
+.sg-parse-eta-card strong{font-size:18px}
+.sg-parse-eta-card small{display:block;margin-top:3px;color:var(--sg-text-muted);font-size:10px;text-transform:capitalize}
+
+/* Player distribution uses stable, visibly distinct colors instead of one blue slab. */
+.sg-share-strip i{background:var(--sg-player-share-color,var(--sg-primary))!important}
+.sg-share-strip i:nth-child(8n+1),.sg-share-legend span:nth-child(8n+1){--sg-player-share-color:#2563eb}
+.sg-share-strip i:nth-child(8n+2),.sg-share-legend span:nth-child(8n+2){--sg-player-share-color:#ea580c}
+.sg-share-strip i:nth-child(8n+3),.sg-share-legend span:nth-child(8n+3){--sg-player-share-color:#16a34a}
+.sg-share-strip i:nth-child(8n+4),.sg-share-legend span:nth-child(8n+4){--sg-player-share-color:#7c3aed}
+.sg-share-strip i:nth-child(8n+5),.sg-share-legend span:nth-child(8n+5){--sg-player-share-color:#dc2626}
+.sg-share-strip i:nth-child(8n+6),.sg-share-legend span:nth-child(8n+6){--sg-player-share-color:#0891b2}
+.sg-share-strip i:nth-child(8n+7),.sg-share-legend span:nth-child(8n+7){--sg-player-share-color:#c026d3}
+.sg-share-strip i:nth-child(8n+8),.sg-share-legend span:nth-child(8n+8){--sg-player-share-color:#a16207}
+.sg-share-legend span::before{
+  content:"";
+  flex:0 0 9px;
+  width:9px;
+  height:9px;
+  border-radius:3px;
+  background:var(--sg-player-share-color,var(--sg-primary));
+}
+.sg-share-legend span{align-items:center!important}
+
+html[data-theme="dark"] .sg-active-player-chip{background:color-mix(in srgb,var(--sg-primary) 14%,var(--sg-surface));border-color:color-mix(in srgb,var(--sg-primary) 62%,var(--sg-border))}
+html[data-theme="dark"] .sg-active-player-chip:hover{background:color-mix(in srgb,var(--sg-primary) 20%,var(--sg-surface))}
+html[data-theme="dark"] .analysis-toolbar .sg-player-field #player-select{background:color-mix(in srgb,var(--sg-primary) 10%,var(--sg-surface))}
+html[data-theme="dark"] .sg-global-task{background:color-mix(in srgb,var(--sg-primary) 7%,var(--sg-surface));border-color:color-mix(in srgb,var(--sg-primary) 45%,var(--sg-border))}
+
+@media(max-width:1200px){
+  .sg-active-player-chip{max-width:300px}
+  .parse-state .telemetry-grid:has([data-sg-parse-eta-card]){grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+
+@media(max-width:760px){
+  .workspace-head{flex-wrap:wrap}
+  .sg-active-player-chip{order:3;width:100%;max-width:none;margin-left:0}
+  .sg-active-player-change{margin-left:auto}
+  .sg-global-task-head,.sg-global-task-meta,.sg-inline-progress-copy{align-items:flex-start;flex-direction:column;gap:3px}
+  .sg-global-task-meta [data-sg-task-eta],.sg-inline-progress [data-sg-inline-eta]{white-space:normal}
+  .parse-state .telemetry-grid:has([data-sg-parse-eta-card]){grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .sg-global-progress>i{transition:none}
+}
