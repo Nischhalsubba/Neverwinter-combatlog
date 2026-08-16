@@ -36,6 +36,6 @@ assert.doesNotMatch(events, /scan limit reached; narrow the filters for later ro
 assert.match(docs, /browser engine.*canonical production engine/is);
 assert.match(docs, /Silent row caps are not allowed/i);
 assert.match(referenceDocs, /NW-Hub/);
-assert.match(referenceDocs, /metric definition/i);
+assert.match(referenceDocs, /metric[- ]definition/i);
 
 console.log('Accuracy hardening regression passed.');
