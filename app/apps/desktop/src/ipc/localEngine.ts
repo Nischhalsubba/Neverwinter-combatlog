@@ -174,7 +174,7 @@ async function summarizeFile(file: File) {
       });
     }
 
-    if (parsed.classification !== "Damage" || parsed.magnitude <= 0) {
+    if (!isCanonicalPublishedDamage(parsed)) {
       continue;
     }
 
@@ -314,13 +314,38 @@ function classify(eventType: string, flags: string, magnitude: number) {
   return "Unknown";
 }
 
+function isPlayerRef(reference: string) {
+  return reference.trimStart().startsWith("P[");
+}
+
+function isCanonicalPublishedDamage(parsed: ParsedEvent) {
+  if (parsed.classification !== "Damage" || parsed.magnitude <= 0) return false;
+  if (parsed.eventType.trim().toLowerCase() !== "physical") return false;
+  if (!isPlayerRef(parsed.ownerRef)) return false;
+  return !parsed.flags.some((flag) => {
+    const normalized = flag.toLowerCase();
+    return normalized === "immune" || normalized === "showpowerdisplayname";
+  });
+}
+
+function isCompanionRef(reference: string) {
+  const normalized = reference.toLowerCase();
+  return normalized.includes("pet_")
+    || normalized.includes("companion")
+    || normalized.includes("appointment")
+    || normalized.includes("summon");
+}
+
 function isCompanion(parsed: ParsedEvent) {
-  if (!parsed.ownerRef || parsed.ownerRef.toLowerCase() === parsed.sourceRef.toLowerCase()) {
+  if (!isPlayerRef(parsed.ownerRef) || !parsed.ownerRef || parsed.ownerRef.toLowerCase() === parsed.sourceRef.toLowerCase()) {
     return false;
   }
-  return parsed.sourceRef.toLowerCase().startsWith("c[")
-    || parsed.sourceName.toLowerCase().includes("companion")
-    || parsed.sourceName.toLowerCase().includes("summon");
+  const text = `${parsed.sourceName} ${parsed.powerName}`.toLowerCase();
+  return isCompanionRef(parsed.sourceRef)
+    || text.includes("companion")
+    || text.includes("pet")
+    || text.includes("appointment")
+    || text.includes("summon");
 }
 
 function createDamageRow(name: string, ownerName: string | null, sourceKind: string): MutableDamageRow {

@@ -6,6 +6,7 @@ The repository itself is the canonical source for Strikeglass combat behavior an
 
 - [`../ACCURACY_CONTRACT.md`](../ACCURACY_CONTRACT.md) — publication states, canonical Physical damage, combat clocks, encounter/companion/taxonomy/effect/completeness rules, external-reference handling, and release gates.
 - [`../REFERENCE_PARITY.md`](../REFERENCE_PARITY.md) — NW-Hub/ACT comparison schema, metric-definition rules, parity workflow, and the current 2026-08-14 reference status.
+- [`../ENGINE_PARITY.md`](../ENGINE_PARITY.md) — canonical browser-engine ownership and the promotion/fencing rules for TypeScript, Rust, and C# compatibility runtimes.
 - [`../../README.md`](../../README.md) and version-controlled application configuration — supported runtime/build behavior.
 - The anonymized golden fixtures under `tests/fixtures/` and their regression scripts — executable examples of the canonical contracts.
 
