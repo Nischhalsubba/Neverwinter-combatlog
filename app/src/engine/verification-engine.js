@@ -50,6 +50,7 @@ export function verifyReport(primary, rows, context = {}, onProgress = null) {
       checkedFields: arithmetic.checkedFields || 0
     },
     classificationEvidence: classification,
+    arithmeticCore: { engine: 'shadow-verifier-v1', preserved: true },
     warnings: [
       ...(arithmetic.warnings || []),
       ...(classification.unresolved ? [{ key: 'classification-evidence', value: `${classification.unresolved} power classification${classification.unresolved === 1 ? '' : 's'} have no independent reference evidence and remain inferred.` }] : [])
