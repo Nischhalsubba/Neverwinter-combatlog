@@ -25,3 +25,9 @@ html[data-theme="dark"] .sg-accuracy-pill.is-exact{color:#74d6a2}html[data-theme
 @media(prefers-reduced-motion:reduce){.sg-accuracy-dialog{scroll-behavior:auto}}
 .qol-event-continue{display:flex;align-items:center;gap:10px;padding:10px 0 0}.qol-event-continue>span{color:var(--sg-text-secondary);font-size:11px}
 @media(max-width:760px){.qol-event-continue{align-items:flex-start;flex-direction:column}}
+
+/* Overview owns the width contract for injected boss-confidence context. */
+.sg-overview>.sg-accuracy-context{grid-column:1/-1;min-width:0;width:100%;margin:0;display:grid;grid-template-columns:auto max-content minmax(0,1fr);align-items:center;gap:8px 10px;box-sizing:border-box}
+.sg-overview>.sg-accuracy-context>strong{min-width:0;white-space:nowrap}
+.sg-overview>.sg-accuracy-context>span:last-child{min-width:0;line-height:1.45}
+@media(max-width:920px){.sg-overview>.sg-accuracy-context{grid-template-columns:auto minmax(0,1fr)}.sg-overview>.sg-accuracy-context>strong{white-space:normal}.sg-overview>.sg-accuracy-context>span:last-child{grid-column:1/-1}}
