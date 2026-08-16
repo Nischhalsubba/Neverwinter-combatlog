@@ -2,10 +2,10 @@
   "name": "neverwinter-combatlog",
   "private": true,
   "version": "0.5.0",
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@11.22.0",
   "engines": {
-    "node": ">=22.0.0",
-    "pnpm": ">=9.0.0"
+    "node": ">=24.19.0 <25",
+    "pnpm": ">=11.22.0 <12"
   },
   "scripts": {
     "build": "pnpm --dir app run build",

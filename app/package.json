@@ -5,10 +5,10 @@
   "description": "Strikeglass is a responsive local-first Neverwinter combat-log analyzer with independently checked combat results, explicit evidence states, direct evidence coverage, player-friendly metric semantics, verified team-debuff intelligence, player comparison, power damage, progressive loading, and raw-hit traceability.",
   "author": "Nischhal Raj Subba",
   "license": "UNLICENSED",
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@11.22.0",
   "engines": {
-    "node": ">=22.0.0",
-    "pnpm": ">=9.0.0"
+    "node": ">=24.19.0 <25",
+    "pnpm": ">=11.22.0 <12"
   },
   "scripts": {
     "vendor:charts": "node scripts/vendor-echarts.mjs",
