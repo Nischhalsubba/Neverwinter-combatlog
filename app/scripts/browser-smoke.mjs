@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { spawn, spawnSync } from 'node:child_process';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, writeFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 const root = process.cwd();
-const fixture = fileURLToPath(new URL('../tests/fixtures/realshape-2026-08-14/combat.log', import.meta.url));
+const { REALSHAPE_LOG } = await import('../tests/fixtures/realshape-2026-08-14.mjs');
+const fixture = `/tmp/strikeglass-realshape-${process.pid}.log`;
+await writeFile(fixture, REALSHAPE_LOG, 'utf8');
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.png': 'image/png' };
 
 function chromeBinary() {
