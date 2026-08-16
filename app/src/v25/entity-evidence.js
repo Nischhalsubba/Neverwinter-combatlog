@@ -1,5 +1,6 @@
 import { EVENT_PAGE_SIZE, activeView, compact, currentPlayerRef, currentScope, esc, root, workerRequest } from '../v8/core.js';
 import { summarizeCompanionEvidence, summarizeEncounterEntityEvidence } from '../engine/entity-evidence.js';
+import { registerRouteEnhancer } from '../v28/route-lifecycle.js';
 
 const STYLE_ATTR = 'data-entity-evidence-style';
 const cache = new Map();
@@ -128,9 +129,10 @@ function schedule(delay = 40) {
   scheduled = setTimeout(() => requestAnimationFrame(scan), delay);
 }
 
-document.addEventListener('strikeglass:view-rendered', () => schedule());
-document.addEventListener('strikeglass:analysis-ready', () => { cache.clear(); schedule(); });
-window.addEventListener('strikeglass:worker-ready', () => { cache.clear(); schedule(); });
+registerRouteEnhancer('entity-evidence', ({ reasons }) => {
+  if (reasons.includes('analysis-ready') || reasons.includes('worker-ready') || reasons.includes('scope-change') || reasons.includes('player-change')) cache.clear();
+  schedule();
+});
 
 ensureStyle();
 schedule(0);
