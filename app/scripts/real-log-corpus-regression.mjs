@@ -35,6 +35,12 @@ function positiveNonPhysicalTypes(rows) {
   return counts;
 }
 
+function canonicalEncounterType(type) {
+  // Human-facing fixture terminology uses "combat" for an ordinary non-boss window.
+  // The engine's canonical internal type for that same window is "mob".
+  return type === 'combat' ? 'mob' : type;
+}
+
 for (const [name, fixture, log] of corpus) {
   assert.ok(log.length > 0, `${name} fixture must decode`);
   assert.ok(!/@(?:imortal|jack|shanil|lichking|minaaries)/i.test(log), `${name} must not contain source account handles`);
@@ -48,7 +54,11 @@ for (const [name, fixture, log] of corpus) {
   assert.equal(summary.players.reduce((sum, player) => sum + (Number(player.hits) || 0), 0), wanted.hits, `${name} group hits`);
   if (wanted.combatDuration != null) nearTime(summary.combatDuration, wanted.combatDuration, `${name} combat span`);
   assert.equal(summary.encounters.length, wanted.encounters, `${name} encounter count`);
-  assert.deepEqual(summary.encounters.map(encounter => encounter.type), wanted.encounterTypes || [], `${name} encounter types`);
+  assert.deepEqual(
+    summary.encounters.map(encounter => encounter.type),
+    (wanted.encounterTypes || []).map(canonicalEncounterType),
+    `${name} encounter types`
+  );
 
   for (const [ref, expectedPlayer] of Object.entries(wanted.players || {})) {
     const player = summary.players.find(item => item.ref === ref);
