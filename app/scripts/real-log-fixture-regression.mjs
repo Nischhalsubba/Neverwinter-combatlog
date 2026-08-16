@@ -1,14 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { parseText } from '../src/engine/fast-parser-core.js';
+import { REALSHAPE_EXPECTED as expected, REALSHAPE_LOG } from '../tests/fixtures/realshape-2026-08-14.mjs';
 
-const base = new URL('../tests/fixtures/realshape-2026-08-14/', import.meta.url);
-const [text, expected] = await Promise.all([
-  readFile(new URL('combat.log', base), 'utf8'),
-  readFile(new URL('expected.json', base), 'utf8').then(JSON.parse)
-]);
-const parsed = parseText(text);
-const summary = parsed.summary;
+const summary = parseText(REALSHAPE_LOG).summary;
 
 function near(actual, wanted, label, relative = 1e-9) {
   const tolerance = Math.max(1e-6, Math.abs(Number(wanted) || 0) * relative);
