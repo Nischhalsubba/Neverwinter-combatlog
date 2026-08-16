@@ -9,9 +9,14 @@ function near(actual, wanted, label, relative = 1e-9) {
   assert.ok(Math.abs(Number(actual) - Number(wanted)) <= tolerance, `${label}: expected ${wanted}, got ${actual}`);
 }
 
+function nearTime(actual, wanted, label) {
+  assert.ok(Math.abs(Number(actual) - Number(wanted)) <= 0.001, `${label}: expected ${wanted}, got ${actual}`);
+}
+
 assert.equal(summary.rejected, expected.rejected, 'real-shape rejected row count');
 assert.equal(summary.validDamageRows, expected.validDamageRows, 'real-shape canonical damage row count');
 near(summary.damage, expected.group.damage, 'real-shape group damage');
+nearTime(summary.combatDuration, expected.group.duration, 'real-shape group combat duration');
 assert.equal(summary.players.reduce((sum, player) => sum + (Number(player.hits) || 0), 0), expected.group.hits, 'real-shape group hit count');
 assert.equal(summary.encounters.length, expected.encounters.length, 'real-shape encounter count');
 
@@ -21,8 +26,8 @@ for (let index = 0; index < expected.encounters.length; index += 1) {
   assert.equal(actual.type, wanted.type, `encounter ${index + 1} type`);
   near(actual.damage, wanted.damage, `encounter ${index + 1} damage`);
   assert.equal(actual.hits, wanted.hits, `encounter ${index + 1} hits`);
-  near(actual.start, wanted.start, `encounter ${index + 1} start`);
-  near(actual.end, wanted.end, `encounter ${index + 1} end`);
+  nearTime(actual.start, wanted.start, `encounter ${index + 1} start`);
+  nearTime(actual.end, wanted.end, `encounter ${index + 1} end`);
 }
 
 for (const [ref, wanted] of Object.entries(expected.players)) {
@@ -30,7 +35,8 @@ for (const [ref, wanted] of Object.entries(expected.players)) {
   assert.ok(actual, `missing real-shape player ${ref}`);
   near(actual.damage, wanted.damage, `${wanted.name} damage`);
   assert.equal(actual.hits, wanted.hits, `${wanted.name} hits`);
-  near(actual.dps, wanted.dps, `${wanted.name} DPS`);
+  nearTime(actual.duration, wanted.duration, `${wanted.name} elapsed damage time`);
+  near(actual.dps, actual.damage / Math.max(1, actual.duration), `${wanted.name} DPS formula`, 1e-12);
   near(actual.companionDamage, wanted.companion, `${wanted.name} companion damage`);
 }
 
