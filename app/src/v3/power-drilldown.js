@@ -26,6 +26,16 @@ if (!document.querySelector('link[data-strikeglass-encounter-grid]')) {
   document.head.append(stylesheet);
 }
 
+// Normalize page/component spacing and compact the Overview around drill-down analysis.
+if (!document.querySelector('link[data-strikeglass-layout-rhythm]')) {
+  const stylesheet = document.createElement('link');
+  stylesheet.rel = 'stylesheet';
+  stylesheet.href = new URL('../v20/layout-rhythm.css', import.meta.url).href;
+  stylesheet.dataset.strikeglassLayoutRhythm = 'true';
+  document.head.append(stylesheet);
+}
+await import('../v20/overview-layout.js');
+
 // Heavy analysis features are loaded on demand by the v12 runtime.
 await import('../v12/runtime.js');
 
