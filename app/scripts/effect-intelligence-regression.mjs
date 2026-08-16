@@ -5,9 +5,19 @@ import { analyzeEffectIntelligence } from '../src/engine/effect-intelligence-eng
 const player = 'P[1 Ranger@test]';
 const player2 = 'P[2 Warlock@test]';
 const boss = 'C[90 M33_Test_Boss]';
+const otherTarget = 'C[92 M33_Test_Elite]';
 const creature = 'C[91 Pet_Test_Companion]';
 
-function hit(time, { ownerRef = player, ownerName = 'Ranger', powerName = 'Rapid Shot', amount = 100, baseAmount = 100, flags = FLAG.CRITICAL | FLAG.FLANK } = {}) {
+function hit(time, {
+  ownerRef = player,
+  ownerName = 'Ranger',
+  targetRef = boss,
+  targetName = 'Boss',
+  powerName = 'Rapid Shot',
+  amount = 100,
+  baseAmount = 100,
+  flags = FLAG.CRITICAL | FLAG.FLANK
+} = {}) {
   return {
     time,
     lineNo: Math.round(time * 100),
@@ -15,8 +25,8 @@ function hit(time, { ownerRef = player, ownerName = 'Ranger', powerName = 'Rapid
     ownerName,
     sourceRef: ownerRef,
     sourceName: ownerName,
-    targetRef: boss,
-    targetName: 'Boss',
+    targetRef,
+    targetName,
     powerName,
     powerRef: 'Power',
     damageType: 'Physical',
@@ -63,6 +73,8 @@ rows.push(hit(21, { powerName: 'Commanding Shot', amount: 110, baseAmount: 100 }
 const report = analyzeEffectIntelligence(rows, { scope: { type: 'boss', id: 1 }, scopeStart: 0, scopeEnd: 22 });
 assert.equal(report.verification.ok, true);
 assert.ok(['verified', 'attention'].includes(report.verification.status));
+assert.equal(report.evidencePolicy.version, 2);
+assert.equal(report.evidencePolicy.exactBaselineRequiredForStrongestTier, true);
 
 const thorn = report.teamEffects.find(effect => effect.name === 'Thorn Ward');
 assert.ok(thorn, 'successful Thorn Ward hits should create a known-rule team debuff');
@@ -78,6 +90,9 @@ assert.ok(thorn.verification.empirical.comparableHits >= 5, 'damage verifier sho
 assert.ok((thorn.verification.empirical.medianUplift || 0) > .2, 'debuff-window damage should be measurably above the clean amount/baseAmount baseline');
 assert.ok(['matched', 'supported'].includes(thorn.verification.empirical.status));
 assert.notEqual(thorn.verification.confidence, 'UNRESOLVED');
+assert.ok(thorn.verification.empirical.exactComparableHits >= 5, 'same-target clean baselines should be counted explicitly');
+assert.equal(thorn.verification.empirical.relaxedComparableHits, 0, 'same-target evidence should not be mislabeled as cross-target evidence');
+assert.equal(thorn.verification.empirical.baselineQuality, 'exact');
 
 assert.ok(report.timing.windows.length > 0, 'verified timed effects should produce Party Rotation windows');
 assert.ok(report.timing.applications.some(item => item.name === 'Thorn Ward'));
@@ -91,5 +106,26 @@ assert.ok(!report.teamEffects.some(effect => effect.name === 'Vulnerability Up')
 assert.ok(report.baseline.cleanObservations >= 3);
 assert.ok(report.baseline.comparableBuckets >= 1);
 assert.match(report.baseline.note, /amount\/baseAmount/);
+
+const relaxedRows = [];
+for (let index = 0; index < 4; index += 1) {
+  relaxedRows.push(hit(index * .5, { targetRef: otherTarget, targetName: 'Other target', powerName: 'Rapid Shot', amount: 100, baseAmount: 100 }));
+  relaxedRows.push(hit(index * .5 + .1, { ownerRef: player2, ownerName: 'Warlock', targetRef: otherTarget, targetName: 'Other target', powerName: 'Hellish Rebuke', amount: 100, baseAmount: 100 }));
+}
+relaxedRows.push(hit(5, { powerName: 'Thorn Ward', amount: 115, baseAmount: 100 }));
+for (let index = 0; index < 7; index += 1) {
+  relaxedRows.push(hit(5.3 + index * .7, { powerName: 'Rapid Shot', amount: 130, baseAmount: 100 }));
+  relaxedRows.push(hit(5.4 + index * .7, { ownerRef: player2, ownerName: 'Warlock', powerName: 'Hellish Rebuke', amount: 130, baseAmount: 100 }));
+}
+
+const relaxedReport = analyzeEffectIntelligence(relaxedRows, { scope: { type: 'boss', id: 2 }, scopeStart: 0, scopeEnd: 14 });
+const relaxedThorn = relaxedReport.teamEffects.find(effect => effect.name === 'Thorn Ward');
+assert.ok(relaxedThorn, 'relaxed-baseline fixture should reconstruct Thorn Ward');
+assert.equal(relaxedThorn.verification.empirical.baselineQuality, 'relaxed');
+assert.equal(relaxedThorn.verification.empirical.exactComparableHits, 0);
+assert.ok(relaxedThorn.verification.empirical.relaxedComparableHits >= 12, 'cross-target baseline should remain usable as supporting evidence');
+assert.equal(relaxedThorn.verification.empirical.status, 'supported', 'relaxed-only evidence must not retain the strongest matched tier');
+assert.equal(relaxedThorn.verification.empirical.policyDowngrade, 'insufficient-exact-baseline');
+assert.equal(relaxedThorn.verification.confidence, 'HIGH', 'relaxed-only evidence must not publish VERIFIED confidence');
 
 console.log('Effect intelligence regression passed.');

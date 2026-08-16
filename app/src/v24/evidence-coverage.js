@@ -144,7 +144,12 @@ async function effectEvidence(scope) {
         coverage: Number(empirical.observableCoverage) || 0,
         agreement: Number.isFinite(Number(empirical.directionAgreement)) ? Number(empirical.directionAgreement) : null,
         medianUplift: Number.isFinite(Number(empirical.medianUplift)) ? Number(empirical.medianUplift) : null,
-        baselineSamples: Number(empirical.baselineSamples) || 0
+        baselineSamples: Number(empirical.baselineSamples) || 0,
+        baselineQuality: empirical.baselineQuality || 'none',
+        exactHits: Number(empirical.exactComparableHits) || 0,
+        relaxedHits: Number(empirical.relaxedComparableHits) || 0,
+        exactCoverage: Number(empirical.exactBaselineCoverage) || 0,
+        policyDowngrade: empirical.policyDowngrade || ''
       };
     });
     return { report, rows };
@@ -156,12 +161,20 @@ async function effectEvidence(scope) {
 function effectStatusText(row) {
   if (!row.timelineVerified) return 'Timing unresolved';
   if (row.status === 'matched') return 'Strong supporting evidence';
+  if (row.status === 'supported' && row.policyDowngrade) return 'Supporting evidence · cross-target limited';
   if (row.status === 'supported') return 'Some supporting evidence';
   if (row.status === 'mismatch') return 'Evidence conflicts';
   if (row.status === 'no-baseline') return 'No clean baseline';
   if (row.status === 'evidence-only') return 'Timeline evidence only';
   if (row.status === 'limited') return 'Limited evidence';
   return row.status.replace(/-/g, ' ');
+}
+
+function baselineQualityText(row) {
+  if (row.baselineQuality === 'exact') return 'Exact target';
+  if (row.baselineQuality === 'mixed') return 'Mixed';
+  if (row.baselineQuality === 'relaxed') return 'Cross-target';
+  return '—';
 }
 
 async function ensureEffectCoverage(localGeneration) {
@@ -178,17 +191,19 @@ async function ensureEffectCoverage(localGeneration) {
     const damageRows = rows.filter(row => row.mode === 'damage-baseline');
     const comparableHits = damageRows.reduce((sum, row) => sum + row.hits, 0);
     const baselineSamples = damageRows.reduce((sum, row) => sum + row.baselineSamples, 0);
+    const exactHits = damageRows.reduce((sum, row) => sum + row.exactHits, 0);
+    const relaxedHits = damageRows.reduce((sum, row) => sum + row.relaxedHits, 0);
     const conflicts = rows.filter(row => row.status === 'mismatch' || !row.timelineVerified).length;
     shell.innerHTML = `
       <div class="sg-evidence-head"><div><span class="eyebrow">Evidence quality</span><h2>What the debuff conclusions are based on</h2></div>${pill(conflicts ? 'review' : 'good', conflicts ? `${conflicts} item${conflicts === 1 ? '' : 's'} need review` : 'No evidence conflicts')}</div>
       <div class="sg-evidence-summary-grid">
         <article><span>Effects observed</span><strong>${rows.length}</strong><small>Detected support effects in this scope</small></article>
-        <article><span>Comparable damage hits</span><strong>${comparableHits.toLocaleString()}</strong><small>Effect-window hits with an available clean baseline</small></article>
+        <article><span>Comparable damage hits</span><strong>${comparableHits.toLocaleString()}</strong><small>${exactHits.toLocaleString()} exact-target · ${relaxedHits.toLocaleString()} cross-target</small></article>
         <article><span>Baseline samples used</span><strong>${baselineSamples.toLocaleString()}</strong><small>Clean reference observations contributing to comparisons</small></article>
         <article><span>Evidence conflicts</span><strong>${conflicts}</strong><small>Timeline or empirical checks that should not be treated as confirmed</small></article>
       </div>
-      <div class="sg-evidence-table-wrap"><table class="sg-evidence-table"><thead><tr><th>Effect</th><th>Evidence</th><th>Comparable hits</th><th>Players</th><th>Observable coverage</th><th>Direction agreement</th><th>Median observed uplift</th><th>Baseline samples</th></tr></thead><tbody>${rows.map(row => `<tr><td><strong>${esc(row.name)}</strong><small>${esc(row.sourceType || '')}</small></td><td>${esc(effectStatusText(row))}</td><td>${row.hits.toLocaleString()}</td><td>${row.players}</td><td>${formatPercent(row.coverage)}</td><td>${row.agreement == null ? '—' : formatPercent(row.agreement)}</td><td>${row.medianUplift == null ? '—' : `${(row.medianUplift * 100).toFixed(1)}%`}</td><td>${row.baselineSamples.toLocaleString()}</td></tr>`).join('')}</tbody></table></div>
-      <p class="sg-evidence-help">These columns expose the sample size behind the conclusion. “Direction agreement” means comparable hits moved in the expected direction. It is supporting evidence, not a claim that the debuff alone caused every observed change. Strikeglass still refuses uptime publication when the deterministic timeline check fails.</p>`;
+      <div class="sg-evidence-table-wrap"><table class="sg-evidence-table"><thead><tr><th>Effect</th><th>Evidence</th><th>Baseline quality</th><th>Exact / cross-target hits</th><th>Exact coverage</th><th>Players</th><th>Observable coverage</th><th>Direction agreement</th><th>Median observed uplift</th><th>Baseline samples</th></tr></thead><tbody>${rows.map(row => `<tr><td><strong>${esc(row.name)}</strong><small>${esc(row.sourceType || '')}</small></td><td>${esc(effectStatusText(row))}</td><td>${esc(baselineQualityText(row))}</td><td>${row.mode === 'damage-baseline' ? `${row.exactHits.toLocaleString()} / ${row.relaxedHits.toLocaleString()}` : '—'}</td><td>${row.mode === 'damage-baseline' && row.hits ? formatPercent(row.exactCoverage) : '—'}</td><td>${row.players}</td><td>${formatPercent(row.coverage)}</td><td>${row.agreement == null ? '—' : formatPercent(row.agreement)}</td><td>${row.medianUplift == null ? '—' : `${(row.medianUplift * 100).toFixed(1)}%`}</td><td>${row.baselineSamples.toLocaleString()}</td></tr>`).join('')}</tbody></table></div>
+      <p class="sg-evidence-help"><strong>Exact target</strong> means the clean comparison used the same player, power, target, damage type and Crit/CA/Deflect state. <strong>Cross-target</strong> keeps the same player, power and hit state but must compare against another target. Cross-target evidence remains useful, but it cannot earn the strongest effect confidence by itself. The strongest tier requires at least five exact comparable hits and at least 50% exact-baseline coverage. Direction agreement is supporting evidence, not a claim that the debuff alone caused every observed change.</p>`;
   } catch (error) {
     if (shell.isConnected) shell.innerHTML = `<div class="sg-evidence-error">${esc(error.message || String(error))}</div>`;
   }

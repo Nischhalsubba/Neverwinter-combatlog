@@ -84,7 +84,10 @@ assert.match(combatEngine, /unclassified-enemy-effect/);
 assert.match(combatEngine, /debuffsOnEnemies/);
 assert.match(combatEngine, /allyBuffs/);
 
-const intelligenceEngine = readFileSync(new URL('../src/engine/effect-intelligence-engine.js', import.meta.url), 'utf8');
+const intelligenceWrapper = readFileSync(new URL('../src/engine/effect-intelligence-engine.js', import.meta.url), 'utf8');
+const intelligenceCore = readFileSync(new URL('../src/engine/effect-intelligence-engine-core.js', import.meta.url), 'utf8');
+const intelligenceEngine = `${intelligenceWrapper}\n${intelligenceCore}`;
+assert.match(intelligenceWrapper, /analyzeCoreEffectIntelligence/, 'public Effect Intelligence entry point must preserve and wrap the core engine');
 assert.match(intelligenceEngine, /isTeamDamageSupportEffect/);
 assert.match(intelligenceEngine, /analyzeCombatEffects/);
 assert.match(intelligenceEngine, /analyzeBossEffects/);
