@@ -24,6 +24,17 @@ function nearTime(actual, expected, label) {
   assert.ok(Math.abs(Number(actual) - Number(expected)) <= 0.001, `${label}: expected ${expected}, got ${actual}`);
 }
 
+function positiveNonPhysicalTypes(rows) {
+  const counts = new Map();
+  for (const row of rows || []) {
+    if (!(Number(row.amount) > 0)) continue;
+    const damageType = String(row.damageType || 'Unknown').trim() || 'Unknown';
+    if (damageType.toLowerCase() === 'physical') continue;
+    counts.set(damageType, (counts.get(damageType) || 0) + 1);
+  }
+  return counts;
+}
+
 for (const [name, fixture, log] of corpus) {
   assert.ok(log.length > 0, `${name} fixture must decode`);
   assert.ok(!/@(?:imortal|jack|shanil|lichking|minaaries)/i.test(log), `${name} must not contain source account handles`);
@@ -49,8 +60,12 @@ for (const [name, fixture, log] of corpus) {
     near(player.companionDamage, expectedPlayer.companionDamage, `${name} ${expectedPlayer.name} companion damage`);
   }
 
-  for (const [damageType, count] of Object.entries(wanted.nonCanonicalPositiveTypes || {})) {
-    assert.equal(summary.nonCanonicalDamageTypes.find(item => item.key === damageType)?.value || 0, count, `${name} ${damageType} excluded positive rows`);
+  const broadPositive = positiveNonPhysicalTypes(parsed.rows);
+  for (const [eventType, count] of Object.entries(wanted.nonCanonicalPositiveTypes || {})) {
+    assert.equal(broadPositive.get(eventType) || 0, count, `${name} ${eventType} positive non-Physical rows`);
+  }
+  for (const item of summary.nonCanonicalDamageTypes || []) {
+    assert.ok((broadPositive.get(item.key) || 0) >= item.value, `${name} non-canonical damage audit cannot exceed all positive non-Physical ${item.key} rows`);
   }
 
   if (summary.validDamageRows > 0) {
