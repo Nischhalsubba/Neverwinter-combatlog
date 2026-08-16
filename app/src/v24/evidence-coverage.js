@@ -51,12 +51,11 @@ async function rotationEvidence(scope) {
   const key = scopeKey(scope);
   if (rotationCache.has(key)) return rotationCache.get(key);
   const promise = (async () => {
-    const [rotation, resourceRows] = await Promise.all([
+    const [report, resourceRows] = await Promise.all([
       workerRequest('rotation-report', { scope }, 90000),
       allRawRows(scope, { kind: 'resource' })
     ]);
-    if (!rotation?.report) throw new Error(rotation?.error || 'Power timing report is unavailable.');
-    const report = rotation.report;
+    if (!report) throw new Error('Power timing report is unavailable.');
     const origin = Number(report.scope?.start) || 0;
     const explicit = resourceRows.filter(row =>
       Number(row.amount) < 0 &&

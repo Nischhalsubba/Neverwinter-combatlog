@@ -54,3 +54,6 @@ await import('../v16/visual-studio.js');
 
 // The v17 visual-analysis workspace adds synchronized exploration on top of verified reports.
 await import('../v17/index.js');
+
+// The v29 composition and trust platform owns new investigation surfaces and stable context slots.
+await import('../v29/index.js');
