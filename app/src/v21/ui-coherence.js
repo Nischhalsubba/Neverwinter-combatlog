@@ -295,8 +295,8 @@ function completeTracker(tracker, detail = 'Ready') {
   rememberDuration(tracker.task || tracker.type, elapsed);
   trackers.delete(String(tracker.requestId));
   setTimeout(() => {
-    const dock = workspace?.querySelector('[data-sg-global-task]');
-    if (dock && !trackers.size) dock.remove();
+    if (trackers.size) return;
+    workspace?.querySelector('[data-sg-global-task]')?.remove();
     root?.querySelectorAll('[data-sg-inline-progress]').forEach(node => node.remove());
   }, 450);
 }
