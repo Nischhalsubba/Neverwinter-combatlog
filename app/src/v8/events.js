@@ -1,7 +1,6 @@
 import {
   EVENT_PAGE_SIZE,
   activeView,
-  compact,
   copyText,
   currentScope,
   esc,
@@ -14,9 +13,10 @@ import {
 } from './core.js';
 
 const MAX_RESULTS = 250;
-const MAX_SCANNED = 50000;
+const MAX_CANDIDATES_PER_PASS = 50000;
 let searchToken = 0;
 let scheduled = 0;
+const searchState = new WeakMap();
 
 function playerOptions() {
   return ['<option value="">All owners</option>', ...Array.from(playerSelect?.options || []).filter(option => option.value).map(option => `<option value="${esc(option.value)}">${esc(option.textContent.trim())}</option>`)].join('');
@@ -24,7 +24,7 @@ function playerOptions() {
 
 function finderMarkup() {
   return `<section class="panel qol-event-finder" data-qol-event-finder>
-    <div class="panel-head"><div><span class="eyebrow">Find an event</span><h2>Search verified log events</h2></div><span>Up to ${integer(MAX_RESULTS)} matches</span></div>
+    <div class="panel-head"><div><span class="eyebrow">Find an event</span><h2>Search verified log events</h2></div><span>Up to ${integer(MAX_RESULTS)} matches per page</span></div>
     <form class="qol-event-finder-form" data-qol-event-form>
       <label class="field"><span>Owner</span><select name="owner">${playerOptions()}</select></label>
       <label class="field"><span>Event type</span><select name="kind"><option value="">All event types</option><option value="damage">Damage</option><option value="healing">Healing</option><option value="shield">Shield</option><option value="resource">Resource</option><option value="control">Control</option><option value="immune">Immune</option><option value="unknown">Unknown</option></select></label>
@@ -55,7 +55,11 @@ function ensureFinder() {
   finder = root.querySelector('[data-qol-event-finder]');
   finder?.querySelector('[data-qol-event-form]')?.addEventListener('submit', event => {
     event.preventDefault();
-    runSearch(finder);
+    runSearch(finder, { continuation: false });
+  });
+  finder?.addEventListener('click', event => {
+    if (!event.target.closest('[data-qol-continue-search]')) return;
+    runSearch(finder, { continuation: true });
   });
   return finder;
 }
@@ -78,6 +82,10 @@ function formFilters(finder) {
     ca: data.get('ca') === 'on',
     immune: data.get('immune') === 'on'
   };
+}
+
+function filterKey(filters) {
+  return JSON.stringify(filters);
 }
 
 function matches(row, filters) {
@@ -120,34 +128,45 @@ function rowMarkup(row) {
   </tr>`;
 }
 
-function renderResults(finder, rows, scanned, complete) {
+function renderResults(finder, state) {
   const host = finder.querySelector('[data-qol-event-results]');
   const status = finder.querySelector('[data-qol-event-status]');
+  const rows = state.rows || [];
+  const reason = state.complete ? 'search complete'
+    : state.stopReason === 'result-limit' ? `${MAX_RESULTS} result page filled · more verified rows are available`
+    : state.stopReason === 'candidate-limit' ? `${integer(MAX_CANDIDATES_PER_PASS)} candidate rows checked in this pass · more verified rows are available`
+    : 'more verified rows are available';
   if (status) status.textContent = rows.length
-    ? `${integer(rows.length)} match${rows.length === 1 ? '' : 'es'} shown · ${integer(scanned)} rows scanned${complete ? ' · search complete' : ' · scan limit reached; narrow the filters for later rows'}`
-    : `No matches in ${integer(scanned)} scanned rows${complete ? '.' : '; narrow the filters to search later rows.'}`;
+    ? `Page ${state.page} · ${integer(rows.length)} match${rows.length === 1 ? '' : 'es'} shown · ${integer(state.checkedThisPass)} candidate rows checked · ${reason}`
+    : `Page ${state.page} · no matches in ${integer(state.checkedThisPass)} candidate rows${state.complete ? ' · search complete' : ' · more rows are available'}`;
   if (!host) return;
-  host.innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Time</th><th>Owner</th><th>Target</th><th>Power</th><th>Event</th><th>Damage type</th><th class="num">Amount</th><th>Flags</th><th><span class="visually-hidden">Actions</span></th></tr></thead><tbody>${rows.map(rowMarkup).join('')}</tbody></table></div>` : '<div class="empty-block">No matching verified events found.</div>';
+  const table = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Time</th><th>Owner</th><th>Target</th><th>Power</th><th>Event</th><th>Damage type</th><th class="num">Amount</th><th>Flags</th><th><span class="visually-hidden">Actions</span></th></tr></thead><tbody>${rows.map(rowMarkup).join('')}</tbody></table></div>` : '<div class="empty-block">No matching verified events found on this result page.</div>';
+  const continuation = state.complete ? '' : `<div class="qol-event-continue"><button class="button" type="button" data-qol-continue-search>Continue search</button><span>Continues from the next verified row; previous result pages are not rescanned.</span></div>`;
+  host.innerHTML = `${table}${continuation}`;
   host.querySelectorAll('[data-qol-copy-event]').forEach((button, index) => button.addEventListener('click', () => copyText(eventCopy(rows[index]))));
   window.dispatchEvent(new CustomEvent('strikeglass:qol-power-triggers'));
 }
 
-async function runSearch(finder) {
+async function runSearch(finder, { continuation = false } = {}) {
   if (!finder?.isConnected) return;
   const filters = formFilters(finder);
+  const key = filterKey(filters);
+  let state = searchState.get(finder);
+  if (!continuation || !state || state.filterKey !== key || state.complete) {
+    state = { filterKey: key, cursor: null, page: 1, rows: [], checkedTotal: 0, checkedThisPass: 0, complete: false, stopReason: '' };
+  } else {
+    state = { ...state, page: state.page + 1, rows: [], checkedThisPass: 0, stopReason: '' };
+  }
+  searchState.set(finder, state);
   const localToken = ++searchToken;
   const status = finder.querySelector('[data-qol-event-status]');
   const results = finder.querySelector('[data-qol-event-results]');
-  if (status) status.textContent = 'Searching verified events…';
+  if (status) status.textContent = continuation ? `Continuing search at page ${state.page}…` : 'Searching verified events…';
   if (results) results.innerHTML = '';
-  let cursor = null;
-  let scanned = 0;
-  const matchesRows = [];
-  let complete = false;
   try {
     do {
       const page = await workerRequest('raw-page', { options: {
-        cursor,
+        cursor: state.cursor,
         limit: EVENT_PAGE_SIZE,
         playerRef: filters.owner,
         kind: filters.immune ? 'immune' : filters.kind,
@@ -158,18 +177,22 @@ async function runSearch(finder) {
       if (localToken !== searchToken || !finder.isConnected) return;
       if (page?.verification?.status !== 'verified') throw new Error('Events are waiting for the second accuracy check.');
       const pageRows = page.rows || [];
-      scanned += pageRows.length;
+      state.checkedThisPass += pageRows.length;
+      state.checkedTotal += pageRows.length;
       for (const row of pageRows) {
-        if (matches(row, filters)) matchesRows.push(row);
-        if (matchesRows.length >= MAX_RESULTS) break;
+        if (matches(row, filters)) state.rows.push(row);
+        if (state.rows.length >= MAX_RESULTS) break;
       }
-      cursor = page.nextCursor;
-      complete = cursor == null;
-      if (status) status.textContent = `Searching… ${integer(scanned)} rows scanned · ${integer(matchesRows.length)} matches`;
-      if (matchesRows.length >= MAX_RESULTS || scanned >= MAX_SCANNED) break;
+      state.cursor = page.nextCursor;
+      state.complete = state.cursor == null;
+      if (status) status.textContent = `Searching page ${state.page}… ${integer(state.checkedThisPass)} candidate rows checked · ${integer(state.rows.length)} matches`;
+      if (state.rows.length >= MAX_RESULTS) { state.stopReason = 'result-limit'; break; }
+      if (state.checkedThisPass >= MAX_CANDIDATES_PER_PASS) { state.stopReason = 'candidate-limit'; break; }
       await new Promise(resolve => setTimeout(resolve, 0));
-    } while (cursor != null);
-    renderResults(finder, matchesRows, scanned, complete);
+    } while (state.cursor != null);
+    if (state.complete) state.stopReason = 'complete';
+    searchState.set(finder, state);
+    renderResults(finder, state);
   } catch (error) {
     if (localToken !== searchToken || !finder.isConnected) return;
     if (status) status.textContent = error.message || String(error);

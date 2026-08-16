@@ -4,6 +4,25 @@ import { SUPPORT_EFFECT_CATALOG, SUPPORT_EFFECT_CATALOG_VERSION, findSupportEffe
 assert.equal(SUPPORT_EFFECT_CATALOG_VERSION, 2);
 assert.ok(SUPPORT_EFFECT_CATALOG.length >= 70, 'support catalog should retain the workbook and current class-effect coverage');
 
+const normalizeAlias = value => String(value || '')
+  .toLowerCase()
+  .normalize('NFKD')
+  .replace(/[’']/g, '')
+  .replace(/&/g, ' and ')
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim();
+const aliases = new Map();
+for (const entry of SUPPORT_EFFECT_CATALOG) {
+  for (const value of [entry.name, ...(entry.aliases || [])]) {
+    const key = normalizeAlias(value);
+    assert.ok(key, `support effect ${entry.id} must not publish an empty name or alias`);
+    const previous = aliases.get(key);
+    assert.ok(!previous || previous === entry.id, `support-effect alias collision: "${value}" resolves to both ${previous} and ${entry.id}`);
+    aliases.set(key, entry.id);
+  }
+  if (entry.source?.updated) assert.match(String(entry.source.updated), /^\d{4}-\d{2}-\d{2}$/, `${entry.id} source update must use YYYY-MM-DD`);
+}
+
 const armor = findSupportEffect('Armor Break');
 assert.equal(armor.classification, 'enemy-debuff');
 assert.equal(armor.duration, 15);

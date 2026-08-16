@@ -56,7 +56,14 @@ const events = read('src/v8/events.js');
 for (const copy of ['Power contains','Target contains','Minimum amount','Critical','Flank / CA','Immune only','Copy this event']) {
   assert.match(events, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 }
-assert.match(events, /MAX_SCANNED = 50000/);
+assert.match(events, /MAX_RESULTS = 250/);
+assert.match(events, /MAX_CANDIDATES_PER_PASS = 50000/);
+assert.match(events, /matches per page/);
+assert.match(events, /Continue search/);
+assert.match(events, /result-limit/);
+assert.match(events, /candidate-limit/);
+assert.match(events, /state\.cursor/);
+assert.doesNotMatch(events, /scan limit reached; narrow the filters for later rows/);
 assert.match(events, /data-power-popup-player/);
 
 const tables = read('src/v8/tables.js');
