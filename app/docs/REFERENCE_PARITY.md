@@ -129,6 +129,22 @@ Raw damage/hit/power differences are still compared numerically and should be tr
 - A reference disagreement never changes the canonical Physical-only contract by itself.
 - Tolerance must not be widened merely to make an external parser agree.
 
+## Captured NW-Hub calibration evidence
+
+A saved NW-Hub run for `combatlog_2026-08-13_00-00-00.log` is now represented by an anonymized regression fixture. The reference capture contains 15 Party Overview rows, 11 detected encounters, and a Damage Out table for the highest-damage player.
+
+The captured values confirm display parity for:
+
+- player Damage;
+- player Hits;
+- player first-hit-to-last-hit Duration;
+- player DPS for normal non-zero spans;
+- per-power Hits, Damage, damage share, Average, Max, and Crit percentage.
+
+The capture also exposes a zero-span edge case: NW-Hub effectively uses a millisecond-scale denominator floor when two counted hits share the same timestamp. Strikeglass keeps that behavior in the NW-Hub compatibility profile instead of silently changing canonical Personal DPS.
+
+NW-Hub `Combat DPS` remains a different clock from Strikeglass `Active DPS`. The captured log's 11 encounters are reproduced by a party-level outgoing-Physical inactivity model near ten seconds, and that model closely reproduces the captured Combat DPS values, but the reference screenshot does not expose exact per-player combat time. The compatibility implementation therefore remains a separate reference clock. See `NWHUB_CAPTURED_PARITY.md` and `src/engine/nwhub-compatibility.js`.
+
 ## Current 2026-08-14 reference status
 
 The supplied `combatlog_2026-08-14_00-00-00.log` is the canonical real-world parity input for the current audit. Strikeglass can generate its complete schema-v2 snapshot from that file now.
