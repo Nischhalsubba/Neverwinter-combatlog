@@ -223,7 +223,7 @@ try {
   assert.ok(afterZoom[1]-afterZoom[0] < beforeZoom[1]-beforeZoom[0], 'Zoom in must narrow the visible graph range');
   await cdp.eval("document.querySelector('.sg-chart-studio [data-sg-chart-action=\"reset\"]').click()");
   await new Promise(resolve => setTimeout(resolve, 120));
-  const resetZoom = await cdp.eval(`(() => { const stage=document.querySelector('.sg-chart-studio [data-sg-chart-stage]'); const chart=stage&&window.echarts?.getInstanceByDom(stage); const z=chart?.getOption()?.dataZoom?.[0]; return z?[Math.round(Number(z.start)||0),Math.round(Number(z.end)||100]:null; })()`);
+  const resetZoom = await cdp.eval(`(() => { const stage=document.querySelector('.sg-chart-studio [data-sg-chart-stage]'); const chart=stage&&window.echarts?.getInstanceByDom(stage); const z=chart?.getOption()?.dataZoom?.[0]; return z?[Math.round(Number(z.start)||0),Math.round(Number(z.end)||100)]:null; })()`);
   assert.deepEqual(resetZoom, [0,100], 'Graph reset must restore the full fight range');
   await cdp.eval("document.querySelector('.sg-chart-studio [data-sg-chart-action=\"expand\"]').click()");
   assert.equal(await cdp.eval("document.body.classList.contains('sg-visual-expanded')"), true, 'Graph expand must enter expanded mode');
