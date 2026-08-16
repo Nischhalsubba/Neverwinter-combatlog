@@ -9,7 +9,7 @@ on:
       - .github/workflows/security-lock-refresh.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   refresh-lockfile:
@@ -33,10 +33,15 @@ jobs:
           package-json-file: package.json
       - name: Regenerate lockfile only
         run: pnpm install --lockfile-only --no-frozen-lockfile
-      - name: Upload regenerated lockfile
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: security-lockfile
-          path: app/pnpm-lock.yaml
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit regenerated lockfile
+        working-directory: .
+        run: |
+          if git diff --quiet -- app/pnpm-lock.yaml; then
+            echo "Lockfile is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/pnpm-lock.yaml
+          git commit -m "chore: refresh patched dependency lockfile"
+          git push origin HEAD:chore/2026-security-baseline
