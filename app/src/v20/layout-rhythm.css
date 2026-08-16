@@ -63,6 +63,35 @@ th,td{padding:var(--sg-space-2) var(--sg-space-3)}
 .v6-drawer-item{gap:var(--sg-space-2);padding:var(--sg-space-3) var(--sg-space-1)}
 .v6-drawer-foot{gap:var(--sg-space-2);padding:var(--sg-space-3) var(--sg-space-4)}
 
+/* Lazy-loaded QoL, chart, and analysis layers keep the same rhythm. */
+.workspace .qol-breadcrumbs{gap:var(--sg-space-1);margin:0 0 var(--sg-space-2);padding:0}
+.workspace .qol-fight-nav{gap:var(--sg-space-2)}
+.view-root .qol-event-checks,.view-root .qol-table-tools{gap:var(--sg-space-2)}
+.view-root .qol-event-finder{margin-bottom:0}
+.view-root .qol-event-finder-form{gap:var(--sg-space-2);padding:var(--sg-space-3)}
+.view-root .qol-event-results{padding:0 var(--sg-space-3) var(--sg-space-3)}
+body .qol-modal-head,body .qol-modal-body{padding:var(--sg-space-4)}
+body .qol-compare-grid{gap:var(--sg-space-3)}
+body .qol-delta{margin:var(--sg-space-3) 0;padding:var(--sg-space-3)}
+.view-root .sg-chart-toolbar{gap:var(--sg-space-2);padding:var(--sg-space-2) var(--sg-space-3)}
+.view-root .sg-chart-tools-primary,.view-root .sg-chart-tools-secondary{gap:var(--sg-space-2)}
+.view-root .sg-chart-help{padding:var(--sg-space-2) var(--sg-space-3)}
+.view-root .sg-v17-analysis>summary{gap:var(--sg-space-3);min-height:44px;padding:var(--sg-space-2) var(--sg-space-3)}
+.view-root .sg-v17-controls{gap:var(--sg-space-2);padding:var(--sg-space-2) var(--sg-space-3)}
+.view-root .sg-v17-actions{gap:var(--sg-space-2);padding:0 var(--sg-space-3) var(--sg-space-2)}
+.view-root .sg-v17-annotations{gap:var(--sg-space-3);margin:0 var(--sg-space-3) var(--sg-space-2);padding:var(--sg-space-2)}
+.view-root .sg-v17-range-status{padding:var(--sg-space-2) var(--sg-space-3)}
+.view-root .sg-v17-range-summary{padding:0 var(--sg-space-3) var(--sg-space-3)}
+.view-root .sg-v17-summary-grid{gap:var(--sg-space-2);margin-top:var(--sg-space-2)}
+.view-root .sg-v17-summary-columns{gap:var(--sg-space-2);margin-top:var(--sg-space-2)}
+.view-root .sg-debuff-toolbar{gap:var(--sg-space-2);padding:var(--sg-space-2) var(--sg-space-3)}
+.view-root .sg-debuff-brush{margin-top:var(--sg-space-2)}
+.view-root .sg-attempt-visuals{margin-top:var(--sg-section-gap)}
+.view-root .sg-share-strip{margin:var(--sg-space-2) var(--sg-space-3) var(--sg-space-1)}
+.view-root .sg-share-legend{gap:var(--sg-space-2) var(--sg-space-4);padding:0 var(--sg-space-3) var(--sg-space-3)}
+.view-root .sg-category-filter{gap:var(--sg-space-2);margin:var(--sg-space-2) var(--sg-space-3) var(--sg-space-3);padding:var(--sg-space-2)}
+.view-root .sg-diagnostic-bars{gap:var(--sg-space-2);padding:var(--sg-space-2) var(--sg-space-3)}
+
 /* Overview: summary first, details second. */
 .view-root.sg-overview:not(:has(.v6-dashboard-grid)){
   grid-template-columns:repeat(12,minmax(0,1fr));
