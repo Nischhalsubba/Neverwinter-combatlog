@@ -34,8 +34,8 @@ jobs:
         run: |
           test "$(node --version)" = "v24.19.0"
           test "$(pnpm --version)" = "11.22.0"
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
       - name: Audit dependencies
         run: pnpm audit --audit-level low
       - name: Run parser tests and build
