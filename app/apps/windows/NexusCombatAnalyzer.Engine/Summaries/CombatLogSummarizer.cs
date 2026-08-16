@@ -42,7 +42,7 @@ public sealed class CombatLogSummarizer
             }
 
             parsedLines++;
-            if (outcome.Event.Classification != EventClassification.Damage || outcome.Event.Magnitude <= 0)
+            if (!IsCanonicalPublishedDamage(outcome.Event))
             {
                 continue;
             }
@@ -107,6 +107,28 @@ public sealed class CombatLogSummarizer
         return seconds <= 0 ? 1 : seconds;
     }
 
+    private static bool IsCanonicalPublishedDamage(ParsedEvent parsedEvent)
+    {
+        if (parsedEvent.Classification != EventClassification.Damage || parsedEvent.Magnitude <= 0)
+        {
+            return false;
+        }
+
+        if (!string.Equals(parsedEvent.EventType, "Physical", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!parsedEvent.OwnerRef.StartsWith("P[", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return !parsedEvent.Flags.Any(flag =>
+            string.Equals(flag, "Immune", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(flag, "ShowPowerDisplayName", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static bool TryParseNeverwinterTimestamp(string rawTimestamp, out DateTime timestamp)
     {
         return DateTime.TryParseExact(
@@ -119,14 +141,23 @@ public sealed class CombatLogSummarizer
 
     private static bool IsCompanion(ParsedEvent parsedEvent)
     {
-        if (string.IsNullOrWhiteSpace(parsedEvent.OwnerRef) || string.Equals(parsedEvent.OwnerRef, parsedEvent.SourceRef, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(parsedEvent.OwnerRef)
+            || !parsedEvent.OwnerRef.StartsWith("P[", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(parsedEvent.OwnerRef, parsedEvent.SourceRef, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        return parsedEvent.SourceRef.StartsWith("C[", StringComparison.OrdinalIgnoreCase)
-            || parsedEvent.SourceName.Contains("companion", StringComparison.OrdinalIgnoreCase)
-            || parsedEvent.SourceName.Contains("summon", StringComparison.OrdinalIgnoreCase);
+        var sourceRef = parsedEvent.SourceRef.ToLowerInvariant();
+        var sourceName = parsedEvent.SourceName.ToLowerInvariant();
+        return sourceRef.Contains("pet_", StringComparison.Ordinal)
+            || sourceRef.Contains("companion", StringComparison.Ordinal)
+            || sourceRef.Contains("appointment", StringComparison.Ordinal)
+            || sourceRef.Contains("summon", StringComparison.Ordinal)
+            || sourceName.Contains("companion", StringComparison.Ordinal)
+            || sourceName.Contains("pet", StringComparison.Ordinal)
+            || sourceName.Contains("appointment", StringComparison.Ordinal)
+            || sourceName.Contains("summon", StringComparison.Ordinal);
     }
 
     private static string StableKey(string name, string reference) =>
