@@ -40,11 +40,12 @@ jobs:
         working-directory: app
     steps:
       - name: Check out repository
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Set up Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
+          package-manager-cache: false
       - name: Enable pnpm
         run: corepack enable && corepack prepare pnpm@9.15.0 --activate
       - name: Install dependencies
@@ -60,7 +61,7 @@ jobs:
         run: pnpm test:browser
       - name: Upload failure diagnostics
         if: failure()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: strikeglass-ci-diagnostics
           path: |
@@ -70,7 +71,7 @@ jobs:
           retention-days: 7
       - name: Preserve tested production artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: strikeglass-production-${{ env.STRIKEGLASS_SOURCE_SHA }}
           path: app/public
