@@ -17,6 +17,15 @@ if (!document.querySelector('link[data-strikeglass-control-fixes]')) {
   document.head.append(stylesheet);
 }
 
+// Let detected fights wrap into readable cards instead of hiding them in a horizontal rail.
+if (!document.querySelector('link[data-strikeglass-encounter-grid]')) {
+  const stylesheet = document.createElement('link');
+  stylesheet.rel = 'stylesheet';
+  stylesheet.href = new URL('../v19/encounter-grid.css', import.meta.url).href;
+  stylesheet.dataset.strikeglassEncounterGrid = 'true';
+  document.head.append(stylesheet);
+}
+
 // Heavy analysis features are loaded on demand by the v12 runtime.
 await import('../v12/runtime.js');
 
