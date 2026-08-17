@@ -14,6 +14,139 @@ import {
 
 let scheduled = 0;
 
+const HEADER_HELP = Object.freeze({
+  '#': 'Row number.',
+  player: 'The player shown in this row.',
+  class: 'The player class.',
+  damage: 'Total damage dealt.',
+  share: 'Percent of the total damage.',
+  '%': 'Percent of the total damage.',
+  dps: 'Average damage per second for the selected fight.',
+  'combat dps': 'Damage per second while actively in combat.',
+  'active dps': 'Damage per second while actively in combat.',
+  hits: 'Total number of damage hits.',
+  duration: 'How long this activity lasted.',
+  crit: 'Percent of hits that were critical hits.',
+  'crit%': 'Percent of hits that were critical hits.',
+  'flank / ca': 'Percent of hits with Combat Advantage.',
+  'flank%': 'Percent of hits with Combat Advantage.',
+  companion: 'Total damage dealt by the companion.',
+  taken: 'Total damage received.',
+  type: 'The kind of fight or event.',
+  'boss / target': 'The boss or target for this fight.',
+  start: 'When this fight started in the log.',
+  time: 'When this event happened.',
+  '+offset': 'Time since the first hit shown.',
+  target: 'Who or what was hit.',
+  base: 'Damage before debuff amplification.',
+  'debuff%': 'Extra damage compared with the base amount.',
+  flags: 'Extra labels recorded for this hit.',
+  power: 'The power that caused the damage.',
+  category: 'The type of power, such as At-Will or Encounter.',
+  avg: 'Average damage per hit.',
+  average: 'Average value for this row.',
+  max: 'Highest single value.',
+  min: 'Lowest single value.',
+  median: 'The middle value when results are sorted.',
+  owner: 'Who caused this event.',
+  'damage type': 'The damage type recorded in the log.',
+  'event type': 'The kind of combat-log event.',
+  amount: 'Damage amount for this event.',
+  uptime: 'Percent of the selected time this effect was active.',
+  attempts: 'Total number of attempts.',
+  count: 'Total number of matching entries.',
+  delta: 'Difference from the comparison value.',
+  'Δ': 'Difference from the comparison value.'
+});
+
+function normalizeHeader(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function simpleHeaderHelp(label) {
+  const key = normalizeHeader(label);
+  if (HEADER_HELP[key]) return HEADER_HELP[key];
+  if (/avg|average/.test(key)) return 'Average value for this row.';
+  if (/median/.test(key)) return 'The middle value when results are sorted.';
+  if (/max|highest|peak/.test(key)) return 'Highest value for this row.';
+  if (/min|lowest/.test(key)) return 'Lowest value for this row.';
+  if (/damage/.test(key)) return 'Damage value for this row.';
+  if (/dps/.test(key)) return 'Damage per second for this row.';
+  if (/uptime/.test(key)) return 'Percent of time this was active.';
+  if (/share|percent|%/.test(key)) return 'Percent of the total for this row.';
+  if (/hits|count|uses|casts|events|rows/.test(key)) return 'Total number for this row.';
+  if (/duration|elapsed/.test(key)) return 'How long this lasted.';
+  if (/time|start|end/.test(key)) return 'When this happened in the selected fight.';
+  if (/player|owner|source/.test(key)) return 'Who this row belongs to.';
+  if (/target|boss/.test(key)) return 'Who or what this row refers to.';
+  if (/power|effect|debuff|buff/.test(key)) return 'The combat effect shown in this row.';
+  if (/delta|difference|change|Δ/.test(label)) return 'Difference from the comparison value.';
+  return `The ${String(label || 'column').toLowerCase()} value for this row.`;
+}
+
+function ensureHeaderTooltip() {
+  let tooltip = document.getElementById('qol-header-tooltip');
+  if (tooltip) return tooltip;
+  tooltip = document.createElement('div');
+  tooltip.id = 'qol-header-tooltip';
+  tooltip.className = 'qol-header-tooltip';
+  tooltip.setAttribute('role', 'tooltip');
+  tooltip.hidden = true;
+  document.body.append(tooltip);
+  return tooltip;
+}
+
+function showHeaderTooltip(button) {
+  const tooltip = ensureHeaderTooltip();
+  tooltip.textContent = button.dataset.qolHeaderHelp || 'Column explanation.';
+  tooltip.hidden = false;
+  tooltip.classList.add('is-visible');
+  const rect = button.getBoundingClientRect();
+  const gap = 8;
+  const edge = 8;
+  const width = tooltip.offsetWidth;
+  const height = tooltip.offsetHeight;
+  let left = rect.left + rect.width / 2 - width / 2;
+  left = Math.max(edge, Math.min(left, window.innerWidth - width - edge));
+  let top = rect.bottom + gap;
+  if (top + height > window.innerHeight - edge) top = Math.max(edge, rect.top - height - gap);
+  tooltip.style.left = `${Math.round(left)}px`;
+  tooltip.style.top = `${Math.round(top)}px`;
+  button.setAttribute('aria-describedby', tooltip.id);
+}
+
+function hideHeaderTooltip(button) {
+  const tooltip = document.getElementById('qol-header-tooltip');
+  tooltip?.classList.remove('is-visible');
+  if (tooltip) tooltip.hidden = true;
+  button?.removeAttribute('aria-describedby');
+}
+
+function addHeaderHelp(table) {
+  Array.from(table.querySelectorAll('thead th')).forEach((header, index) => {
+    if (header.querySelector('[data-qol-header-help-button]')) return;
+    const label = header.textContent.trim() || `Column ${index + 1}`;
+    const help = simpleHeaderHelp(label);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'qol-header-help';
+    button.dataset.qolHeaderHelpButton = 'true';
+    button.dataset.qolHeaderHelp = help;
+    button.setAttribute('aria-label', `${label}: ${help}`);
+    button.title = help;
+    button.addEventListener('pointerenter', () => showHeaderTooltip(button));
+    button.addEventListener('pointerleave', () => hideHeaderTooltip(button));
+    button.addEventListener('focus', () => showHeaderTooltip(button));
+    button.addEventListener('blur', () => hideHeaderTooltip(button));
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      showHeaderTooltip(button);
+    });
+    header.append(button);
+  });
+}
+
 function tableKey(table, index) {
   const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim()).join('|');
   return `${activeView()}:${index}:${headers}`;
@@ -113,8 +246,10 @@ function addTools(table, key) {
 }
 
 function enhanceTables() {
+  const allTables = Array.from(document.querySelectorAll('table'));
+  allTables.forEach(addHeaderHelp);
   if (!root) return;
-  const tables = Array.from(root.querySelectorAll('table')).filter(table => !table.closest('.power-popup,.qol-modal'));
+  const tables = allTables.filter(table => root.contains(table) && !table.closest('.power-popup,.qol-modal'));
   tables.forEach((table, index) => {
     const key = tableKey(table, index);
     applyColumns(table, key);
@@ -131,9 +266,12 @@ function schedule() {
 new MutationObserver(schedule).observe(root || document.body, { childList: true, subtree: false });
 document.getElementById('app-nav')?.addEventListener('click', schedule);
 document.getElementById('encounter-select')?.addEventListener('change', schedule);
+document.addEventListener('strikeglass:view-rendered', schedule);
+document.addEventListener('strikeglass:power-popup-refresh', schedule);
 document.addEventListener('click', event => {
   document.querySelectorAll('[data-qol-column-popover]:not([hidden])').forEach(popover => {
     if (!event.target.closest('.qol-column-wrap')) popover.hidden = true;
   });
+  if (!event.target.closest('[data-qol-header-help-button]')) hideHeaderTooltip();
 });
 schedule();
