@@ -40,4 +40,57 @@ if (corruptedRotation.lanes[0]?.activations[0]) corruptedRotation.lanes[0].activ
 const rotationBad = verifyRotationReport(corruptedRotation, parsed.rows, context);
 assert.equal(rotationBad.status, 'mismatch');
 
+// Explicit Encounter markers are a separate evidence dimension from the shadow reconstruction.
+// Two close markers reproduce the real-world case where the generic Encounter grouping can collapse
+// them into one reconstructed activation. That evidence conflict must be surfaced, not mislabeled as
+// a primary-vs-verifier engine disagreement that blanks the entire Fight Timeline.
+const closeMarkerRows = [
+  {
+    lineNo: 1,
+    time: 10,
+    ownerName: 'Nefarius',
+    ownerRef: 'P[1 Nefarius]',
+    sourceName: '',
+    sourceRef: '*',
+    targetName: 'Nefarius',
+    targetRef: 'P[1 Nefarius]',
+    powerName: 'Icy Rays',
+    powerRef: 'Power_Icy_Rays',
+    damageType: 'Power',
+    flagsRaw: '',
+    amount: -1,
+    baseAmount: 0,
+    validDamage: false,
+    companion: false
+  },
+  {
+    lineNo: 2,
+    time: 10.7,
+    ownerName: 'Nefarius',
+    ownerRef: 'P[1 Nefarius]',
+    sourceName: '',
+    sourceRef: '*',
+    targetName: 'Nefarius',
+    targetRef: 'P[1 Nefarius]',
+    powerName: 'Icy Rays',
+    powerRef: 'Power_Icy_Rays',
+    damageType: 'Power',
+    flagsRaw: '',
+    amount: -1,
+    baseAmount: 0,
+    validDamage: false,
+    companion: false
+  }
+];
+const closeMarkerContext = { scopeType: 'session', scopeStart: 0, scopeEnd: 20, targetOnly: false, bossTargets: [], totalRows: closeMarkerRows.length };
+const closeMarkerRotation = buildShadowRotation(closeMarkerRows, closeMarkerContext);
+assert.equal(closeMarkerRotation.activationCount, 1, 'fixture must reproduce close explicit markers being collapsed by the current Encounter reconstruction rule');
+const closeMarkerVerification = verifyRotationReport(closeMarkerRotation, closeMarkerRows, closeMarkerContext);
+assert.equal(closeMarkerVerification.consistency.ok, true, 'primary and shadow reconstruction still agree in this fixture');
+assert.equal(closeMarkerVerification.directEvidence.ok, false, 'direct marker evidence must still record the conflict');
+assert.equal(closeMarkerVerification.evidenceStatus, 'direct-evidence-mismatch');
+assert.equal(closeMarkerVerification.ok, true, 'direct evidence conflict must not impersonate an engine-consistency failure');
+assert.equal(closeMarkerVerification.status, 'verified', 'consistent inferred rotation remains publishable');
+assert.ok(closeMarkerVerification.warnings.some(item => item.key === 'rotation-direct-evidence-mismatch'), 'published rotation must carry an explicit direct-evidence warning');
+
 console.log('Verification regression passed.');

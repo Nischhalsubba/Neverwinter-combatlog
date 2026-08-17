@@ -76,17 +76,30 @@ export function verifyRotationReport(primary, rows, context = {}, onProgress = n
   const consistency = verifyRotationConsistency(primary, tappedRows(), context, ratio => onProgress?.(0.25 + 0.55 * ratio));
   const directEvidence = verifyDirectRotationMarkers(primary, markers);
   onProgress?.(1);
-  const ok = Boolean(consistency.ok) && Boolean(directEvidence.ok);
+
+  // Rotation reconstruction and direct cast-marker evidence are separate evidence dimensions.
+  // A direct marker mismatch must remain visible, but it must not masquerade as a disagreement
+  // between the primary rotation builder and the independent shadow reconstruction.
+  const ok = Boolean(consistency.ok);
   const evidenceStatus = !consistency.ok ? 'consistency-mismatch'
     : !directEvidence.ok ? 'direct-evidence-mismatch'
     : directEvidence.markers ? 'verified-direct-evidence'
     : 'consistent-inferred';
+  const directEvidenceWarnings = !directEvidence.markers
+    ? [{ key: 'rotation-direct-evidence', value: 'No explicit Encounter cast markers were available in this scope; activation timing remains inferred.' }]
+    : !directEvidence.ok
+      ? [{
+          key: 'rotation-direct-evidence-mismatch',
+          value: `${directEvidence.unmatched} explicit Encounter cast marker${directEvidence.unmatched === 1 ? '' : 's'} did not align with the reconstructed activations. The independent rotation reconstruction still agrees, so the timeline remains available as inferred analysis while the direct-evidence conflict is shown for review.`
+        }]
+      : [];
+
   return {
     ...consistency,
     ok,
     status: ok ? 'verified' : 'mismatch',
     evidenceStatus,
-    engine: 'rotation-verifier-v2',
+    engine: 'rotation-verifier-v3',
     consistency: {
       ok: Boolean(consistency.ok),
       engine: consistency.engine,
@@ -96,9 +109,9 @@ export function verifyRotationReport(primary, rows, context = {}, onProgress = n
     directEvidence,
     warnings: [
       ...(consistency.warnings || []),
-      ...(directEvidence.markers ? [] : [{ key: 'rotation-direct-evidence', value: 'No explicit Encounter cast markers were available in this scope; activation timing remains inferred.' }])
+      ...directEvidenceWarnings
     ]
   };
 }
 
-export const VERIFICATION_ENGINE_VERSION = Math.max(6, Number(CORE_VERIFICATION_ENGINE_VERSION) + 1);
+export const VERIFICATION_ENGINE_VERSION = Math.max(7, Number(CORE_VERIFICATION_ENGINE_VERSION) + 1);
