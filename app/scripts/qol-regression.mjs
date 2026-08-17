@@ -71,6 +71,20 @@ assert.match(tables, /Copy fight summary/);
 assert.match(tables, /Export CSV/);
 assert.match(tables, /Columns/);
 assert.match(tables, /localStorage|savePrefs/);
+for (const marker of [
+  'HEADER_HELP',
+  "damage: 'Total damage dealt.'",
+  "avg: 'Average damage per hit.'",
+  'data-qol-header-help-button',
+  'aria-label',
+  'aria-describedby',
+  'pointerenter',
+  "addEventListener('focus'",
+  'showHeaderTooltip',
+  'hideHeaderTooltip'
+]) assert.ok(tables.includes(marker), `table header help missing ${marker}`);
+assert.match(tables, /allTables\.forEach\(addHeaderHelp\)/, 'Every rendered table should receive header help, including compact and popup tables');
+assert.match(tables, /header\.append\(button\)/, 'Help control should sit beside the visible table heading');
 
 const command = read('src/v8/command.js');
 assert.match(command, /Quick navigation/);
@@ -87,6 +101,14 @@ assert.match(css, /max-width:1024px/);
 assert.match(css, /max-width:768px/);
 assert.match(css, /prefers-reduced-motion:reduce/);
 assert.match(css, /qol-sticky-table/);
+for (const marker of [
+  '.qol-header-help',
+  ".qol-header-help::before{content:'?'}",
+  '.qol-header-help::after',
+  'inset:-10px',
+  '.qol-header-tooltip',
+  '.qol-header-tooltip.is-visible'
+]) assert.ok(css.includes(marker), `table header help stylesheet missing ${marker}`);
 
 const controlFixes = read('src/v18/control-fixes.css');
 for (const marker of [
