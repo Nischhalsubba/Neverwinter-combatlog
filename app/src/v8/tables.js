@@ -55,8 +55,7 @@ const HEADER_HELP = Object.freeze({
   uptime: 'Percent of the selected time this effect was active.',
   attempts: 'Total number of attempts.',
   count: 'Total number of matching entries.',
-  delta: 'Difference from the comparison value.',
-  'Δ': 'Difference from the comparison value.'
+  delta: 'Difference from the comparison value.'
 });
 
 function normalizeHeader(value) {
@@ -80,7 +79,7 @@ function simpleHeaderHelp(label) {
   if (/player|owner|source/.test(key)) return 'Who this row belongs to.';
   if (/target|boss/.test(key)) return 'Who or what this row refers to.';
   if (/power|effect|debuff|buff/.test(key)) return 'The combat effect shown in this row.';
-  if (/delta|difference|change|Δ/.test(label)) return 'Difference from the comparison value.';
+  if (/delta|difference|change/i.test(key) || /[Δδ]/.test(label)) return 'Difference from the comparison value.';
   return `The ${String(label || 'column').toLowerCase()} value for this row.`;
 }
 
@@ -133,7 +132,6 @@ function addHeaderHelp(table) {
     button.dataset.qolHeaderHelpButton = 'true';
     button.dataset.qolHeaderHelp = help;
     button.setAttribute('aria-label', `${label}: ${help}`);
-    button.title = help;
     button.addEventListener('pointerenter', () => showHeaderTooltip(button));
     button.addEventListener('pointerleave', () => hideHeaderTooltip(button));
     button.addEventListener('focus', () => showHeaderTooltip(button));
@@ -263,7 +261,10 @@ function schedule() {
   scheduled = requestAnimationFrame(() => { scheduled = 0; enhanceTables(); });
 }
 
-new MutationObserver(schedule).observe(root || document.body, { childList: true, subtree: false });
+new MutationObserver(records => {
+  const hasNewTable = records.some(record => Array.from(record.addedNodes).some(node => node.nodeType === 1 && (node.matches?.('table,thead,th') || node.querySelector?.('table,thead,th'))));
+  if (hasNewTable) schedule();
+}).observe(document.body, { childList: true, subtree: true });
 document.getElementById('app-nav')?.addEventListener('click', schedule);
 document.getElementById('encounter-select')?.addEventListener('change', schedule);
 document.addEventListener('strikeglass:view-rendered', schedule);
